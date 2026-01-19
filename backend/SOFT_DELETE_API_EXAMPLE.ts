@@ -22,7 +22,7 @@ import { getUserIdFromToken } from '@/lib/jwt';
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+        if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
         // Check if admin wants to see deleted records
         const url = new URL(req.url);
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         );
 
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Failed to fetch employees');
+        return errorResponse('FETCH_ERROR', error.message || 'Failed to fetch employees');
     }
 }
 
@@ -66,13 +66,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+        if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
         let data = await req.json();
         data = await autoAssignCompany(userId, data);
 
         if (!data.first_name || !data.employee_code) {
-            return errorResponse(null, 'first_name and employee_code are required', 400);
+            return errorResponse('VALIDATION_ERROR', 'first_name and employee_code are required', 400);
         }
 
         const { data: employee, error } = await supabase
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
         return successResponse(employee, 'Employee created successfully', 201);
 
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Failed to create employee');
+        return errorResponse('CREATE_ERROR', error.message || 'Failed to create employee');
     }
 }
 
@@ -97,14 +97,14 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+        if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
         // Get employee ID from URL
         const url = new URL(req.url);
         const employeeId = parseInt(url.pathname.split('/').pop() || '0');
 
         if (!employeeId) {
-            return errorResponse(null, 'Invalid employee ID', 400);
+            return errorResponse('VALIDATION_ERROR', 'Invalid employee ID', 400);
         }
 
         // Get delete reason from body (optional)
@@ -120,7 +120,7 @@ export async function DELETE(req: NextRequest) {
         );
 
         if (!success) {
-            return errorResponse(null, 'Failed to delete employee', 500);
+            return errorResponse('DELETE_ERROR', 'Failed to delete employee', 500);
         }
 
         return successResponse(
@@ -129,7 +129,7 @@ export async function DELETE(req: NextRequest) {
         );
 
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Failed to delete employee');
+        return errorResponse('DELETE_ERROR', error.message || 'Failed to delete employee');
     }
 }
 
@@ -140,14 +140,14 @@ export async function DELETE(req: NextRequest) {
 export async function PUT(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+        if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
         // Check if this is a restore request
         const url = new URL(req.url);
         const isRestore = url.pathname.endsWith('/restore');
 
         if (!isRestore) {
-            return errorResponse(null, 'Invalid endpoint', 400);
+            return errorResponse('VALIDATION_ERROR', 'Invalid endpoint', 400);
         }
 
         // Get employee ID
@@ -155,14 +155,14 @@ export async function PUT(req: NextRequest) {
         const employeeId = parseInt(pathParts[pathParts.length - 2] || '0');
 
         if (!employeeId) {
-            return errorResponse(null, 'Invalid employee ID', 400);
+            return errorResponse('VALIDATION_ERROR', 'Invalid employee ID', 400);
         }
 
         // Restore record
         const success = await restoreRecord('employees', employeeId, userId);
 
         if (!success) {
-            return errorResponse(null, 'Failed to restore employee', 500);
+            return errorResponse('RESTORE_ERROR', 'Failed to restore employee', 500);
         }
 
         return successResponse(
@@ -171,6 +171,6 @@ export async function PUT(req: NextRequest) {
         );
 
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Failed to restore employee');
+        return errorResponse('RESTORE_ERROR', error.message || 'Failed to restore employee');
     }
 }
