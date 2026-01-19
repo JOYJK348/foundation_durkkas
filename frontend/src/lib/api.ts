@@ -2,17 +2,24 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const getBaseUrl = () => {
-    // 1. Check for manual override
+    // 1. Priority: Environment Variable (Must be set in Vercel)
     if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
 
-    // 2. Client-side: Match the URL in the browser bar
+    // 2. Client-side handling
     if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
-        // If we are on 10.11.x.x, talk to 10.11.x.x:3000
-        return `http://${hostname}:3000/api`;
+
+        // Development / Local Network
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('10.') || hostname.startsWith('192.')) {
+            return `http://${hostname}:3000/api`;
+        }
+
+        // Production fallback: Assuming API is on same domain or specific subdomain
+        // For Vercel projects, you should ideally set NEXT_PUBLIC_API_URL
+        return '/api';
     }
 
-    // 3. Fallback for server-side
+    // 3. Server-side fallback (Local)
     return 'http://127.0.0.1:3000/api';
 };
 

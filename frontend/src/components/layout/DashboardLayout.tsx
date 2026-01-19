@@ -631,11 +631,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Mobile Bottom Navigation - iOS Style */}
             <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-200 lg:hidden z-40 shadow-2xl">
                 <div className="flex items-center justify-around h-full px-2 pb-safe">
-                    {filteredNav.slice(0, 4).map((item) => {
+                    {finalNav.slice(0, 4).map((item) => {
                         const isActive = pathname === item.href;
                         return (
                             <Link
-                                key={item.href}
+                                key={item.id}
                                 href={item.href}
                                 className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all ${isActive
                                     ? "text-[#0066FF]"
@@ -676,11 +676,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                         {/* Mobile Navigation */}
                         <nav className="space-y-2">
-                            {filteredNav.map((item) => {
+                            {finalNav.map((item) => {
                                 const isActive = pathname === item.href;
                                 return (
                                     <Link
-                                        key={item.href}
+                                        key={item.id}
                                         href={item.href}
                                         onClick={() => setIsSidebarOpen(false)}
                                         className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all ${isActive
