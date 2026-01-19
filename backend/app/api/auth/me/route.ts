@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         if (error) throw new Error(error.message);
 
         // Fetch Role-Based Permissions (via RPC)
-        const { data: rolePerms } = await supabaseService.rpc('get_user_permissions', { p_user_id: userId } as any);
+        const { data: rolePerms } = await supabaseService.rpc('get_user_permissions', { p_user_id: userId } as unknown as never);
 
         // Fetch Granular User Permissions (Direct Query)
         const { data: userOverridePerms } = await app_auth.userPermissions()
