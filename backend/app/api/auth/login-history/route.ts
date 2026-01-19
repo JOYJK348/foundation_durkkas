@@ -21,6 +21,6 @@ export async function GET(_req: NextRequest) {
         if (error) throw new Error(error.message);
         return successResponse(data, 'Login history fetched successfully');
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Failed to fetch login history');
+        return errorResponse('FETCH_ERROR', error.message || 'Failed to fetch login history');
     }
 }
