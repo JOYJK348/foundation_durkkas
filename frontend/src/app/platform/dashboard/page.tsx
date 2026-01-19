@@ -241,7 +241,7 @@ export default function PlatformDashboard() {
                             <span className="text-[10px] font-bold text-[#0066FF] uppercase tracking-wider">System Live</span>
                         </div>
                         <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
-                            Hello, Platform Admin 👋
+                            Hello, Platform Admin !👋
                         </h1>
                         <p className="text-sm md:text-base text-slate-600 font-medium">
                             Welcome back! Here's what's happening with your platform today.
