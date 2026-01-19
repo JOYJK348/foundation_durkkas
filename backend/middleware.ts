@@ -14,7 +14,13 @@ export async function middleware(req: NextRequest) {
 
     // 1. Dynamic CORS Handling
     const origin = req.headers.get('origin') || '';
-    const isAllowedOrigin = ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV === 'development';
+
+    // Check if origin matches allowed list, or is a Vercel preview/production domain
+    const isAllowedOrigin =
+        ALLOWED_ORIGINS.includes(origin) ||
+        process.env.NODE_ENV === 'development' ||
+        origin.endsWith('.vercel.app') || // Allow all Vercel domains (e.g. preview deployments)
+        (process.env.NEXT_PUBLIC_FRONTEND_URL && origin === process.env.NEXT_PUBLIC_FRONTEND_URL);
 
     // 2. Security Headers Helper
     const applySecurityHeaders = (response: NextResponse) => {
