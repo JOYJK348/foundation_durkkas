@@ -1,0 +1,197 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Lock, Mail, Eye, EyeOff, Building2, Server } from "lucide-react";
+import Cookie from "js-cookie";
+
+import { useAuthStore } from "@/store/useAuthStore";
+import { toast } from "sonner";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import api from "@/lib/api";
+
+export default function LoginPage() {
+    const router = useRouter();
+    const { setUser } = useAuthStore();
+    const { addNotification } = useNotificationStore();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const completeLogin = (user: any, tokens: any, selectedRole: any) => {
+        const displayName = user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : user.display_name || "User";
+
+        // Store tokens and user info in Cookies (for server-side/middleware)
+        Cookie.set("access_token", tokens.accessToken, { expires: 1 });
+        Cookie.set("user_role", selectedRole.name || "GUEST");
+        Cookie.set("user_role_level", (selectedRole.level ?? 0).toString());
+        Cookie.set("user_display_name", displayName);
+
+        // CRITICAL: Store active branch ID for middleware
+        if (selectedRole.branch_id) {
+            Cookie.set("x-branch-id", selectedRole.branch_id.toString(), { expires: 1 });
+        } else {
+            Cookie.remove("x-branch-id");
+        }
+
+        // Set User in Zustand Store
+        setUser({
+            id: user.id.toString(),
+            email: user.email,
+            display_name: displayName,
+            role: {
+                name: selectedRole.name || "GUEST",
+                level: selectedRole.level ?? 0
+            },
+            branch_id: selectedRole.branch_id
+        });
+
+        // Add Success Notification
+        addNotification({
+            title: "Login Successful",
+            message: `Welcome back, ${displayName}! You have successfully accessed your dashboard.`,
+            type: "success"
+        });
+
+        toast.success("Welcome back!", {
+            description: `Signed in as ${displayName}`
+        });
+
+        // Role-based Redirect
+        const roleLevel = selectedRole.level ?? 0;
+        if (roleLevel >= 5) {
+            router.push("/platform/dashboard");
+        } else if (roleLevel >= 4) {
+            router.push("/workspace/dashboard");
+        } else if (roleLevel >= 1) {
+            router.push("/branch/dashboard");
+        } else {
+            router.push("/employee/dashboard");
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError("");
+
+        try {
+            // Use the centralized api instance instead of hardcoded fetch
+            const response = await api.post('/auth/login', { email, password });
+            const data = response.data;
+
+            const { user, tokens } = data.data;
+            if (!user) throw new Error("Invalid response from server");
+
+            const roles = user.roles || [];
+            // Roles are pre-sorted by level descending in the backend lib
+            const primaryRole = roles[0] || { name: "GUEST", level: 0 };
+
+            completeLogin(user, tokens, primaryRole);
+        } catch (err: any) {
+            setError(err.message || "An error occurred");
+            toast.error("Login Failed", { description: err.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-4 relative overflow-hidden">
+            {/* Abstract Background Shapes */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[100px]" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[100px]" />
+
+            <div className="w-full max-w-md animate-fade-in">
+                <div className="flex flex-col items-center mb-8">
+                    <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-primary/20 transition-transform hover:scale-105 duration-300">
+                        <Server className="text-white w-8 h-8" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-primary tracking-tight">Durkkas ERP</h1>
+                    <p className="text-muted-foreground mt-1 text-sm font-medium uppercase tracking-widest">Enterprise Ecosystem</p>
+                </div>
+
+                <div className="premium-glass rounded-3xl p-8 md:p-10">
+                    <div className="mb-6">
+                        <h2 className="text-xl font-bold text-primary">Welcome Back</h2>
+                        <p className="text-muted-foreground text-sm mt-1">Please enter your credentials to access your workspace.</p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-primary/70 ml-1">WORK EMAIL</label>
+                            <div className="relative group">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-accent transition-colors" />
+                                <input
+                                    type="email"
+                                    required
+                                    placeholder="name@company.com"
+                                    className="input-premium pl-11"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between ml-1">
+                                <label className="text-xs font-semibold text-primary/70 uppercase">Password</label>
+                                <Link href="/forgot-password" disabled className="text-xs font-medium text-accent hover:underline decoration-2 underline-offset-4 pointer-events-none opacity-50">Forgot?</Link>
+                            </div>
+                            <div className="relative group">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-accent transition-colors" />
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    placeholder="••••••••"
+                                    className="input-premium pl-11 pr-11"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-xs font-medium animate-shake">
+                                {error}
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="btn-primary w-full h-12 text-base font-semibold transition-all hover:translate-y-[-2px] shadow-lg shadow-primary/20"
+                        >
+                            {isLoading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : "Sign In to Ecosystem"}
+                        </button>
+                    </form>
+
+                    <div className="mt-8 pt-6 border-t border-border flex flex-col items-center">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-tighter">
+                            <Building2 className="w-3 h-3" />
+                            <span>Multi-Tenant Powered by Durkkas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p className="text-center mt-8 text-xs text-muted-foreground">
+                    &copy; 2026 Durkkas Innovations. All rights reserved.
+                </p>
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,18 @@
+// Add this helper function after loadDashboardData (around line 171)
+
+// Filter companies based on all criteria
+const getFilteredCompanies = () => {
+    return allCompanies.filter(c => {
+        const matchesSearch = (c.name?.toLowerCase().includes(searchTerm.toLowerCase()) || c.code?.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesPlan = planFilter === \"ALL\" || c.subscription_plan === planFilter;
+        const matchesCompany = selectedCompanyId === \"ALL\" || c.id === selectedCompanyId;
+        return matchesSearch && matchesPlan && matchesCompany;
+    });
+};
+
+// THEN in the table body (around line 390), replace the filter logic with:
+// {getFilteredCompanies().length === 0 ? (
+//     <tr><td colSpan={3} className=\"px-6 py-8 text-center text-sm text-slate-500\">No matching entities found.</td></tr>
+// ) : (
+//     getFilteredCompanies().map((company) => (
+//         // ... rest of the mapping code
