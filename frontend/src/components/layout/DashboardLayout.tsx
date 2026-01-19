@@ -589,20 +589,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 )}
                             </button>
                             {showNotifications && (
-                                <>
-                                    {/* Backdrop for mobile */}
-                                    <div
-                                        className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-                                        onClick={() => setShowNotifications(false)}
-                                    />
-                                    {/* Panel */}
-                                    <div className="hidden lg:block">
-                                        <NotificationPanel onClose={() => setShowNotifications(false)} />
-                                    </div>
-                                    <div className="lg:hidden">
-                                        <NotificationPanel onClose={() => setShowNotifications(false)} isMobile={true} />
-                                    </div>
-                                </>
+                                <div className="hidden lg:block">
+                                    <NotificationPanel onClose={() => setShowNotifications(false)} />
+                                </div>
                             )}
                         </div>
 
@@ -717,6 +706,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                         </nav>
                     </aside>
+                </div>
+            )}
+
+            {/* Mobile Notification Drawer Overlay */}
+            {showNotifications && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110] lg:hidden" onClick={() => setShowNotifications(false)}>
+                    <div className="flex justify-end h-full w-full" onClick={(e) => e.stopPropagation()}>
+                        <div className="animate-in slide-in-from-right duration-300 h-full w-full max-w-[400px]">
+                            <NotificationPanel onClose={() => setShowNotifications(false)} isMobile={true} />
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
