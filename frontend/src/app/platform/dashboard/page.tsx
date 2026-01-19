@@ -95,8 +95,18 @@ export default function PlatformDashboard() {
                 companyAdmins
             });
 
-            // Get recent 5 companies
-            setRecentCompanies(companiesData.slice(0, 5).map((c: any) => ({
+            // Get recent 5 companies (Sorted by creation time or ID descending)
+            const sortedRecent = [...companiesData].sort((a: any, b: any) => {
+                // Try sorting by ID descending (assuming serial or UUID with time component)
+                // or created_at if available
+                if (a.created_at && b.created_at) {
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                }
+                // Fallback to ID comparison if timestamps missing (string comparison for UUIDs works roughly for time if sequential)
+                return String(b.id).localeCompare(String(a.id));
+            });
+
+            setRecentCompanies(sortedRecent.slice(0, 5).map((c: any) => ({
                 id: c.id,
                 name: c.name,
                 plan: c.subscription_plan || 'TRIAL',
