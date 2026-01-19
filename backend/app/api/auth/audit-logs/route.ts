@@ -4,6 +4,7 @@ import { SCHEMAS } from '@/config/constants';
 import { errorResponse } from '@/lib/errorHandler';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * AUTH: Audit Logs API
