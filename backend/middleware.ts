@@ -68,7 +68,9 @@ export async function middleware(req: NextRequest) {
     const publicPaths = [
         '/api/auth/login',
         '/api/health',
-        '/api/debug'
+        '/api/debug',
+        '/api/crm/applications',
+        '/api/crm/debug'
     ];
 
     if (publicPaths.some(path => pathname.startsWith(path))) {
