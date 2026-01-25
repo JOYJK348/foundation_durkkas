@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import api from '@/lib/api';
 import '../crm.css';
@@ -10,7 +10,7 @@ const mainCategories = [
     {
         id: 'ai-robotics',
         title: 'School of AI & Robotics',
-        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1000&q=80',
         icon: (
             <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="10" rx="2"></rect>
@@ -24,7 +24,7 @@ const mainCategories = [
     {
         id: 'languages',
         title: 'School of Languages',
-        image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1000&q=80',
         icon: (
             <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 8l6 6"></path>
@@ -39,7 +39,7 @@ const mainCategories = [
     {
         id: 'finance',
         title: 'School of Finance',
-        image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&q=80',
         icon: (
             <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -50,7 +50,7 @@ const mainCategories = [
     {
         id: 'business',
         title: 'School of Business',
-        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1000&q=80',
         icon: (
             <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
@@ -62,25 +62,28 @@ const mainCategories = [
 
 const subCategoriesMap: Record<string, { id: string, label: string, image: string }[]> = {
     'ai-robotics': [
-        { id: 'k12-robotics', label: 'K-12 Robotics', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80' },
-        { id: 'aicra-courses', label: 'AICRA Courses', image: 'https://images.unsplash.com/photo-1555255707-c07966088b7b?w=600&q=80' }
+        { id: 'k12-robotics', label: 'K-12 Robotics', image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&q=80' },
+        { id: 'aicra-courses', label: 'AICRA Courses', image: 'https://images.unsplash.com/photo-1531746790731-6c41d256ef72?w=800&q=80' }
     ],
     'languages': [
-        { id: 'indian-languages', label: 'Indian Languages', image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&q=80' },
-        { id: 'foreign-languages', label: 'Foreign Languages', image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600&q=80' }
+        { id: 'indian-languages', label: 'Indian Languages', image: 'https://images.unsplash.com/photo-1566678299103-c10d75739edf?w=800&q=80' },
+        { id: 'foreign-languages', label: 'Foreign Languages', image: 'https://images.unsplash.com/photo-1526662092594-e98c1e356d6a?w=800&q=80' }
     ],
     'finance': [
-        { id: 'accounting-taxation', label: 'Accounting & Taxation', image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&q=80' },
-        { id: 'company-formation', label: 'Company Formation', image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80' }
+        { id: 'accounting-taxation', label: 'Accounting & Taxation', image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80' },
+        { id: 'company-formation', label: 'Company Formation', image: 'https://images.unsplash.com/photo-1507679799987-c7377ec48696?w=800&q=80' }
     ],
     'business': [
-        { id: 'digital-business', label: 'Digital Business Admin', image: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=600&q=80' },
-        { id: 'digital-marketing', label: 'Digital Marketing', image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=600&q=80' }
+        { id: 'digital-business', label: 'Digital Business Admin', image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80' },
+        { id: 'digital-marketing', label: 'Digital Marketing', image: 'https://images.unsplash.com/photo-1432888622747-4eb9a8f2c20e?w=800&q=80' }
     ]
 };
 
 export default function CourseEnquiryPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const cid = searchParams.get('cid'); // Extract company ID from URL
+
     const [view, setView] = useState('categories');
     const [selectedMain, setSelectedMain] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,8 +99,16 @@ export default function CourseEnquiryPage() {
         address: '',
         course_enquiry: '',
         remarks: '',
-        company_id: 20,
+        company_id: cid ? parseInt(cid) : 11, // Use cid from URL or default to 11
     });
+    const [fileError, setFileError] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const getWordCount = (text: string) => {
+        return text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+    };
+
+
 
     const calculateAge = (dobString: string) => {
         if (!dobString) return 0;
@@ -113,6 +124,29 @@ export default function CourseEnquiryPage() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
+
+        // 1. Name validation: Only characters and spaces
+        if (name === 'name') {
+            const charOnlyValue = value.replace(/[^a-zA-Z\s]/g, '');
+            setFormData(prev => ({ ...prev, [name]: charOnlyValue }));
+            return;
+        }
+
+        // 2. Phone number validation: Only 10 digit numbers
+        if (name === 'phone_number') {
+            const numericValue = value.replace(/\D/g, '').slice(0, 10);
+            setFormData(prev => ({ ...prev, [name]: numericValue }));
+            return;
+        }
+
+        // 3. Word count validation for course_enquiry and remarks
+        if (name === 'course_enquiry' || name === 'remarks') {
+            const words = value.trim().split(/\s+/);
+            if (words.length > 500 && value.length > (formData[name as keyof typeof formData] as string || '').length) {
+                return; // Block adding more words
+            }
+        }
+
         setFormData(prev => {
             const updated = { ...prev, [name]: value };
             if (name === 'date_of_birth') {
@@ -122,8 +156,38 @@ export default function CourseEnquiryPage() {
         });
     };
 
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        setFileError(null);
+
+        if (file) {
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                setFileError('File size exceeds 5MB limit. Please upload a smaller file.');
+                e.target.value = ''; // Reset input
+                setSelectedFile(null);
+                return;
+            }
+            setSelectedFile(file);
+        }
+    };
+
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (formData.phone_number.length !== 10) {
+            alert('Please enter a valid 10-digit phone number.');
+            return;
+        }
+
+        if (fileError) {
+            alert(fileError);
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -131,7 +195,7 @@ export default function CourseEnquiryPage() {
 
             if (response.status === 201 || response.status === 200) {
                 alert('Course Enquiry submitted successfully!');
-                router.push('/platform/crm');
+                router.push('/workspace/crm');
             }
         } catch (err: any) {
             console.error('Course Enquiry Submission Error:', err);
@@ -142,12 +206,13 @@ export default function CourseEnquiryPage() {
         }
     };
 
+
     if (view === 'categories') {
         return (
             <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 crm-theme">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12">
-                        <button onClick={() => router.push('/platform/crm')} className="mb-6 inline-flex items-center text-[#409891] hover:underline font-medium">← Back to Overview</button>
+                        <button onClick={() => router.push('/workspace/crm')} className="mb-6 inline-flex items-center text-[#409891] hover:underline font-medium">← Back to CRM</button>
                         <h1 className="text-4xl font-bold text-slate-800">Course Enquiry / Registration</h1>
                         <p className="mt-4 text-lg text-slate-600">Explore our specialized schools and programs.</p>
                     </div>
@@ -156,14 +221,23 @@ export default function CourseEnquiryPage() {
                             <div
                                 key={cat.id}
                                 onClick={() => { setSelectedMain(cat.id); setFormData(p => ({ ...p, category: cat.title })); setView('subcategories'); }}
-                                className="group bg-white rounded-3xl p-8 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-100 flex flex-col items-center text-center hero-fade-in"
+                                className="group relative h-80 rounded-3xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hero-fade-in"
                                 style={{ animationDelay: `${0.1 * idx}s` }}
                             >
-                                <div className="mb-6 p-4 bg-[#409891]/10 rounded-2xl group-hover:bg-[#409891] group-hover:text-white transition-colors duration-300">
-                                    {cat.icon}
+                                <Image
+                                    src={cat.image}
+                                    alt={cat.title}
+                                    fill
+                                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
+                                    <div className="mb-4 p-3 bg-white/20 backdrop-blur-md rounded-2xl group-hover:bg-white/30 transition-colors">
+                                        {cat.icon}
+                                    </div>
+                                    <h3 className="text-xl font-bold">{cat.title}</h3>
+                                    <p className="mt-2 text-xs font-medium text-white/80 opacity-0 group-hover:opacity-100 transition-opacity">Select School →</p>
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-800 mb-2">{cat.title}</h3>
-                                <p className="text-sm text-slate-500">View available courses →</p>
                             </div>
                         ))}
                     </div>
@@ -186,13 +260,23 @@ export default function CourseEnquiryPage() {
                             <div
                                 key={sub.id}
                                 onClick={() => { setFormData(p => ({ ...p, sub_category: sub.label })); setView('form'); }}
-                                className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hero-fade-in"
+                                className="group relative h-72 rounded-3xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hero-fade-in"
                                 style={{ animationDelay: `${0.1 * idx}s` }}
                             >
-                                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url(${sub.image})` }} />
-                                <div className="absolute inset-0 bg-black/60 group-hover:bg-black/40 transition-colors duration-500" />
+                                <Image
+                                    src={sub.image}
+                                    alt={sub.label}
+                                    fill
+                                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                                 <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-white">
                                     <h3 className="text-2xl font-bold">{sub.label}</h3>
+                                </div>
+                                <div className="absolute bottom-6 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-xs font-bold text-white/90 bg-white/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/30">
+                                        Enquire Now →
+                                    </span>
                                 </div>
                             </div>
                         ))}
@@ -257,12 +341,15 @@ export default function CourseEnquiryPage() {
                                 <input
                                     type="tel"
                                     name="phone_number"
-                                    placeholder="Enter your phone number"
+                                    placeholder="Enter 10-digit phone number"
                                     value={formData.phone_number}
                                     onChange={handleChange}
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#409891]/20 focus:border-[#409891] outline-none transition-all"
                                     required
+                                    pattern="\d{10}"
+                                    title="Phone number must be exactly 10 digits"
                                 />
+
                             </div>
                         </div>
 
@@ -315,7 +402,35 @@ export default function CourseEnquiryPage() {
                                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#409891]/20 focus:border-[#409891] outline-none transition-all"
                                 required
                             ></textarea>
+                            <div className="flex justify-between mt-1">
+                                <p className="text-xs text-slate-400">Please provide details (Max 500 words)</p>
+                                <p className={`text-xs font-medium ${getWordCount(formData.course_enquiry) > 480 ? 'text-orange-500' : 'text-slate-400'}`}>
+                                    {getWordCount(formData.course_enquiry)} / 500 words
+                                </p>
+                            </div>
                         </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Upload File (Optional)</label>
+                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:border-[#409891] transition-colors cursor-pointer group">
+                                <div className="space-y-1 text-center">
+                                    <svg className="mx-auto h-12 w-12 text-slate-400 group-hover:text-[#409891]" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                    <div className="flex text-sm text-slate-600">
+                                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-[#409891] hover:text-[#327a75]">
+                                            <span>{selectedFile ? selectedFile.name : 'Upload a file'}</span>
+                                            <input type="file" className="sr-only" onChange={handleFileChange} accept=".png,.jpg,.jpeg,.pdf" />
+                                        </label>
+                                        <p className="pl-1 text-slate-400">{!selectedFile && 'or drag and drop'}</p>
+                                    </div>
+                                    <p className="text-xs text-slate-500">PNG, JPG, PDF up to 5MB</p>
+                                    {fileError && <p className="text-xs text-red-500 mt-1 font-medium">{fileError}</p>}
+                                    {selectedFile && !fileError && <p className="text-xs text-[#409891] mt-1 font-medium">✓ File ready: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>}
+                                </div>
+                            </div>
+                        </div>
+
 
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">Remarks</label>
@@ -325,11 +440,16 @@ export default function CourseEnquiryPage() {
                                 value={formData.remarks}
                                 onChange={handleChange}
                                 rows={4}
-                                maxLength={500}
                                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#409891]/20 focus:border-[#409891] outline-none transition-all"
                             ></textarea>
-                            <p className="mt-1 text-xs text-slate-400">Maximum 500 words</p>
+                            <div className="flex justify-between mt-1">
+                                <p className="text-xs text-slate-400">Maximum 500 words</p>
+                                <p className={`text-xs font-medium ${getWordCount(formData.remarks) > 480 ? 'text-orange-500' : 'text-slate-400'}`}>
+                                    {getWordCount(formData.remarks)} / 500 words
+                                </p>
+                            </div>
                         </div>
+
 
                         <div className="flex gap-4 pt-4">
                             <button

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import api from '@/lib/api';
 import '../crm.css';
@@ -50,7 +50,7 @@ const jobSubCategories = [
     {
         id: 'full-time-jobs',
         label: 'Full-time jobs',
-        image: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
@@ -61,7 +61,7 @@ const jobSubCategories = [
     {
         id: 'part-time-jobs',
         label: 'Part-time jobs',
-        image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -72,7 +72,7 @@ const jobSubCategories = [
     {
         id: 'freelancers',
         label: 'Freelancers',
-        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -83,7 +83,7 @@ const jobSubCategories = [
     {
         id: 'contract-based',
         label: 'Contract-based',
-        image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -98,6 +98,8 @@ const jobSubCategories = [
 
 export default function JobSeekerPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const cid = searchParams.get('cid'); // Extract company ID from URL
     const [view, setView] = useState('subcategories');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
@@ -117,8 +119,15 @@ export default function JobSeekerPage() {
         preferred_job_type: '',
         upload_resume_url: null,
         remarks: '',
-        company_id: 20,
+        company_id: cid ? parseInt(cid) : 11,
     });
+    const [fileError, setFileError] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const getWordCount = (text: string) => {
+        return text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+    };
+
 
     const calculateAge = (dobString: string) => {
         if (!dobString) return 0;
@@ -134,6 +143,29 @@ export default function JobSeekerPage() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
+
+        // 1. Name validation: Only characters and spaces
+        if (name === 'full_name') {
+            const charOnlyValue = value.replace(/[^a-zA-Z\s]/g, '');
+            setFormData(prev => ({ ...prev, [name]: charOnlyValue }));
+            return;
+        }
+
+        // 2. Contact number validation: Only 10 digit numbers
+        if (name === 'contact_number') {
+            const numericValue = value.replace(/\D/g, '').slice(0, 10);
+            setFormData(prev => ({ ...prev, [name]: numericValue }));
+            return;
+        }
+
+        // 3. Remarks word count validation
+        if (name === 'remarks') {
+            const words = value.trim().split(/\s+/);
+            if (words.length > 500 && value.length > (formData.remarks || '').length) {
+                return; // Block adding more words
+            }
+        }
+
         setFormData(prev => {
             const updated = { ...prev, [name]: value };
             if (name === 'dob') {
@@ -143,16 +175,45 @@ export default function JobSeekerPage() {
         });
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        setFileError(null);
+
+        if (file) {
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                setFileError('File size exceeds 5MB limit. Please upload a smaller file.');
+                e.target.value = ''; // Reset input
+                setSelectedFile(null);
+                return;
+            }
+            setSelectedFile(file);
+        }
+    };
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (formData.contact_number.length !== 10) {
+            alert('Please enter a valid 10-digit contact number.');
+            return;
+        }
+
+        if (fileError) {
+            alert(fileError);
+            return;
+        }
+
         setIsSubmitting(true);
+
 
         try {
             const response = await api.post('/crm/applications/job-seeker', formData);
 
             if (response.status === 201 || response.status === 200) {
                 alert('Job Application submitted successfully!');
-                router.push('/platform/crm');
+                router.push('/workspace/crm');
             }
         } catch (err: any) {
             console.error('Job Seeker Submission Error:', err);
@@ -169,10 +230,10 @@ export default function JobSeekerPage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12">
                         <button
-                            onClick={() => router.push('/platform/crm')}
+                            onClick={() => router.push('/workspace/crm')}
                             className="mb-6 inline-flex items-center text-[#409891] hover:underline font-medium"
                         >
-                            ← Back to Categories
+                            ← Back to CRM
                         </button>
                         <h1 className="text-4xl font-bold text-slate-800">Job Seekers</h1>
                         <p className="mt-4 text-lg text-slate-600">Select a sub-category to continue with your application.</p>
@@ -336,12 +397,15 @@ export default function JobSeekerPage() {
                                 <input
                                     type="tel"
                                     name="contact_number"
-                                    placeholder="Enter contact number"
+                                    placeholder="Enter 10-digit contact number"
                                     value={formData.contact_number}
                                     onChange={handleChange}
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#409891]/20 focus:border-[#409891] outline-none transition-all"
                                     required
+                                    pattern="\d{10}"
+                                    title="Contact number must be exactly 10 digits"
                                 />
+
                             </div>
                         </div>
 
@@ -420,15 +484,18 @@ export default function JobSeekerPage() {
                                     </svg>
                                     <div className="flex text-sm text-slate-600">
                                         <label className="relative cursor-pointer bg-white rounded-md font-medium text-[#409891] hover:text-[#327a75]">
-                                            <span>Upload a file</span>
-                                            <input type="file" className="sr-only" />
+                                            <span>{selectedFile ? selectedFile.name : 'Upload a file'}</span>
+                                            <input type="file" className="sr-only" onChange={handleFileChange} accept=".pdf,.doc,.docx" />
                                         </label>
-                                        <p className="pl-1">or drag and drop</p>
+                                        <p className="pl-1 text-slate-400">{!selectedFile && 'or drag and drop'}</p>
                                     </div>
                                     <p className="text-xs text-slate-500">PDF, DOC, DOCX up to 5MB</p>
+                                    {fileError && <p className="text-xs text-red-500 mt-1 font-medium">{fileError}</p>}
+                                    {selectedFile && !fileError && <p className="text-xs text-[#409891] mt-1 font-medium">✓ File ready: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>}
                                 </div>
                             </div>
                         </div>
+
 
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">Remarks</label>
@@ -438,11 +505,16 @@ export default function JobSeekerPage() {
                                 value={formData.remarks}
                                 onChange={handleChange}
                                 rows={4}
-                                maxLength={500}
                                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#409891]/20 focus:border-[#409891] outline-none transition-all"
                             ></textarea>
-                            <p className="mt-1 text-xs text-slate-400">Maximum 500 words</p>
+                            <div className="flex justify-between mt-1">
+                                <p className="text-xs text-slate-400">Maximum 500 words</p>
+                                <p className={`text-xs font-medium ${getWordCount(formData.remarks) > 480 ? 'text-orange-500' : 'text-slate-400'}`}>
+                                    {getWordCount(formData.remarks)} / 500 words
+                                </p>
+                            </div>
                         </div>
+
 
                         <div className="flex gap-4 pt-4">
                             <button

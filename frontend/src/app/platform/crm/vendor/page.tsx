@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import api from '@/lib/api';
 import '../crm.css';
@@ -10,7 +10,7 @@ const vendorSubCategories = [
     {
         id: 'product-vendors',
         label: 'Product Vendors',
-        image: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
@@ -22,7 +22,7 @@ const vendorSubCategories = [
     {
         id: 'service-vendors',
         label: 'Service Vendors',
-        image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -35,7 +35,7 @@ const vendorSubCategories = [
     {
         id: 'software-vendors',
         label: 'Software Vendors',
-        image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="16 18 22 12 16 6"></polyline>
@@ -46,7 +46,7 @@ const vendorSubCategories = [
     {
         id: 'raw-material-suppliers',
         label: 'Raw Material Suppliers',
-        image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
@@ -56,7 +56,7 @@ const vendorSubCategories = [
     {
         id: 'printing-vendors',
         label: 'Printing Vendors',
-        image: 'https://images.unsplash.com/photo-1562654501-a0ccc0fc3fb1?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -68,7 +68,7 @@ const vendorSubCategories = [
     {
         id: 'hardware-suppliers',
         label: 'Hardware Suppliers',
-        image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
@@ -79,7 +79,7 @@ const vendorSubCategories = [
     {
         id: 'outsourcing-service-providers',
         label: 'Outsourcing Service Providers',
-        image: 'https://images.unsplash.com/photo-1521737706362-771192e1f964?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -92,24 +92,15 @@ const vendorSubCategories = [
     {
         id: 'labour-work-persons',
         label: 'Labour Work Persons',
-        image: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1000&q=80',
         icon: (
             <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
             </svg>
         )
     },
-    {
-        id: 'b2b-vendors',
-        label: 'B2B Vendors',
-        image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&q=80',
-        icon: (
-            <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="#409891" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
-        )
-    }
+
+
 ];
 
 const businessTypeOptions = [
@@ -127,6 +118,8 @@ const appointmentStatusOptions = [
 
 export default function VendorPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const cid = searchParams.get('cid'); // Extract company ID from URL
     const [view, setView] = useState('subcategories'); // 'subcategories' or 'form'
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
@@ -140,24 +133,83 @@ export default function VendorPage() {
         appointment_status: '' as 'yes' | 'no',
         business_type: '',
         remarks: '',
-        company_id: 20,
+        company_id: cid ? parseInt(cid) : 11, // Use cid from URL or default to 11
     });
+    const [fileError, setFileError] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const getWordCount = (text: string) => {
+        return text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+    };
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
+
+        // 1. Name validation: Only characters and spaces
+        if (name === 'vendor_name') {
+            const charOnlyValue = value.replace(/[^a-zA-Z\s]/g, '');
+            setFormData(prev => ({ ...prev, [name]: charOnlyValue }));
+            return;
+        }
+
+        // 2. Phone number validation: Only 10 digit numbers
+        if (name === 'phone_number') {
+            const numericValue = value.replace(/\D/g, '').slice(0, 10);
+            setFormData(prev => ({ ...prev, [name]: numericValue }));
+            return;
+        }
+
+        // 3. Remarks word count validation
+        if (name === 'remarks') {
+            const words = value.trim().split(/\s+/);
+            if (words.length > 500 && value.length > (formData.remarks || '').length) {
+                return; // Block adding more words
+            }
+        }
+
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        setFileError(null);
+
+        if (file) {
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                setFileError('File size exceeds 5MB limit. Please upload a smaller file.');
+                e.target.value = ''; // Reset input
+                setSelectedFile(null);
+                return;
+            }
+            setSelectedFile(file);
+        }
+    };
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (formData.phone_number.length !== 10) {
+            alert('Please enter a valid 10-digit phone number.');
+            return;
+        }
+
+        if (fileError) {
+            alert(fileError);
+            return;
+        }
+
         setIsSubmitting(true);
+
 
         try {
             const response = await api.post('/crm/applications/vendor', formData);
 
             if (response.status === 201 || response.status === 200) {
                 alert('Vendor Application submitted successfully!');
-                router.push('/platform/crm');
+                router.push('/workspace/crm');
             }
         } catch (err: any) {
             console.error('CRM Vendor Submission Error:', err);
@@ -174,10 +226,10 @@ export default function VendorPage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-12">
                         <button
-                            onClick={() => router.push('/platform/crm')}
+                            onClick={() => router.push('/workspace/crm')}
                             className="mb-6 inline-flex items-center text-[#409891] hover:underline font-medium"
                         >
-                            ← Back to Overview
+                            ← Back to CRM
                         </button>
                         <h1 className="text-4xl font-bold text-slate-800">Vendors / Suppliers</h1>
                         <p className="mt-4 text-lg text-slate-600">Select a sub-category to continue with your application.</p>
@@ -301,12 +353,15 @@ export default function VendorPage() {
                                 <input
                                     type="tel"
                                     name="phone_number"
-                                    placeholder="Enter phone number"
+                                    placeholder="Enter 10-digit phone number"
                                     value={formData.phone_number}
                                     onChange={handleChange}
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#409891]/20 focus:border-[#409891] outline-none transition-all"
                                     required
+                                    pattern="\d{10}"
+                                    title="Phone number must be exactly 10 digits"
                                 />
+
                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-2">Business Type *</label>
@@ -350,15 +405,18 @@ export default function VendorPage() {
                                     </svg>
                                     <div className="flex text-sm text-slate-600">
                                         <label className="relative cursor-pointer bg-white rounded-md font-medium text-[#409891] hover:text-[#327a75]">
-                                            <span>Upload a file</span>
-                                            <input type="file" className="sr-only" />
+                                            <span>{selectedFile ? selectedFile.name : 'Upload a file'}</span>
+                                            <input type="file" className="sr-only" onChange={handleFileChange} accept=".png,.jpg,.jpeg,.pdf" />
                                         </label>
-                                        <p className="pl-1">or drag and drop</p>
+                                        <p className="pl-1 text-slate-400">{!selectedFile && 'or drag and drop'}</p>
                                     </div>
                                     <p className="text-xs text-slate-500">PNG, JPG, PDF up to 5MB</p>
+                                    {fileError && <p className="text-xs text-red-500 mt-1 font-medium">{fileError}</p>}
+                                    {selectedFile && !fileError && <p className="text-xs text-[#409891] mt-1 font-medium">✓ File ready: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>}
                                 </div>
                             </div>
                         </div>
+
 
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">Additional Remarks</label>
@@ -368,11 +426,16 @@ export default function VendorPage() {
                                 value={formData.remarks}
                                 onChange={handleChange}
                                 rows={4}
-                                maxLength={500}
                                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#409891]/20 focus:border-[#409891] outline-none transition-all"
                             ></textarea>
-                            <p className="mt-1 text-xs text-slate-400">Maximum 500 words</p>
+                            <div className="flex justify-between mt-1">
+                                <p className="text-xs text-slate-400">Maximum 500 words</p>
+                                <p className={`text-xs font-medium ${getWordCount(formData.remarks) > 480 ? 'text-orange-500' : 'text-slate-400'}`}>
+                                    {getWordCount(formData.remarks)} / 500 words
+                                </p>
+                            </div>
                         </div>
+
 
                         <div className="flex gap-4 pt-4">
                             <button
@@ -384,7 +447,7 @@ export default function VendorPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => router.push('/platform/crm')}
+                                onClick={() => router.push('/workspace/crm')}
                                 className="flex-1 bg-white border border-slate-200 text-slate-600 font-bold py-4 rounded-xl hover:bg-slate-50 transition-all"
                             >
                                 Cancel

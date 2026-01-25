@@ -1,56 +1,54 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import './crm.css';
 
 const categories = [
     {
         title: 'Vendors / Suppliers',
-        image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=1000&q=80',
         link: '/platform/crm/vendor',
         description: 'Register as a vendor or supplier for Lead Centre.'
     },
-    {
-        title: 'B2B Applications',
-        image: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&q=80',
-        link: '/platform/crm/b2b',
-        description: 'Business-to-Business partnership opportunities.'
-    },
+
     {
         title: 'Partners',
-        image: 'https://images.unsplash.com/photo-1454165833767-0275080187a1?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1000&q=80',
         link: '/platform/crm/partners',
         description: 'Join our partnership ecosystem.'
     },
     {
         title: 'Job Seekers',
-        image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1000&q=80',
         link: '/platform/crm/job-seeker',
         description: 'Find your career opportunities with us.'
     },
     {
         title: 'Internship Applicants',
-        image: 'https://images.unsplash.com/photo-1523240715632-d984bb4b990a?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1000&q=80',
         link: '/platform/crm/internship',
         description: 'Apply for internship programs.'
     },
     {
         title: 'Course Enquiry / Registration',
-        image: 'https://images.unsplash.com/photo-1524178232457-3bb2449b3840?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=1000&q=80',
         link: '/platform/crm/course-enquiry',
         description: 'Enquire about our specialized courses.'
     },
     {
         title: 'Career Guidance',
-        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80',
+        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1000&q=80',
         link: '/platform/crm/career-guidance',
-        description: 'Professional guidance for your future.'
+        description: 'Student counselling, suitability tests and global career roadmap support.'
     }
 ];
 
 export default function CRMLandingPage() {
+    const searchParams = useSearchParams();
+    const cid = searchParams.get('cid');
     const [showScrollTop, setShowScrollTop] = useState(false);
 
     useEffect(() => {
@@ -110,34 +108,37 @@ export default function CRMLandingPage() {
                 <div className="relative py-12 bg-white/40 backdrop-blur-[2px] border-t border-white/60">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {categories.map((category, index) => (
-                                <Link key={index} href={category.link} className="hero-fade-in" style={{ animationDelay: `${0.3 + (index * 0.1)}s` }}>
-                                    <div className="service-card glass-card rounded-2xl p-6 h-full flex flex-col group cursor-pointer hover:border-[#409891]/50 transition-all duration-500">
-                                        <div className="relative h-48 mb-6 overflow-hidden rounded-xl">
-                                            <Image
-                                                src={category.image}
-                                                alt={category.title}
-                                                fill
-                                                className="object-cover group-hover:scale-110 transition-transform duration-700"
-                                                sizes="(max-width: 768px) 100vw, 33vw"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-4">
-                                                <span className="text-white text-sm font-medium">Click to register →</span>
+                            {categories.map((category, index) => {
+                                const finalLink = cid ? `${category.link}?cid=${cid}` : category.link;
+                                return (
+                                    <Link key={index} href={finalLink} className="hero-fade-in" style={{ animationDelay: `${0.3 + (index * 0.1)}s` }}>
+                                        <div className="service-card glass-card rounded-2xl p-6 h-full flex flex-col group cursor-pointer hover:border-[#409891]/50 transition-all duration-500">
+                                            <div className="relative h-48 mb-6 overflow-hidden rounded-xl">
+                                                <Image
+                                                    src={category.image}
+                                                    alt={category.title}
+                                                    fill
+                                                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                                    sizes="(max-width: 768px) 100vw, 33vw"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-4">
+                                                    <span className="text-white text-sm font-medium">Click to register →</span>
+                                                </div>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-slate-800 mb-3 group-hover:text-[#409891] transition-colors">{category.title}</h3>
+                                            <p className="text-slate-600 text-sm leading-relaxed mb-6">{category.description}</p>
+                                            <div className="mt-auto">
+                                                <div className="inline-flex items-center text-[#409891] font-semibold text-sm group/btn">
+                                                    Get Started
+                                                    <svg className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                                    </svg>
+                                                </div>
                                             </div>
                                         </div>
-                                        <h3 className="text-xl font-bold text-slate-800 mb-3 group-hover:text-[#409891] transition-colors">{category.title}</h3>
-                                        <p className="text-slate-600 text-sm leading-relaxed mb-6">{category.description}</p>
-                                        <div className="mt-auto">
-                                            <div className="inline-flex items-center text-[#409891] font-semibold text-sm group/btn">
-                                                Get Started
-                                                <svg className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
+                                    </Link>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

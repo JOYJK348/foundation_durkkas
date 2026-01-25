@@ -17,19 +17,7 @@ export const vendorApplicationSchema = z.object({
     remarks: z.string().optional().nullable(),
 });
 
-export const b2bApplicationSchema = z.object({
-    date: z.string(),
-    company_id: z.number(),
-    branch_id: z.number().optional().nullable(),
-    contact_person_name: z.string().min(1, 'Contact person name is required'),
-    organization_name: z.string().min(1, 'Organization name is required'),
-    organization_address: z.string().min(1, 'Organization address is required'),
-    business_type: z.enum(['technology', 'manufacturing', 'retail', 'services', 'consulting', 'others']),
-    mode_of_business: z.enum(['freelancer', 'partnership', 'co-worker', 'consultant', 'others']),
-    company_website_email: z.string().min(1, 'Company website/email is required'),
-    upload_file_url: z.string().optional().nullable(),
-    remarks: z.string().optional().nullable(),
-});
+
 
 export const jobSeekerApplicationSchema = z.object({
     date: z.string(),
@@ -79,7 +67,7 @@ export const internshipApplicationSchema = z.object({
 
 export const careerGuidanceSchema = z.object({
     date: z.string(),
-    company_id: z.coerce.number(), // Ensure it's a number
+    company_id: z.coerce.number(),
     branch_id: z.coerce.number().optional().nullable(),
     category: z.string().optional().nullable(),
     categoryname: z.string().optional().nullable(),
@@ -87,8 +75,9 @@ export const careerGuidanceSchema = z.object({
     candidate_name: z.string().optional().nullable(),
     standard_year: z.string().optional().nullable(),
     education_level: z.string().optional().nullable(),
+    institution_name: z.string().optional().nullable(),
     date_of_birth: z.string().optional().nullable(),
-    age: z.coerce.number().optional().nullable(), // More flexible
+    age: z.coerce.number().optional().nullable(),
     gender: z.string().optional().nullable(),
     location: z.string().optional().nullable(),
     city: z.string().optional().nullable(),
@@ -97,7 +86,11 @@ export const careerGuidanceSchema = z.object({
     email: z.string().optional().nullable(),
     parent_guardian_name: z.string().optional().nullable(),
     studies_preference: z.string().optional().nullable(),
+    current_stream: z.string().optional().nullable(),
+    last_exam_result: z.string().optional().nullable(),
     well_performing_subjects: z.string().optional().nullable(),
+    favorite_subject: z.string().optional().nullable(),
+    struggle_subject: z.string().optional().nullable(),
     enjoyed_activities: z.string().optional().nullable(),
     prefer_working_with: z.string().optional().nullable(),
     solve_problems_logically: z.string().optional().nullable(),
@@ -109,10 +102,14 @@ export const careerGuidanceSchema = z.object({
     city_if_abroad: z.string().optional().nullable(),
     preferred_university: z.string().optional().nullable(),
     career_interest: z.string().optional().nullable(),
+    career_goal: z.string().optional().nullable(),
     skills_strengths: z.string().optional().nullable(),
     academic_performance: z.string().optional().nullable(),
     hobbies_extracurricular: z.string().optional().nullable(),
     preferred_mode_of_study: z.string().optional().nullable(),
+    counselling_mode: z.string().optional().nullable(),
+    preferred_language: z.string().optional().nullable(),
+    session_expectations: z.string().optional().nullable(),
     career_support_duration: z.string().optional().nullable(),
     mentorship_required: z.string().optional().nullable(),
     remarks_notes: z.string().optional().nullable(),
