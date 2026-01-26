@@ -81,7 +81,8 @@ export async function cacheUserSession(
  */
 export async function getCachedUserSession(userId: number): Promise<any | null> {
     const data = await redis.get(CACHE_KEYS.USER_SESSION(userId));
-    return data ? JSON.parse(data as string) : null;
+    if (!data) return null;
+    return typeof data === 'string' ? JSON.parse(data) : data;
 }
 
 /**
@@ -120,7 +121,8 @@ export async function cacheUserPermissions(
  */
 export async function getCachedUserPermissions(userId: number): Promise<string[] | null> {
     const data = await redis.get(CACHE_KEYS.USER_PERMISSIONS(userId));
-    return data ? JSON.parse(data as string) : null;
+    if (!data) return null;
+    return (typeof data === 'string' ? JSON.parse(data) : data) as string[];
 }
 
 /**
@@ -155,7 +157,8 @@ export async function cacheData(
  */
 export async function getCachedData<T = any>(key: string): Promise<T | null> {
     const data = await redis.get(key);
-    return data ? JSON.parse(data as string) : null;
+    if (!data) return null;
+    return (typeof data === 'string' ? JSON.parse(data) : data) as T;
 }
 
 /**
