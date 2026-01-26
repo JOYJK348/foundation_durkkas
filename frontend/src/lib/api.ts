@@ -45,43 +45,39 @@ const detectClientIp = async (): Promise<void> => {
     console.log('📡 [Identity] Detecting Public IP...');
 
     try {
-        // Primary: ipinfo.io (provides IP + location in one call)
-        try {
-            const res = await fetch('https://ipinfo.io/json?token=free');
-            const data = await res.json();
+        // Try multiple providers silently
+        const providers = [
+            'https://api.ipify.org?format=json',
+            'https://ipapi.co/json/',
+            'https://ipinfo.io/json?token=free' // Keeping as last resort
+        ];
 
-            if (data.ip) {
-                cachedClientIp = data.ip;
-                // Format location: "Chennai, IN" or "City, Country"
-                const city = data.city || '';
-                const country = data.country || '';
-                cachedLocation = city && country ? `${city}, ${country}` : (country || '');
+        for (const url of providers) {
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) continue;
 
-                ipDetectionComplete = true;
-                console.log(`✅ [Identity] IP: ${cachedClientIp} ${cachedLocation ? `(${cachedLocation})` : ''}`);
-                return;
+                const data = await res.json();
+                const ip = data.ip || data.query; // handle different API formats
+
+                if (ip) {
+                    cachedClientIp = ip;
+                    // Try to get location if available
+                    const city = data.city || '';
+                    const country = data.country || data.country_name || '';
+                    cachedLocation = city && country ? `${city}, ${country}` : (country || '');
+
+                    ipDetectionComplete = true;
+                    console.log(`✅ [Identity] Verified IP: ${cachedClientIp}`);
+                    return;
+                }
+            } catch (e) {
+                // Silently try next provider
             }
-        } catch (err) {
-            console.warn('⚠️ [Identity] ipinfo.io failed, trying fallback...');
         }
-
-        // Fallback: ipify (IP only, no location)
-        try {
-            const res = await fetch('https://api.ipify.org?format=json');
-            const data = await res.json();
-
-            if (data.ip) {
-                cachedClientIp = data.ip;
-                ipDetectionComplete = true;
-                console.log(`✅ [Identity] IP: ${cachedClientIp} (location unavailable)`);
-                return;
-            }
-        } catch (err) {
-            console.error('❌ [Identity] All IP detection methods failed');
-        }
-
+        console.warn('⚠️ [Identity] Primary IP verification failed, using server-side sensing.');
     } catch (err) {
-        console.error('❌ [Identity] Critical error:', err);
+        // Absolute silence for third party failures
     }
 };
 
