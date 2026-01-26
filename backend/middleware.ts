@@ -31,17 +31,36 @@ export async function middleware(req: NextRequest) {
         }
 
         // CORS Headers
+        const allowedHeaders = [
+            'Authorization',
+            'Content-Type',
+            'X-CSRF-Token',
+            'X-Requested-With',
+            'Accept',
+            'Accept-Version',
+            'Content-Length',
+            'Content-MD5',
+            'Date',
+            'X-Api-Version',
+            'Cache-Control',
+            'Pragma',
+            'x-durkkas-client-ip',
+            'x-device-fingerprint',
+            'x-company-id',
+            'x-branch-id'
+        ].join(', ');
+
         if (process.env.NODE_ENV === 'development') {
             // Force open for development mobile testing
             response.headers.set('Access-Control-Allow-Origin', origin || '*');
             response.headers.set('Access-Control-Allow-Credentials', 'true');
             response.headers.set('Access-Control-Allow-Methods', 'GET,DELETE,PATCH,POST,PUT,OPTIONS');
-            response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, Cache-Control, Pragma, x-durkkas-client-ip, x-device-fingerprint');
+            response.headers.set('Access-Control-Allow-Headers', allowedHeaders);
         } else if (isAllowedOrigin && origin) {
             response.headers.set('Access-Control-Allow-Origin', origin);
             response.headers.set('Access-Control-Allow-Credentials', 'true');
             response.headers.set('Access-Control-Allow-Methods', 'GET,DELETE,PATCH,POST,PUT,OPTIONS');
-            response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, Cache-Control, Pragma, x-durkkas-client-ip, x-device-fingerprint');
+            response.headers.set('Access-Control-Allow-Headers', allowedHeaders);
         }
 
         // Standard Security Headers
