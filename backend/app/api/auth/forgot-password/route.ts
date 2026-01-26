@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { app_auth, core } from '@/lib/supabase';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 import bcrypt from 'bcryptjs';
+import { GlobalSettings } from '@/lib/settings';
 
 export async function POST(req: NextRequest) {
     try {
@@ -35,6 +36,12 @@ export async function POST(req: NextRequest) {
         if (action === 'RESET') {
             if (!new_password) {
                 return errorResponse('VALIDATION_ERROR', 'New Password is required', 400);
+            }
+
+            // 🛡️ Password Length Enforcement
+            const minLength = await GlobalSettings.getMinPasswordLength();
+            if (new_password.length < minLength) {
+                return errorResponse('VALIDATION_ERROR', `Password must be at least ${minLength} characters as per system policy.`, 400);
             }
 
             // Find the User account linked to this email

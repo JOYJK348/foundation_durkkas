@@ -23,7 +23,7 @@ export interface Company {
     subscription_end_date?: string;
     max_users: number;
     max_branches: number;
-    enabled_modules: string[]; 
+    enabled_modules: string[];
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -115,6 +115,41 @@ export interface GlobalSetting {
     description?: string;
     is_system_setting: boolean;
     updated_at: string;
+}
+
+export interface PlatformBranding {
+    id: number;
+    platform_name: string;
+    tagline?: string;
+    logo_url?: string;
+    favicon_url?: string;
+    dark_logo_url?: string;
+    primary_color: string;
+    secondary_color: string;
+    accent_color: string;
+    copyright_text?: string;
+    support_url?: string;
+    terms_url?: string;
+    privacy_url?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CompanyBranding {
+    id: number;
+    company_id: number;
+    logo_url?: string;
+    favicon_url?: string;
+    dark_logo_url?: string;
+    primary_color: string;
+    secondary_color: string;
+    accent_color: string;
+    login_message?: string;
+    footer_text?: string;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -490,6 +525,8 @@ export interface Database {
             cities: TableDefinition<City>;
             locations: TableDefinition<Location>;
             global_settings: TableDefinition<GlobalSetting>;
+            platform_branding: TableDefinition<PlatformBranding>;
+            company_branding: TableDefinition<CompanyBranding>;
         };
     };
     app_auth: {

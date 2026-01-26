@@ -20,13 +20,14 @@ export interface NotificationParams {
  */
 export class NotificationService {
     /**
-     * Send a notification to a specific user or company
+     * Send a notification to a specific user, company, or branch
      */
-    static async send(params: NotificationParams) {
+    static async send(params: NotificationParams & { branchId?: number, targetType?: string }) {
         try {
             console.log('🔔 NotificationService.send:', {
                 title: params.title,
                 companyId: params.companyId,
+                branchId: params.branchId,
                 userId: params.userId
             });
 
@@ -36,6 +37,8 @@ export class NotificationService {
                 .insert({
                     user_id: params.userId,
                     company_id: params.companyId,
+                    branch_id: params.branchId,
+                    target_type: params.targetType || (params.userId ? 'USER' : (params.branchId ? 'BRANCH' : (params.companyId ? 'COMPANY' : 'GLOBAL'))),
                     type: params.type,
                     priority: params.priority || 'NORMAL',
                     title: params.title,
@@ -62,70 +65,38 @@ export class NotificationService {
      * Broadcast to all Platform Admins ONLY (not visible to Company/Branch Admins)
      */
     static async notifyPlatformAdmins(params: Omit<NotificationParams, 'userId' | 'companyId'> & { sourceCompanyId?: number, sourceCompanyName?: string }) {
-        try {
-            const { data, error } = await supabaseService
-                .schema(SCHEMAS.AUTH)
-                .from('notifications')
-                .insert({
-                    target_type: 'GLOBAL',  // 🔒 ONLY Platform Admins can see this
-                    type: params.type,
-                    priority: params.priority || 'NORMAL',
-                    title: params.title,
-                    message: params.message,
-                    action_url: params.actionUrl,
-                    metadata: {
-                        ...params.metadata,
-                        source_company_id: params.sourceCompanyId,
-                        source_company_name: params.sourceCompanyName
-                    },
-                    created_at: new Date().toISOString()
-                })
-                .select();
-
-            if (error) {
-                console.error('❌ Failed to notify Platform Admins:', error);
-                return null;
+        return this.send({
+            ...params,
+            targetType: 'GLOBAL',
+            companyId: params.sourceCompanyId,
+            metadata: {
+                ...params.metadata,
+                source_company_id: params.sourceCompanyId,
+                source_company_name: params.sourceCompanyName
             }
-
-            console.log(`✅ [NOTIFICATION] Platform Admin notification created: ${params.title}`);
-            return data[0];
-        } catch (err) {
-            console.error('❌ Platform Admin Notification Exception:', err);
-            return null;
-        }
+        });
     }
 
     /**
      * Notify Company Admins of a specific company ONLY
      */
     static async notifyCompanyAdmins(companyId: number, params: Omit<NotificationParams, 'companyId'>) {
-        try {
-            const { data, error } = await supabaseService
-                .schema(SCHEMAS.AUTH)
-                .from('notifications')
-                .insert({
-                    target_type: 'COMPANY',  // 🔒 ONLY this company's admins can see
-                    company_id: companyId,
-                    type: params.type,
-                    priority: params.priority || 'NORMAL',
-                    title: params.title,
-                    message: params.message,
-                    action_url: params.actionUrl,
-                    metadata: params.metadata,
-                    created_at: new Date().toISOString()
-                })
-                .select();
+        return this.send({
+            ...params,
+            companyId,
+            targetType: 'COMPANY'
+        });
+    }
 
-            if (error) {
-                console.error('❌ Failed to notify Company Admins:', error);
-                return null;
-            }
-
-            console.log(`✅ [NOTIFICATION] Company Admin notification created for company ${companyId}: ${params.title}`);
-            return data[0];
-        } catch (err) {
-            console.error('❌ Company Admin Notification Exception:', err);
-            return null;
-        }
+    /**
+     * Notify Branch Admins of a specific branch ONLY
+     */
+    static async notifyBranchAdmins(companyId: number, branchId: number, params: Omit<NotificationParams, 'companyId' | 'branchId'>) {
+        return this.send({
+            ...params,
+            companyId,
+            branchId,
+            targetType: 'BRANCH'
+        });
     }
 }

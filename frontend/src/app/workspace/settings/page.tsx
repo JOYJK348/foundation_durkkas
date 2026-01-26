@@ -24,18 +24,27 @@ import {
     Briefcase,
     AlertCircle,
     Lock,
-    Pencil
+    Pencil,
+    History as HistoryIcon,
+    RotateCcw,
+    Archive,
+    Palette,
+    Store
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { platformService } from "@/services/platformService";
+import { crmService } from "@/services/crmService";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useFeatureAccess } from "@/contexts/FeatureAccessContext";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 export default function WorkspaceSettings() {
     const { user } = useAuthStore();
+    const { limits, hasModule, refresh: refreshLimits } = useFeatureAccess();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [activeTab, setActiveTab] = useState<"GENERAL" | "DEPARTMENTS" | "DESIGNATIONS" | "SUBSCRIPTION">("GENERAL");
+    const [activeTab, setActiveTab] = useState<"GENERAL" | "DEPARTMENTS" | "DESIGNATIONS" | "SUBSCRIPTION" | "ARCHIVES" | "BRANDING">("GENERAL");
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -44,6 +53,7 @@ export default function WorkspaceSettings() {
     const [designations, setDesignations] = useState<any[]>([]);
     const [branches, setBranches] = useState<any[]>([]);
     const [company, setCompany] = useState<any>(null);
+    const [archivedLeads, setArchivedLeads] = useState<any[]>([]);
 
     // Edit/Delete States
     const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
@@ -68,9 +78,18 @@ export default function WorkspaceSettings() {
         level: 1
     });
 
+    // Branding State
+    const [brandingForm, setBrandingForm] = useState({
+        logo_url: "",
+        favicon_url: "",
+        primary_color: "#0066FF",
+        secondary_color: "#0052CC",
+        accent_color: "#00C853"
+    });
+
     useEffect(() => {
         const tab = searchParams.get('tab');
-        if (tab && ["GENERAL", "DEPARTMENTS", "DESIGNATIONS", "SUBSCRIPTION"].includes(tab.toUpperCase())) {
+        if (tab && ["GENERAL", "DEPARTMENTS", "DESIGNATIONS", "SUBSCRIPTION", "BRANDING", "ARCHIVES"].includes(tab.toUpperCase())) {
             setActiveTab(tab.toUpperCase() as any);
         }
     }, [searchParams]);
@@ -82,7 +101,62 @@ export default function WorkspaceSettings() {
         }
         if (activeTab === "DESIGNATIONS") loadDesignations();
         if (activeTab === "SUBSCRIPTION") loadCompanyDetails();
+        if (activeTab === "ARCHIVES") loadArchivedLeads();
+        if (activeTab === "BRANDING") loadBranding();
     }, [activeTab]);
+
+    const loadBranding = async () => {
+        setLoading(true);
+        try {
+            const companies = await platformService.getCompanies();
+            if (companies && companies.length > 0) {
+                const companyData = companies[0];
+                setCompany(companyData);
+
+                // Fetch dedicated branding info (it's in its own table)
+                const branding = await platformService.getCompanyBranding(companyData.id.toString());
+
+                if (branding) {
+                    setBrandingForm({
+                        logo_url: branding.logo_url || "",
+                        favicon_url: branding.favicon_url || "",
+                        primary_color: branding.primary_color || "#0066FF",
+                        secondary_color: branding.secondary_color || "#0052CC",
+                        accent_color: branding.accent_color || "#00C853"
+                    });
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to fetch branding details");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveBranding = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            if (!company?.id) {
+                // Try to load company if missing
+                const companies = await platformService.getCompanies();
+                if (companies.length > 0) {
+                    await platformService.updateCompanyBranding(companies[0].id, brandingForm);
+                } else {
+                    throw new Error("Company not found");
+                }
+            } else {
+                await platformService.updateCompanyBranding(company.id, brandingForm);
+            }
+            toast.success("Branding updated successfully!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to update branding");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const loadBranches = async () => {
         try {
@@ -124,6 +198,35 @@ export default function WorkspaceSettings() {
             setCompany(data[0] || null);
         } catch (error) {
             toast.error("Failed to fetch subscription details");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadArchivedLeads = async () => {
+        setLoading(true);
+        try {
+            const data = await crmService.getArchives();
+            setArchivedLeads(data || []);
+        } catch (error) {
+            toast.error("Cloud synchronization failed for archives");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRestoreLead = async (lead: any) => {
+        if (!window.confirm(`Restore ${lead._display_name} to active CRM?`)) return;
+
+        setLoading(true);
+        try {
+            const res = await crmService.restoreLead(lead._typeKey, lead.id);
+            if (res.success) {
+                toast.success("Lead successfully synchronized back to active list");
+                loadArchivedLeads();
+            }
+        } catch (error) {
+            toast.error("Restoration protocol failed");
         } finally {
             setLoading(false);
         }
@@ -224,6 +327,7 @@ export default function WorkspaceSettings() {
             setDeptForm({ name: "", code: "", description: "", branch_id: "", parent_department_id: "" });
             setEditingDeptId(null);
             loadDepartments();
+            refreshLimits();
         } catch (error: any) {
             toast.error(error.response?.data?.message || `Failed to ${editingDeptId ? "update" : "create"} department`);
         } finally {
@@ -260,6 +364,7 @@ export default function WorkspaceSettings() {
             setDesigForm({ title: "", code: "", description: "", level: 1 });
             setEditingDesigId(null);
             loadDesignations();
+            refreshLimits();
         } catch (error: any) {
             toast.error(error.response?.data?.message || `Failed to ${editingDesigId ? "update" : "create"} designation`);
         } finally {
@@ -315,6 +420,7 @@ export default function WorkspaceSettings() {
             toast.success(`${deletingItem.type === 'DEPT' ? 'Department' : 'Designation'} deleted successfully`);
             setDeletingItem(null);
             setDeleteReason("");
+            refreshLimits();
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Deletion failed");
         } finally {
@@ -345,6 +451,8 @@ export default function WorkspaceSettings() {
                         { id: "DEPARTMENTS", label: "Departments", icon: LayoutGrid },
                         { id: "DESIGNATIONS", label: "Designations", icon: Users2 },
                         { id: "SUBSCRIPTION", label: "Subscription", icon: Crown },
+                        { id: "BRANDING", label: "Branding", icon: Palette },
+                        { id: "ARCHIVES", label: "Recovery", icon: HistoryIcon },
                     ].map((tab) => (
                         <button
                             key={tab.id}
@@ -363,25 +471,117 @@ export default function WorkspaceSettings() {
                 {/* Content Area */}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
-                    {/* 1. GENERAL TAB */}
-                    {activeTab === "GENERAL" && (
-                        <div className="flex flex-col items-center justify-center py-20 md:py-32 px-4 text-center">
-                            <Building2 className="w-16 h-16 md:w-20 md:h-20 text-slate-200 mb-4" />
-                            <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-2">General Settings</h3>
-                            <p className="text-sm text-slate-500 max-w-md mb-6">
-                                Core company details are managed by Platform Administrators.
-                                Contact support to update legal name or tax information.
-                            </p>
-                            <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-700 text-xs font-bold uppercase tracking-wide rounded-lg">
-                                <ShieldCheck className="w-4 h-4" />
-                                Platform Managed
+                    {/* 5. ARCHIVES & RECOVERY TAB */}
+                    {activeTab === "ARCHIVES" && (
+                        <div className="p-4 md:p-8 space-y-8">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                        <HistoryIcon className="w-5 h-5 text-violet-600" />
+                                        Data Recycle Bin
+                                    </h3>
+                                    <p className="text-xs text-slate-500 font-medium">Surgically recover soft-deleted CRM records to active pipeline.</p>
+                                </div>
+                                <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                                    Archived Records: {archivedLeads.length}
+                                </div>
                             </div>
+
+                            {loading && archivedLeads.length === 0 ? (
+                                <div className="py-20 flex flex-col items-center justify-center gap-4">
+                                    <Loader2 className="w-10 h-10 animate-spin text-violet-600" />
+                                    <p className="text-sm font-bold text-slate-300 uppercase tracking-widest">Scanning Cloud Archives...</p>
+                                </div>
+                            ) : archivedLeads.length > 0 ? (
+                                <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-[#F8FAFC] text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-50">
+                                            <tr>
+                                                <th className="px-6 py-4">Deleted Record</th>
+                                                <th className="px-6 py-4">Category</th>
+                                                <th className="px-6 py-4">Deletion Context</th>
+                                                <th className="px-6 py-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {archivedLeads.map((lead, idx) => (
+                                                <tr key={idx} className="group hover:bg-slate-50/50 transition-all">
+                                                    <td className="px-6 py-5">
+                                                        <div>
+                                                            <div className="text-sm font-bold text-slate-800">{lead._display_name}</div>
+                                                            <div className="text-[10px] text-slate-400 font-medium">{lead.email}</div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <span className="px-2.5 py-1 rounded-full bg-slate-100 text-[9px] font-black uppercase text-slate-500 tracking-widest border border-slate-200">
+                                                            {lead._typeName}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="max-w-[250px]">
+                                                            <div className="text-[10px] font-black text-rose-500 uppercase flex items-center gap-1.5 mb-1">
+                                                                <Trash2 className="w-3 h-3" />
+                                                                {lead.delete_reason || 'No reason documented'}
+                                                            </div>
+                                                            <div className="text-[9px] text-slate-400 font-medium italic">
+                                                                Removed on: {new Date(lead.deleted_at).toLocaleString()}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-right">
+                                                        <button
+                                                            onClick={() => handleRestoreLead(lead)}
+                                                            className="h-9 px-4 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 hover:scale-105 transition-all shadow-lg shadow-violet-200 flex items-center justify-center gap-2 ml-auto"
+                                                        >
+                                                            <RotateCcw className="w-3.5 h-3.5" />
+                                                            Surgical Restore
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="py-20 flex flex-col items-center justify-center text-center">
+                                    <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                                        <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                                    </div>
+                                    <h4 className="text-lg font-bold text-slate-800">Recycle Bin Empty</h4>
+                                    <p className="text-sm text-slate-500 max-w-xs mx-auto">Absolute data integrity maintained. No archived records found in your system.</p>
+                                </div>
+                            )}
                         </div>
                     )}
 
                     {/* 2. DEPARTMENTS TAB */}
                     {activeTab === "DEPARTMENTS" && (
                         <div className="p-4 md:p-8">
+                            {/* Usage Monitor */}
+                            <div className="mb-8 p-6 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                        <LayoutGrid className="w-4 h-4 text-violet-600" />
+                                        Department Utilization
+                                    </h4>
+                                    <p className="text-xs text-slate-500 font-medium">Monitoring organizational hierarchy limits.</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl font-black text-slate-900">{departments.length}</span>
+                                        <span className="text-slate-300 text-lg">/</span>
+                                        <span className="text-slate-400 font-bold">{limits.maxDepartments === 0 ? '∞' : limits.maxDepartments}</span>
+                                    </div>
+                                    <div className="w-48 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full transition-all duration-1000 ${limits.maxDepartments > 0 && (departments.length / limits.maxDepartments) > 0.9 ? 'bg-rose-500' : 'bg-violet-600'
+                                                }`}
+                                            style={{ width: `${limits.maxDepartments === 0 ? 10 : Math.min(100, (departments.length / limits.maxDepartments) * 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Create Form */}
                             <form onSubmit={handleSaveDept} className={`bg-gradient-to-br ${editingDeptId ? 'from-amber-50 to-orange-50 border-amber-200' : 'from-blue-50 to-violet-50 border-blue-100'} rounded-2xl p-4 md:p-6 mb-6 md:mb-8 border transition-all`}>
                                 <div className="flex items-center gap-3 mb-4 md:mb-6">
@@ -476,12 +676,17 @@ export default function WorkspaceSettings() {
                                 <div className="flex gap-3 mt-6">
                                     <button
                                         type="submit"
-                                        disabled={saving}
-                                        className={`flex-1 md:flex-initial md:px-8 ${editingDeptId ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'} text-white py-3 rounded-xl font-bold text-sm uppercase tracking-wide shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50`}
+                                        disabled={saving || (!editingDeptId && limits.maxDepartments > 0 && departments.length >= limits.maxDepartments)}
+                                        className={`flex-1 md:flex-initial md:px-8 ${editingDeptId ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-200' : (limits.maxDepartments > 0 && departments.length >= limits.maxDepartments ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200')} text-white py-3 rounded-xl font-bold text-sm uppercase tracking-wide shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50`}
                                     >
                                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingDeptId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />)}
-                                        {saving ? "Processing..." : (editingDeptId ? "Update Department" : "Create Department")}
+                                        {saving ? "Processing..." : (editingDeptId ? "Update Department" : (limits.maxDepartments > 0 && departments.length >= limits.maxDepartments ? "Limit Reached" : "Create Department"))}
                                     </button>
+                                    {(!editingDeptId && limits.maxDepartments > 0 && departments.length >= limits.maxDepartments) && (
+                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1">
+                                            <AlertCircle className="w-3 h-3" /> Upgrade plan to add more departments
+                                        </p>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={cancelEdit}
@@ -564,6 +769,31 @@ export default function WorkspaceSettings() {
                     {/* 3. DESIGNATIONS TAB */}
                     {activeTab === "DESIGNATIONS" && (
                         <div className="p-4 md:p-8">
+                            {/* Usage Monitor */}
+                            <div className="mb-8 p-6 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                        <Users2 className="w-4 h-4 text-violet-600" />
+                                        Designation Utilization
+                                    </h4>
+                                    <p className="text-xs text-slate-500 font-medium">Monitoring professional role limits.</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl font-black text-slate-900">{designations.length}</span>
+                                        <span className="text-slate-300 text-lg">/</span>
+                                        <span className="text-slate-400 font-bold">{limits.maxDesignations === 0 ? '∞' : limits.maxDesignations}</span>
+                                    </div>
+                                    <div className="w-48 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full transition-all duration-1000 ${limits.maxDesignations > 0 && (designations.length / limits.maxDesignations) > 0.9 ? 'bg-rose-500' : 'bg-violet-600'
+                                                }`}
+                                            style={{ width: `${limits.maxDesignations === 0 ? 10 : Math.min(100, (designations.length / limits.maxDesignations) * 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Create Form */}
                             <form onSubmit={handleSaveDesig} className={`bg-gradient-to-br ${editingDesigId ? 'from-amber-50 to-orange-50 border-amber-200' : 'from-violet-50 to-purple-50 border-violet-100'} rounded-2xl p-4 md:p-6 mb-6 md:mb-8 border transition-all`}>
                                 <div className="flex items-center gap-3 mb-4 md:mb-6">
@@ -647,12 +877,17 @@ export default function WorkspaceSettings() {
                                 <div className="flex gap-3 mt-6">
                                     <button
                                         type="submit"
-                                        disabled={saving}
-                                        className={`flex-1 md:flex-initial md:px-8 ${editingDesigId ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-200' : 'bg-violet-600 hover:bg-violet-700 shadow-violet-200'} text-white py-3 rounded-xl font-bold text-sm uppercase tracking-wide shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50`}
+                                        disabled={saving || (!editingDesigId && limits.maxDesignations > 0 && designations.length >= limits.maxDesignations)}
+                                        className={`flex-1 md:flex-initial md:px-8 ${editingDesigId ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-200' : (limits.maxDesignations > 0 && designations.length >= limits.maxDesignations ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-violet-600 hover:bg-violet-700 shadow-violet-200')} text-white py-3 rounded-xl font-bold text-sm uppercase tracking-wide shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50`}
                                     >
                                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingDesigId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />)}
-                                        {saving ? "Processing..." : (editingDesigId ? "Update Designation" : "Create Designation")}
+                                        {saving ? "Processing..." : (editingDesigId ? "Update Designation" : (limits.maxDesignations > 0 && designations.length >= limits.maxDesignations ? "Limit Reached" : "Create Designation"))}
                                     </button>
+                                    {(!editingDesigId && limits.maxDesignations > 0 && designations.length >= limits.maxDesignations) && (
+                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1">
+                                            <AlertCircle className="w-3 h-3" /> Upgrade plan to add more designations
+                                        </p>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={cancelEdit}
@@ -761,16 +996,20 @@ export default function WorkspaceSettings() {
                                         </p>
                                     </div>
                                     <div className="text-left md:text-right w-full md:w-auto">
-                                        <div className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-widest mb-1">Billing Cycle</div>
-                                        <div className="text-xl md:text-2xl font-black">Monthly</div>
+                                        <div className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-widest mb-1">Validity Period</div>
+                                        <div className="text-lg md:text-xl font-black">
+                                            {company?.subscription_start_date ? new Date(company.subscription_start_date).toLocaleDateString() : 'N/A'}
+                                            <span className="text-slate-500 mx-2">—</span>
+                                            {company?.subscription_end_date ? new Date(company.subscription_end_date).toLocaleDateString() : 'Ongoing'}
+                                        </div>
                                         <div className="mt-4 flex flex-col md:flex-row gap-2">
                                             <button className="w-full md:w-auto px-6 py-3 bg-white/10 text-white border border-white/20 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-colors">
-                                                Download Invoice
+                                                Plan Details
                                             </button>
                                             <Link href="/workspace/subscription">
                                                 <button className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-violet-600 to-violet-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:from-violet-500 hover:to-violet-400 transition-all shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2">
                                                     <Zap className="w-4 h-4" />
-                                                    Upgrade Plan
+                                                    Manage Plan
                                                 </button>
                                             </Link>
                                         </div>
@@ -778,65 +1017,207 @@ export default function WorkspaceSettings() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                                <div className="p-4 md:p-6 rounded-2xl border border-slate-100 bg-slate-50">
-                                    <h3 className="flex items-center gap-2 font-bold text-slate-900 mb-4 md:mb-6">
-                                        <Zap className="w-5 h-5 text-amber-500" />
-                                        Active Modules
-                                    </h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {(() => {
-                                            const raw = company?.enabled_modules;
-                                            let modules: string[] = [];
-                                            try {
-                                                modules = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
-                                            } catch (e) {
-                                                console.error("Failed to parse modules:", e);
-                                            }
+                            <div className="p-4 md:p-6 rounded-2xl border border-slate-100 bg-slate-50">
+                                <h3 className="flex items-center gap-2 font-bold text-slate-900 mb-4 md:mb-6">
+                                    <Zap className="w-5 h-5 text-amber-500" />
+                                    Active Modules
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {(() => {
+                                        const raw = company?.enabled_modules;
+                                        let modules: string[] = [];
+                                        try {
+                                            modules = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+                                        } catch (e) {
+                                            console.error("Failed to parse modules:", e);
+                                        }
 
-                                            if (modules.length === 0) return <p className="text-sm text-slate-400 italic">No modules active</p>;
+                                        if (modules.length === 0) return <p className="text-sm text-slate-400 italic">No modules active</p>;
 
-                                            const niceNames: any = {
-                                                'HR': 'Human Resources', 'LMS': 'Learning Management',
-                                                'CRM': 'Cust. Relationship', 'FINANCE': 'Finance'
-                                            };
+                                        const niceNames: any = {
+                                            'CORE': 'Core Management',
+                                            'HR': 'Human Resources',
+                                            'ATTENDANCE': 'Attendance Tracking',
+                                            'PAYROLL': 'Payroll System',
+                                            'CRM': 'Cust. Relationship',
+                                            'LMS': 'Learning Platform',
+                                            'FINANCE': 'Finance & Accounts',
+                                            'INVENTORY': 'Inventory Sync'
+                                        };
 
-                                            return modules.map((mod: string) => (
-                                                <div key={mod} className="px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2">
-                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                                    {niceNames[mod] || mod}
-                                                </div>
-                                            ));
-                                        })()}
-                                    </div>
+                                        return modules.map((mod: string) => (
+                                            <div key={mod} className="px-3 md:px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2">
+                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                                {niceNames[mod] || mod}
+                                            </div>
+                                        ));
+                                    })()}
                                 </div>
+                            </div>
 
-                                <div className="p-4 md:p-6 rounded-2xl border border-slate-100 bg-slate-50">
-                                    <h3 className="flex items-center gap-2 font-bold text-slate-900 mb-4 md:mb-6">
-                                        <CreditCard className="w-5 h-5 text-blue-500" />
-                                        Payment Method
-                                    </h3>
-                                    <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-200">
-                                        <div className="w-12 h-8 bg-slate-800 rounded flex items-center justify-center text-white text-[10px] font-bold tracking-widest">
-                                            HDFC
+                            <div className="p-4 md:p-6 rounded-2xl border border-slate-100 bg-slate-50">
+                                <h3 className="flex items-center gap-2 font-bold text-slate-900 mb-4 md:mb-6">
+                                    <LayoutGrid className="w-5 h-5 text-blue-500" />
+                                    Resource Allocation
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { label: 'Max Users', val: company?.max_users || limits.maxUsers, icon: Users2 },
+                                        { label: 'Max Branches', val: company?.max_branches || limits.maxBranches, icon: Building },
+                                        { label: 'Max Depts', val: company?.max_departments || limits.maxDepartments, icon: LayoutGrid },
+                                        { label: 'Max Desigs', val: company?.max_designations || limits.maxDesignations, icon: Briefcase },
+                                    ].map((item, i) => (
+                                        <div key={i} className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <item.icon className="w-3.5 h-3.5 text-slate-400" />
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{item.label}</span>
+                                            </div>
+                                            <span className="text-xs font-black text-slate-900">{item.val === 0 ? '∞' : item.val}</span>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-slate-900 text-sm truncate">•••• •••• •••• 4242</p>
-                                            <p className="text-xs text-slate-400">Expires 12/28</p>
-                                        </div>
-                                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded flex-shrink-0">Primary</span>
-                                    </div>
-                                    <div className="mt-4 text-center">
-                                        <button className="text-xs font-bold text-violet-600 hover:text-violet-800 tracking-wide">
-                                            + Add New Payment Method
-                                        </button>
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                     )}
 
                 </div>
+
+                {/* 6. BRANDING TAB */}
+                {activeTab === "BRANDING" && (
+                    <div className="p-4 md:p-8">
+                        <form onSubmit={handleSaveBranding} className="max-w-4xl mx-auto">
+                            <FormSection
+                                title="Visual Identity"
+                                description="Update your company's logo and favicon"
+                                icon={Palette}
+                            >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <ImageUpload
+                                        label="Company Logo"
+                                        value={brandingForm.logo_url}
+                                        onChange={(url) => setBrandingForm(prev => ({ ...prev, logo_url: url }))}
+                                    />
+                                    <ImageUpload
+                                        label="Favicon"
+                                        value={brandingForm.favicon_url}
+                                        onChange={(url) => setBrandingForm(prev => ({ ...prev, favicon_url: url }))}
+                                    />
+                                </div>
+                            </FormSection>
+
+                            <FormSection
+                                title="Theme Colors"
+                                description="Customize your platform's color scheme"
+                                icon={Store}
+                                className="mt-8"
+                            >
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-slate-700">Primary Color</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="h-10 w-10 rounded-lg border border-slate-200 cursor-pointer"
+                                                value={brandingForm.primary_color}
+                                                onChange={(e) => setBrandingForm(prev => ({ ...prev, primary_color: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                value={brandingForm.primary_color}
+                                                onChange={(e) => setBrandingForm(prev => ({ ...prev, primary_color: e.target.value }))}
+                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm font-mono font-bold uppercase focus:ring-2 focus:ring-violet-500/20"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-slate-700">Secondary Color</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="h-10 w-10 rounded-lg border border-slate-200 cursor-pointer"
+                                                value={brandingForm.secondary_color}
+                                                onChange={(e) => setBrandingForm(prev => ({ ...prev, secondary_color: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                value={brandingForm.secondary_color}
+                                                onChange={(e) => setBrandingForm(prev => ({ ...prev, secondary_color: e.target.value }))}
+                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm font-mono font-bold uppercase focus:ring-2 focus:ring-violet-500/20"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-slate-700">Accent Color</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                className="h-10 w-10 rounded-lg border border-slate-200 cursor-pointer"
+                                                value={brandingForm.accent_color}
+                                                onChange={(e) => setBrandingForm(prev => ({ ...prev, accent_color: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                value={brandingForm.accent_color}
+                                                onChange={(e) => setBrandingForm(prev => ({ ...prev, accent_color: e.target.value }))}
+                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm font-mono font-bold uppercase focus:ring-2 focus:ring-violet-500/20"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Live Preview */}
+                                <div className="mt-8 p-6 rounded-2xl border border-slate-100 bg-slate-50">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Live Preview</h4>
+                                    <div className="flex gap-4">
+                                        {/* Sidebar Preview */}
+                                        <div
+                                            className="w-48 h-32 rounded-xl shadow-lg flex flex-col p-3 relative overflow-hidden"
+                                            style={{ background: `linear-gradient(to bottom, ${brandingForm.primary_color}, ${brandingForm.secondary_color})` }}
+                                        >
+                                            <div className="flex items-center gap-2 mb-4">
+                                                {brandingForm.logo_url ? (
+                                                    <img src={brandingForm.logo_url} className="w-6 h-6 object-contain bg-white/20 rounded p-0.5" />
+                                                ) : (
+                                                    <div className="w-6 h-6 bg-white/20 rounded flex items-center justify-center text-white text-[10px] font-bold">D</div>
+                                                )}
+                                                <div className="h-2 w-20 bg-white/20 rounded"></div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <div className="h-1.5 w-full bg-white/10 rounded"></div>
+                                                <div className="h-1.5 w-full bg-white/10 rounded"></div>
+                                                <div className="h-1.5 w-3/4 bg-white/30 rounded"></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Button Preview */}
+                                        <div className="flex items-center justify-center flex-1 bg-white rounded-xl border border-slate-200">
+                                            <button
+                                                className="px-4 py-2 rounded-lg text-white font-bold text-sm shadow-lg transition-transform hover:scale-105"
+                                                style={{ backgroundColor: brandingForm.accent_color }}
+                                            >
+                                                Accent Button
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </FormSection>
+
+                            <div className="mt-8 flex justify-end">
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="px-8 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-sm tracking-wide shadow-lg shadow-violet-200 hover:bg-violet-700 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center gap-2"
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    {saving ? "Saving Changes..." : "Save Branding"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
 
                 {/* Delete Confirmation Modal */}
                 {deletingItem && (
@@ -909,6 +1290,23 @@ export default function WorkspaceSettings() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </DashboardLayout >
+    );
+}
+
+function FormSection({ title, description, icon: Icon, children, className = "" }: any) {
+    return (
+        <div className={`bg-white rounded-2xl border border-slate-200 p-6 md:p-8 ${className}`}>
+            <div className="flex items-start gap-4 mb-8">
+                <div className="w-10 h-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+                    <p className="text-sm text-slate-500">{description}</p>
+                </div>
+            </div>
+            {children}
+        </div>
     );
 }

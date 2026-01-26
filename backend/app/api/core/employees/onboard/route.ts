@@ -33,8 +33,19 @@ export async function POST(req: NextRequest) {
             return errorResponse('VALIDATION_ERROR', 'Missing required recruitment parameters', 400);
         }
 
-        // 🛡️ SECURITY: Validate targeting
-        // 1. If Company Admin, ensure branch belongs to their company
+        // 🛡️ SECURITY: 0. Plan Limit Check
+        const { canAddResource } = require('@/lib/services/LimitService');
+        const limitCheck = await canAddResource(scope.companyId || employee.company_id, 'employee');
+        if (!limitCheck.allowed) {
+            return errorResponse('LIMIT_REACHED', limitCheck.message, 403, limitCheck);
+        }
+
+        const userLimitCheck = await canAddResource(scope.companyId || employee.company_id, 'user');
+        if (!userLimitCheck.allowed) {
+            return errorResponse('LIMIT_REACHED', 'User account limit reached. Cannot create system login for this employee.', 403, userLimitCheck);
+        }
+
+        // 🛡️ SECURITY: 1. If Company Admin, ensure branch belongs to their company
         if (scope.roleLevel === 4) {
             const { data: branch } = await core.branches()
                 .select('company_id')
@@ -52,94 +63,114 @@ export async function POST(req: NextRequest) {
             return errorResponse('FORBIDDEN', 'Hierarchy Protection: Cannot assign higher-tier roles', 403);
         }
 
-        // 🚀 ATOMIC DISPATCH
-        // Note: Using a single Supabase transaction/service role call if possible 
-        // For simplicity here, we do sequential with rollback-like logic (better to use RPC for real production)
+        // 🚀 ATOMIC DISPATCH with MANUAL ROLLBACK
+        let createdEmployeeId: number | null = null;
+        let createdUserId: string | null = null;
 
-        // 1. Create Employee Record
-        const employeeData = {
-            ...employee,
-            company_id: scope.companyId || employee.company_id,
-            is_active: true
-        };
+        try {
+            // 1. Create Employee Record
+            const employeeData = {
+                ...employee,
+                company_id: scope.companyId || employee.company_id,
+                is_active: true
+            };
 
-        const { data: newEmployee, error: empError } = await core.employees()
-            .insert(employeeData)
-            .select()
-            .single();
+            const { data: newEmployee, error: empError } = await core.employees()
+                .insert(employeeData)
+                .select()
+                .single();
 
-        if (empError) throw new Error(`recruitment_failure: ${empError.message}`);
+            if (empError) throw new Error(`recruitment_failure: ${empError.message}`);
+            createdEmployeeId = newEmployee.id;
 
-        // 2. Create System User
-        const defaultPassword = 'User@' + Math.floor(1000 + Math.random() * 9000); // Temporary password format
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(defaultPassword, salt);
+            // 2. Create System User
+            const { GlobalSettings } = require('@/lib/settings');
+            const passPrefix = await GlobalSettings.get('auth.temp_password_prefix', 'User@');
+            const defaultPassword = passPrefix + Math.floor(1000 + Math.random() * 9000);
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(defaultPassword, salt);
 
-        const { data: newUser, error: userError } = await app_auth.users()
-            .insert({
-                email: employee.email,
-                password_hash: hashedPassword,
-                first_name: employee.first_name,
-                last_name: employee.last_name,
-                display_name: `${employee.first_name} ${employee.last_name}`,
-                is_active: true,
-                is_verified: true // Pre-verified for internal onboarding
-            })
-            .select()
-            .single();
+            const { data: newUser, error: userError } = await app_auth.users()
+                .insert({
+                    email: employee.email,
+                    password_hash: hashedPassword,
+                    first_name: employee.first_name,
+                    last_name: employee.last_name,
+                    display_name: `${employee.first_name} ${employee.last_name}`,
+                    is_active: true,
+                    is_verified: true
+                })
+                .select()
+                .single();
 
-        if (userError) {
-            // Rollback employee if user creation fails
-            await core.employees().delete().eq('id', newEmployee.id);
+            if (userError) {
+                // Check for duplicate email
+                if (userError.code === '23505') {
+                    throw new Error('DUPLICATE_EMAIL');
+                }
+                throw new Error(`credential_generation_failure: ${userError.message}`);
+            }
+            createdUserId = newUser.id;
 
-            // Check for duplicate email
-            if (userError.code === '23505' && (userError.message?.toLowerCase().includes('email') || userError.details?.toLowerCase().includes('email'))) {
+            // 3. Assign User Role
+            const { error: roleError } = await app_auth.userRoles()
+                .insert({
+                    user_id: newUser.id,
+                    role_id: role_id,
+                    company_id: scope.companyId || employee.company_id,
+                    branch_id: employee.branch_id || null,
+                    is_active: true
+                });
+
+            if (roleError) throw new Error(`hierarchy_assignment_failure: ${roleError.message}`);
+
+            // 4. Assign Granular Permissions (Overrides)
+            if (permission_ids && permission_ids.length > 0) {
+                const permissionInserts = permission_ids.map((pid: string) => ({
+                    user_id: newUser.id,
+                    permission_id: pid,
+                    company_id: scope.companyId || employee.company_id
+                }));
+
+                const { error: permError } = await app_auth.userPermissions()
+                    .insert(permissionInserts);
+
+                if (permError) {
+                    console.error('Non-critical: Overrides failed to apply', permError);
+                    // We don't rollback for non-critical permission failures, just log it.
+                }
+            }
+
+            return successResponse({
+                employee: newEmployee,
+                user: {
+                    id: newUser.id,
+                    email: newUser.email,
+                    temporary_password: defaultPassword
+                }
+            }, 'Strategic Personnel Onboarding Complete');
+
+        } catch (innerError: any) {
+            // 🔄 TRIGGER ROLLBACK
+            console.error('🚨 [ROLLBACK] Onboarding process failed. Initiating cleanup...', innerError.message);
+
+            if (createdUserId) {
+                await app_auth.users().delete().eq('id', createdUserId);
+            }
+            if (createdEmployeeId) {
+                await core.employees().delete().eq('id', createdEmployeeId);
+            }
+
+            if (innerError.message === 'DUPLICATE_EMAIL') {
                 return errorResponse(
                     'DUPLICATE_ENTRY',
-                    'This email address is already registered in the system. The employee cannot be onboarded with a duplicate email. Please use a different email address.',
-                    409,
-                    { field: 'email' },
-                    'email'
+                    'This email address is already registered. Personnel cannot be onboarded with a duplicate identity.',
+                    409
                 );
             }
 
-            throw new Error(`credential_generation_failure: ${userError.message}`);
+            throw innerError;
         }
-
-        // 3. Assign User Role
-        const { error: roleError } = await app_auth.userRoles()
-            .insert({
-                user_id: newUser.id,
-                role_id: role_id,
-                company_id: scope.companyId || employee.company_id,
-                branch_id: employee.branch_id || null,
-                is_active: true
-            });
-
-        if (roleError) throw new Error(`hierarchy_assignment_failure: ${roleError.message}`);
-
-        // 4. Assign Granular Permissions (Overrides)
-        if (permission_ids && permission_ids.length > 0) {
-            const permissionInserts = permission_ids.map((pid: string) => ({
-                user_id: newUser.id,
-                permission_id: pid,
-                company_id: scope.companyId || employee.company_id
-            }));
-
-            const { error: permError } = await app_auth.userPermissions()
-                .insert(permissionInserts);
-
-            if (permError) console.error('Non-critical: Overrides failed to apply', permError);
-        }
-
-        return successResponse({
-            employee: newEmployee,
-            user: {
-                id: newUser.id,
-                email: newUser.email,
-                temporary_password: defaultPassword
-            }
-        }, 'Strategic Personnel Onboarding Complete');
 
     } catch (error: any) {
         console.error('[OnboardAPI] Error:', error);

@@ -57,6 +57,7 @@ export const core = {
     subscriptionHistory: () => fromSchema(SCHEMAS.CORE, 'subscription_history'),
     platformBranding: () => fromSchema(SCHEMAS.CORE, 'platform_branding'),
     companyBranding: () => fromSchema(SCHEMAS.CORE, 'company_branding'),
+    companySecurityWhitelists: () => fromSchema(SCHEMAS.CORE, 'company_security_whitelists'),
 };
 
 export const app_auth = {
@@ -67,8 +68,9 @@ export const app_auth = {
     rolePermissions: () => fromSchema(SCHEMAS.AUTH, 'role_permissions'),
     menuRegistry: () => fromSchema(SCHEMAS.AUTH, 'menu_registry'),
     menuPermissions: () => fromSchema(SCHEMAS.AUTH, 'menu_permissions'),
-    auditLogs: () => fromSchema(SCHEMAS.AUTH, 'audit_logs'),
     loginHistory: () => fromSchema(SCHEMAS.AUTH, 'login_history'),
+    auditLogs: () => fromSchema(SCHEMAS.AUTH, 'audit_logs'),
+    trustedDevices: () => fromSchema(SCHEMAS.AUTH, 'trusted_devices'),
     userPermissions: () => fromSchema(SCHEMAS.AUTH, 'user_permissions'),
 };
 

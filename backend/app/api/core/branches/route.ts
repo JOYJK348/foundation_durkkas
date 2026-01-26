@@ -72,11 +72,10 @@ export async function POST(req: NextRequest) {
         }
 
         // Map frontend fields to DB columns
-        const branchData = {
+        const branchData: any = {
             company_id: data.company_id,
             name: data.name,
             code: data.code,
-            branch_type: data.branch_type || 'BRANCH',
             email: data.email || null,
             phone: data.phone || null,
             is_active: data.is_active !== false,
@@ -85,10 +84,11 @@ export async function POST(req: NextRequest) {
             city: data.city || null,
             state: data.state || null,
             country: data.country || 'India',
-            postal_code: data.pincode || data.postal_code || null,
-            enabled_modules: data.enabled_modules || [],
-            allowed_menu_ids: data.allowed_menu_ids || []
+            postal_code: data.pincode || data.postal_code || null
         };
+
+        // Add branch_type if it exists in schema (some versions might have it)
+        if (data.branch_type) branchData.branch_type = data.branch_type;
 
         console.log('Creates branch with data:', branchData);
 
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
 
                                     const { data: existingDesg } = await core.designations()
                                         .select('id')
-                                        .eq('name', desgName)
+                                        .eq('title', desgName)
                                         .eq('company_id', branch.company_id)
                                         .single();
 
@@ -234,8 +234,8 @@ export async function POST(req: NextRequest) {
                                         const { data: newDesg } = await core.designations()
                                             .insert({
                                                 company_id: branch.company_id,
-                                                name: desgName,
-                                                code: `DESG-${roleName}-${branch.id}`.slice(0, 50)
+                                                title: desgName,
+                                                code: `DESG-${roleName.substring(0, 10)}-${branch.id}`.slice(0, 50)
                                             })
                                             .select('id')
                                             .single();

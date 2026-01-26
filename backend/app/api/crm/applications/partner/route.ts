@@ -51,7 +51,20 @@ export const GET = apiRoute({
 });
 
 export const POST = asyncHandler(async (req: NextRequest) => {
-    const body = await req.json();
+    let body = await req.json();
+
+    // CRM PROTECTION: If user is logged in, auto-attribute to their company/branch
+    try {
+        const { getUserIdFromToken } = require('@/lib/jwt');
+        const { autoAssignCompany } = require('@/middleware/tenantFilter');
+        const userId = await getUserIdFromToken(req);
+        if (userId) {
+            body = await autoAssignCompany(userId, body);
+        }
+    } catch (e) {
+        // Fallback for public submissions
+    }
+
     const validatedData = partnerSchema.safeParse(body);
     if (!validatedData.success) {
         return errorResponse('VALIDATION_ERROR', validatedData.error.errors[0].message, 400);
@@ -60,7 +73,10 @@ export const POST = asyncHandler(async (req: NextRequest) => {
     const { data, error } = await supabase
         .schema('crm')
         .from('partner')
-        .insert([validatedData.data])
+        .insert([{
+            ...validatedData.data,
+            created_at: new Date().toISOString()
+        }])
         .select()
         .single();
 

@@ -23,6 +23,7 @@ export interface JWTPayload {
     email: string;
     roles: string[];
     type: 'access' | 'refresh';
+    sid?: string; // Session ID for concurrency tracking
     exp?: number;
 }
 
@@ -32,17 +33,20 @@ export interface JWTPayload {
 export function generateAccessToken(
     userId: number,
     email: string,
-    roles: string[]
+    roles: string[],
+    expiresIn?: string | number,
+    sid?: string
 ): string {
     const payload: JWTPayload = {
         userId,
         email,
         roles,
         type: 'access',
+        sid
     };
 
     const options: jwt.SignOptions = {
-        expiresIn: JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+        expiresIn: (expiresIn || JWT_EXPIRES_IN) as jwt.SignOptions['expiresIn'],
         issuer: 'durkkas-erp',
         audience: 'durkkas-api',
     };
@@ -53,11 +57,12 @@ export function generateAccessToken(
 /**
  * Generate refresh token
  */
-export function generateRefreshToken(userId: number, email: string): string {
+export function generateRefreshToken(userId: number, email: string, sid?: string): string {
     const payload: Partial<JWTPayload> = {
         userId,
         email,
         type: 'refresh',
+        sid
     };
 
     const options: jwt.SignOptions = {
@@ -178,11 +183,13 @@ export function getTokenExpiration(token: string): number | null {
 export function generateTokenPair(
     userId: number,
     email: string,
-    roles: string[]
+    roles: string[],
+    expiresIn?: string | number,
+    sid?: string
 ): { accessToken: string; refreshToken: string } {
     return {
-        accessToken: generateAccessToken(userId, email, roles),
-        refreshToken: generateRefreshToken(userId, email),
+        accessToken: generateAccessToken(userId, email, roles, expiresIn, sid),
+        refreshToken: generateRefreshToken(userId, email, sid),
     };
 }
 

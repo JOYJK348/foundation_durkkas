@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
             { key: 'HR', name: 'HR Management', description: 'Employee management, departments, designations' },
             { key: 'ATTENDANCE', name: 'Attendance', description: 'Daily attendance, leaves, holidays' },
             { key: 'PAYROLL', name: 'Payroll', description: 'Salary processing, payslips, deductions' },
-            { key: 'CRM', name: 'CRM', description: 'Leads, contacts, deals, sales pipeline' },
+            { key: 'CRM', name: 'CRM', description: 'Vendors, Partners, Job Seekers, Internships, Course Enquiries' },
             { key: 'LMS', name: 'LMS', description: 'Courses, online classes, assessments' },
             { key: 'FINANCE', name: 'Finance', description: 'Invoices, payments, expenses, ledger' }
         ];

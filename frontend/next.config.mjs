@@ -17,6 +17,18 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/w/:slug/:path*',
+        destination: '/workspace/:path*',
+      },
+      {
+        source: '/b/:slug/:path*',
+        destination: '/branch/:path*',
+      }
+    ];
+  },
 };
 
 export default nextConfig;

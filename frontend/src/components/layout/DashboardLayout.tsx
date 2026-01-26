@@ -45,6 +45,7 @@ import Cookie from "js-cookie";
 import { platformService } from "@/services/platformService";
 import api from "@/lib/api";
 import { useBranding } from "@/hooks/useBranding";
+import { useFeatureAccess } from "@/contexts/FeatureAccessContext";
 
 interface NavItem {
     id: string;
@@ -53,61 +54,54 @@ interface NavItem {
     href: string;
     roles: number[];
     module?: string; // Module requirement (e.g. 'HR', 'CRM')
+    menuId?: number; // Database ID from menu_registry
 }
 
 const navItems: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "DYNAMIC_DASHBOARD", roles: [1, 2, 3, 4, 5] },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "DYNAMIC_DASHBOARD", roles: [1, 2, 3, 4, 5], menuId: 44 },
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🛡️ PLATFORM ADMIN (Level 5) - SYSTEM ONLY
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     { id: "companies", label: "Companies", icon: Building2, href: "/platform/core/companies", roles: [5] },
+    { id: "users_global", label: "Users", icon: Users2, href: "/platform/users", roles: [5] },
     { id: "modules", label: "Modules", icon: Box, href: "/platform/modules", roles: [5] },
     { id: "admins_overview", label: "Admins Overview", icon: ShieldCheck, href: "/platform/admins", roles: [5] },
     { id: "subscription_plans", label: "Subscription", icon: CreditCard, href: "/platform/subscriptions", roles: [5] },
     { id: "system_settings", label: "System Settings", icon: Monitor, href: "/platform/settings", roles: [5] },
     { id: "audit_logs", label: "Audit Logs", icon: History, href: "/platform/audit-logs", roles: [5] },
+    { id: "notifications_plat", label: "Notifications", icon: Bell, href: "/platform/notifications", roles: [5] },
+    { id: "profile_plat", label: "My Profile", icon: UserCircle, href: "/platform/profile", roles: [5] },
     { id: "branding_platform", label: "Branding", icon: Palette, href: "/platform/branding", roles: [5] },
+    { id: "platform_reports", label: "Reports", icon: FileText, href: "/platform/reports", roles: [5] },
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🏢 COMPANY / BRANCH ADMIN (Level 1-4) - BUSINESS OPERATIONS
+    // 🏢 COMPANY ADMINISTRATION (Level 4) - CONSTANT CORE
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    // Core Organization (Always visible for Company Admin)
-    { id: "branches", label: "Branches", icon: Building, href: "/workspace/branches", roles: [4] },
-    { id: "departments", label: "Departments", icon: LayoutGrid, href: "/workspace/settings?tab=DEPARTMENTS", roles: [4] },
-    { id: "designations", label: "Designations", icon: Users2, href: "/workspace/settings?tab=DESIGNATIONS", roles: [4] },
-
-    // HR Module (Requires HR)
-    { id: "employees", label: "Employees", icon: Users, href: "DYNAMIC_EMPLOYEES", roles: [1, 2, 3, 4, 5], module: "HR" },
-
-    // Attendance Module (Requires ATTENDANCE)
-    { id: "attendance", label: "Attendance", icon: CalendarCheck, href: "DYNAMIC_ATTENDANCE", roles: [1, 2, 3, 4], module: "ATTENDANCE" },
-    { id: "leaves", label: "Leaves", icon: MailCheck, href: "DYNAMIC_LEAVES", roles: [1, 2, 3, 4], module: "ATTENDANCE" },
-
-    // Payroll Module (Requires PAYROLL)
-    { id: "payroll", label: "Payroll", icon: Briefcase, href: "/workspace/payroll", roles: [4], module: "PAYROLL" },
-
-    // CRM Module
-    { id: "crm", label: "CRM", icon: LayoutGrid, href: "/workspace/crm", roles: [4, 1], module: "CRM" },
-
-    // LMS Module  
-    { id: "lms", label: "LMS", icon: MonitorPlay, href: "/workspace/lms", roles: [4, 1], module: "LMS" },
-
-    // Finance Module
-    { id: "finance", label: "Finance", icon: CreditCard, href: "/workspace/finance", roles: [4, 1], module: "FINANCE" },
-
-    // Reports (Always visible)
-    { id: "reports", label: "Reports", icon: FileText, href: "DYNAMIC_REPORTS", roles: [1, 2, 3, 4] },
-
-    // Settings & Admin Tools
-    { id: "access", label: "Access Control", icon: Lock, href: "/workspace/access", roles: [4] },
+    { id: "branches", label: "Branches", icon: Building, href: "/workspace/branches", roles: [4], menuId: 52 },
+    { id: "departments", label: "Departments", icon: LayoutGrid, href: "/workspace/settings?tab=DEPARTMENTS", roles: [4], menuId: 50 },
+    { id: "designations", label: "Designations", icon: Users2, href: "/workspace/settings?tab=DESIGNATIONS", roles: [4], menuId: 51 },
+    { id: "employees", label: "Employees", icon: Users, href: "DYNAMIC_EMPLOYEES", roles: [1, 2, 3, 4], menuId: 49 },
+    { id: "reports", label: "Reports", icon: FileText, href: "DYNAMIC_REPORTS", roles: [1, 2, 3, 4], menuId: 85 },
+    { id: "access", label: "Access Control", icon: Lock, href: "/workspace/access", roles: [4], menuId: 86 },
     { id: "subscription", label: "Subscription", icon: CreditCard, href: "/workspace/subscription", roles: [4] },
-    { id: "company_settings", label: "Settings", icon: Settings, href: "/workspace/settings", roles: [4] },
+    { id: "company_settings", label: "Settings", icon: Settings, href: "/workspace/settings", roles: [4], menuId: 47 },
 
-    // Shared - User Centric
-    { id: "notifications", label: "Notifications", icon: Bell, href: "DYNAMIC_NOTIFICATIONS", roles: [1, 2, 3, 4, 5] },
-    { id: "profile", label: "Profile", icon: UserCircle, href: "DYNAMIC_PROFILE", roles: [1, 2, 3, 4, 5] },
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 📦 MODULE-BASED EXTENSIONS (Gated by Subscription)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    { id: "attendance", label: "Attendance", icon: CalendarCheck, href: "DYNAMIC_ATTENDANCE", roles: [1, 2, 3, 4], module: "ATTENDANCE", menuId: 55 },
+    { id: "leaves", label: "Leaves", icon: MailCheck, href: "DYNAMIC_LEAVES", roles: [1, 2, 3, 4], module: "ATTENDANCE", menuId: 57 },
+    { id: "payroll", label: "Payroll", icon: Briefcase, href: "/workspace/payroll", roles: [4], module: "PAYROLL", menuId: 61 },
+    { id: "crm", label: "CRM", icon: LayoutGrid, href: "/workspace/crm", roles: [4, 1], module: "CRM", menuId: 87 },
+    { id: "lms", label: "LMS", icon: MonitorPlay, href: "/workspace/lms", roles: [4, 1], module: "LMS", menuId: 73 },
+    { id: "finance", label: "Finance", icon: CreditCard, href: "/workspace/finance", roles: [4, 1], module: "FINANCE", menuId: 79 },
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 👤 SHARED USER CENTRIC
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    { id: "notifications", label: "Notifications", icon: Bell, href: "DYNAMIC_NOTIFICATIONS", roles: [1, 2, 3, 4, 5], menuId: 46 },
+    { id: "profile", label: "Profile", icon: UserCircle, href: "DYNAMIC_PROFILE", roles: [1, 2, 3, 4, 5], menuId: 45 },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -116,6 +110,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const searchParams = useSearchParams(); // Add this line
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [hasMounted, setHasMounted] = useState(false);
     const { user, setUser, logout } = useAuthStore();
     const { unreadCount } = useNotificationStore();
     const [menuConfig, setMenuConfig] = useState<Record<string, boolean> | null>(null);
@@ -125,24 +120,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [branchName, setBranchName] = useState<string | null>(null);
     const [branchModules, setBranchModules] = useState<string[]>([]);
     const [branchMenus, setBranchMenus] = useState<number[]>([]);
-    // const { branding } = useBranding(); // 🎨 Dynamic branding - Temporarily disabled
 
-    // Check if we can go back (not on platform or workspace dashboard root)
-    const canGoBack = pathname !== "/platform/dashboard" && pathname !== "/workspace/dashboard";
+    // NEW: Real-time Feature Access Control
+    const { enabledModules, accessibleMenuIds, isLoading: isAccessLoading, company: featureCompany } = useFeatureAccess();
 
+    // Prevent Hydration Error: Ensure component is mounted before rendering client-side content
     // Hydrate user from cookies if store is empty
     useEffect(() => {
+        setHasMounted(true);
         if (!user) {
             const roleName = Cookie.get("user_role");
             const roleLevel = parseInt(Cookie.get("user_role_level") || "0");
             const displayName = Cookie.get("user_display_name");
+            const companyId = Cookie.get("x-company-id");
 
             if (roleName) {
                 setUser({
                     id: "local",
                     email: "",
                     display_name: displayName || "User",
-                    role: { name: roleName, level: roleLevel }
+                    role: { name: roleName, level: roleLevel },
+                    company_id: companyId
                 });
             }
         }
@@ -151,6 +149,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const userLevel = user?.role?.level || 0;
     const userRoleName = user?.role?.name || "GUEST";
 
+    // 🛡️ STRICT ISOLATION: Platform Admin (Level 5) MUST use Platform Branding, 
+    // never company branding even if a companyId is present in state/cookies
+    const activeCompanyId = userLevel >= 5 ? undefined : (user?.company_id || featureCompany?.id);
+
+    const { branding } = useBranding(activeCompanyId);
+
+    // Check if we can go back (not on platform or workspace dashboard root)
+    const canGoBack = pathname !== "/platform/dashboard" && pathname !== "/workspace/dashboard";
 
 
     // FETCH MENU PERMISSIONS
@@ -306,10 +312,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, [user]);
 
     const handleLogout = () => {
+        // Clear Core Auth Tokens
         Cookie.remove("access_token");
         Cookie.remove("user_role");
         Cookie.remove("user_role_level");
         Cookie.remove("user_display_name");
+
+        // 🛡️ STRICT ISOLATION: Clear and Reset Tenant/Scope identifying cookies
+        Cookie.remove("x-company-id");
+        Cookie.remove("x-branch-id");
+        Cookie.remove("x-country-id");
+
+        // Clear Store & Redirect
         logout();
         router.push("/login");
     };
@@ -355,73 +369,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return "/branch/profile";
     };
 
-    // Filter Logic
+    // 🚀 NEW: Dynamic Subscription-Driven Filter Logic
     const filteredNav = navItems.filter(item => {
         // 1. Base Role Check
         if (!item.roles.includes(userLevel)) return false;
 
-        // 2. Dynamic Config Check (Only for Sub-Admins)
+        // 2. Platform Admin Override
+        if (userLevel === 5) {
+            return item.roles.includes(5) && (item.href.startsWith('/platform') || item.id === 'dashboard' || item.roles.length === 1);
+        }
+
+        // 3. COMPANY ADMIN CORE OVERRIDE (Requested items must always be constant)
+        const constantCoreIds = [
+            'dashboard', 'branches', 'departments', 'designations',
+            'employees', 'reports', 'access', 'subscription',
+            'company_settings', 'notifications', 'profile'
+        ];
+
+        if (userLevel === 4 && constantCoreIds.includes(item.id)) {
+            return true;
+        }
+
+        // 4. Module Check (For Extensions like CRM, LMS, etc.)
+        if (item.module && !enabledModules.includes(item.module as any)) {
+            return false;
+        }
+
+        // 5. Menu-Level Gating (For Sub-Admins or restricted plans)
+        if (!isAccessLoading && accessibleMenuIds.length > 0 && item.menuId) {
+            if (!accessibleMenuIds.includes(item.menuId)) return false;
+        }
+
+        // 6. Manual Sub-Admin Config Check (Specific for Level < 4)
         if (menuConfig && userLevel < 4) {
             const isAllowed = menuConfig[item.id];
             if (isAllowed === false) return false;
-        }
-
-        // 3. Module Check (For Company Admin & Branch Admin)
-        if ((userLevel === 4 || userLevel === 1) && item.module) {
-            // 🏢 BRANCH ADMIN: Strict Filtering
-            if (userLevel === 1) {
-                // If branch configuration is not yet loaded, wait (don't show to avoid flickering)
-                if (branchModules.length === 0 && userLevel === 1) return false;
-
-                const bModules = branchModules.map(m => m.toUpperCase());
-                const moduleKey = item.module.toUpperCase();
-
-                let hasModule = bModules.includes(moduleKey);
-                if (moduleKey === "HR") {
-                    hasModule = bModules.includes("HR") || bModules.includes("HRMS") || bModules.includes("ATTENDANCE") || bModules.includes("PAYROLL");
-                }
-
-                if (!hasModule) return false;
-            }
-
-            // 🏢 COMPANY ADMIN: Plan Based Access
-            if (userLevel === 4) {
-                // SAFE-FAIL: Trials/Enterprise show all by default
-                if (myPlan === 'TRIAL' || myPlan === 'ENTERPRISE') return true;
-
-                // While modules are loading, show item
-                if (myModules === null) return true;
-
-                const purchasedModules = myModules.map(m => m.toUpperCase());
-                const moduleKey = item.module.toUpperCase();
-
-                let hasCompanyModule = purchasedModules.includes(moduleKey);
-                if (moduleKey === "HR") {
-                    hasCompanyModule = purchasedModules.includes("HR") ||
-                        purchasedModules.includes("HRMS") ||
-                        purchasedModules.includes("PAYROLL") ||
-                        purchasedModules.includes("ATTENDANCE");
-                }
-
-                if (!hasCompanyModule) return false;
-            }
-        }
-
-        // 4. BRANCH ADMIN SPECIFIC PERMISSION CHECK (GRANULAR SUB-MENUS)
-        if (userLevel === 1) {
-            const granularMap: Record<string, string> = {
-                'employees': 'hrms.employees',
-                'attendance': 'hrms.attendance',
-                'leaves': 'hrms.leaves',
-                'lms': 'lms.courses',
-                'finance': 'finance.invoices',
-                'crm': 'crm.leads'
-            };
-
-            const requiredPerm = granularMap[item.id];
-            if (requiredPerm && myPermissions.length > 0 && !myPermissions.includes(requiredPerm)) {
-                return false;
-            }
         }
 
         return true;
@@ -429,6 +411,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const finalNav = filteredNav.map(item => {
         let href = item.href;
+
+        // 🏗️ MNC Logic: Generate Unique Slug (Company ID + Session Hash)
+        const uniqueSeed = activeCompanyId ? `${activeCompanyId}-${Math.random().toString(36).substring(8)}` : 'global';
+        const workspacePrefix = `/w/${uniqueSeed}`;
+        const branchPrefix = `/b/${uniqueSeed}`;
+
         if (href === "DYNAMIC_DASHBOARD") href = getDashboardHref();
         if (href === "DYNAMIC_EMPLOYEES") href = getEmployeesHref();
         if (href === "DYNAMIC_ATTENDANCE") href = getAttendanceHref();
@@ -437,23 +425,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (href === "DYNAMIC_NOTIFICATIONS") href = getNotificationsHref();
         if (href === "DYNAMIC_PROFILE") href = getProfileHref();
 
+        // UNIQUE URL REWRITING: Replace standard paths with MNC Unique IDs
+        if (userLevel === 4) {
+            href = href.replace('/workspace', workspacePrefix);
+        } else if (userLevel < 4) {
+            href = href.replace('/branch', branchPrefix);
+            // Also handle any /workspace links for sub-admins if mapped
+            href = href.replace('/workspace', workspacePrefix);
+        }
+
         return { ...item, href };
     });
-
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 font-['Inter',_'Poppins',_sans-serif]">
             <Toaster position="top-right" expand={false} richColors />
 
-            {/* Desktop Sidebar - Vibrant Blue Theme */}
-            <aside className={`fixed left-0 top-0 h-full w-72 bg-gradient-to-b from-[#0066FF] to-[#0052CC] z-40 transition-transform duration-300 hidden lg:block shadow-2xl`}>
+            {/* Desktop Sidebar - Vibrant Blue Theme (Dynamic) */}
+            <aside
+                className={`fixed left-0 top-0 h-full w-72 z-40 transition-transform duration-300 hidden lg:block shadow-2xl`}
+                style={{
+                    background: `linear-gradient(to bottom, ${branding.primary_color}, ${branding.secondary_color})`
+                }}
+            >
                 <div className="flex flex-col h-full p-6">
                     {/* Logo Section */}
                     <div className="flex items-center gap-3 px-3 mb-10 mt-2">
-                        <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-                            <span className="text-white font-bold text-xl">D</span>
-                        </div>
+                        {hasMounted && branding.logo_url ? (
+                            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+                                <img src={branding.logo_url} alt="Logo" className="w-full h-full object-contain p-1" />
+                            </div>
+                        ) : (
+                            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                                <span className="text-white font-bold text-xl">{(hasMounted && branding.name) ? branding.name.charAt(0) : 'D'}</span>
+                            </div>
+                        )}
                         <div className="flex flex-col">
-                            <span className="font-bold text-xl tracking-tight text-white">Durkkas</span>
+                            <span className="font-bold text-xl tracking-tight text-white">{(hasMounted && branding.name) ? branding.name : 'Durkkas'}</span>
                             {userLevel === 5 && (
                                 <span className="text-[9px] text-white/60 font-semibold uppercase tracking-wider">Platform Admin</span>
                             )}
@@ -483,13 +490,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     key={item.href}
                                     href={item.href}
                                     className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group ${isActive
-                                        ? "bg-white text-[#0066FF] shadow-lg shadow-black/10"
+                                        ? "bg-white shadow-lg shadow-black/10"
                                         : "text-white/80 hover:bg-white/10 hover:text-white"
                                         }`}
+                                    style={isActive ? { color: branding.primary_color } : {}}
                                 >
-                                    <item.icon className={`w-5 h-5 ${isActive ? "text-[#0066FF]" : "group-hover:scale-110 transition-transform"}`} />
+                                    <item.icon className={`w-5 h-5 ${isActive ? "" : "group-hover:scale-110 transition-transform"}`} style={isActive ? { color: branding.primary_color } : {}} />
                                     <span className="font-semibold text-sm">{item.label}</span>
-                                    {isActive && <ChevronRight className="w-4 h-4 ml-auto text-[#0066FF]/50" />}
+                                    {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-50" style={{ color: branding.primary_color }} />}
                                 </Link>
                             );
                         })}
@@ -513,7 +521,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <main className="lg:ml-72 min-h-screen flex flex-col pb-20 lg:pb-0">
                 {/* Top Header - Clean & Modern */}
                 <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-slate-200/80 sticky top-0 z-30 px-4 md:px-6 lg:px-8 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                         {/* Mobile Menu Toggle */}
                         <div className="flex items-center gap-3 lg:hidden">
                             <button
@@ -523,9 +531,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             >
                                 <Menu className="w-6 h-6 text-slate-700" />
                             </button>
-                            <Link href={getDashboardHref()} className="font-bold text-lg tracking-tight text-slate-900 hover:text-[#0066FF] transition-colors">
-                                Durkkas
-                            </Link>
+                        </div>
+
+                        {/* MNC Style Dynamic Breadcrumb / Address Bar */}
+                        <div className="flex items-center gap-2 py-2 px-3 bg-slate-50/50 rounded-2xl border border-slate-100/50 group">
+                            <div className="flex items-center gap-2 group-hover:opacity-100 transition-opacity">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-[10px]" style={{ backgroundColor: `${branding.primary_color}1a`, color: branding.primary_color }}>
+                                    {featureCompany?.name?.[0]?.toUpperCase() || 'W'}
+                                </div>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter hidden sm:block">
+                                    {featureCompany?.name || 'Workspace'}
+                                </span>
+                            </div>
+
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-slate-900 uppercase tracking-tight">
+                                    {pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
+                                </span>
+                            </div>
                         </div>
 
                         {/* Back Button */}
@@ -533,11 +558,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <button
                                 onClick={() => router.back()}
                                 suppressHydrationWarning
-                                className="hidden lg:flex items-center gap-2 px-3 py-2 hover:bg-slate-100 rounded-xl transition-all text-slate-600 hover:text-slate-900 group"
+                                className="flex items-center gap-2 px-3 py-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-900 group"
                                 title="Go Back"
                             >
                                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-                                <span className="text-sm font-semibold">Back</span>
                             </button>
                         )}
                     </div>
@@ -546,13 +570,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="hidden lg:flex items-center gap-4 flex-1 max-w-md mx-8">
                         {userLevel < 4 && branchName ? (
                             <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl shadow-sm">
-                                <Building className="w-4 h-4 text-[#0066FF]" />
+                                <Building className="w-4 h-4" style={{ color: branding.primary_color }} />
                                 <span className="text-sm font-bold text-slate-900 tracking-tight">{branchName}</span>
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2"></span>
                             </div>
                         ) : (
                             <div className="w-full relative group">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#0066FF] transition-colors" />
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#0066FF] transition-colors" style={{ color: branding.primary_color }} />
                                 <input
                                     type="text"
                                     placeholder="Search here..."
@@ -570,11 +594,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 suppressHydrationWarning
                                 className={`relative p-2.5 rounded-xl transition-all duration-200 group ${showNotifications
-                                    ? 'bg-[#0066FF] text-white shadow-lg shadow-[#0066FF]/30'
+                                    ? 'text-white shadow-lg shadow-[#0066FF]/30'
                                     : unreadCount > 0
-                                        ? 'bg-blue-50 text-[#0066FF] hover:bg-blue-100'
+                                        ? 'bg-blue-50 hover:bg-blue-100'
                                         : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                                     }`}
+                                style={showNotifications ? { backgroundColor: branding.primary_color } : (unreadCount > 0 ? { color: branding.primary_color } : {})}
                             >
                                 <Bell className={`w-5 h-5 transition-transform ${unreadCount > 0 ? 'animate-[wiggle_0.5s_ease-in-out]' : ''}`} />
                                 {unreadCount > 0 && (
@@ -596,29 +621,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </div>
 
                         {/* Settings Icon - Desktop Only */}
-                        <button className="hidden md:flex p-2.5 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-colors">
+                        <Link href="/platform/settings" className="hidden md:flex p-2.5 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-colors">
                             <Settings className="w-5 h-5" />
-                        </button>
+                        </Link>
 
                         {/* Divider */}
                         <div className="w-px h-8 bg-slate-200 mx-1 hidden md:block"></div>
 
                         {/* User Profile */}
-                        <div className="flex items-center gap-3 pl-1">
+                        <Link href="/platform/profile" className="flex items-center gap-3 pl-1 group">
                             <div className="text-right hidden md:block">
-                                <p className="text-sm font-bold leading-none text-slate-900">{user?.display_name || "User"}</p>
+                                <p className="text-sm font-bold leading-none text-slate-900 group-hover:text-[#0066FF] transition-colors" style={{ color: branding.primary_color }}>{user?.display_name || "User"}</p>
                                 <p className="text-[11px] text-slate-500 mt-0.5 font-medium">{userRoleName}</p>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0066FF] to-[#0052CC] p-[2px] shadow-md">
+                            <div className="w-10 h-10 rounded-full p-[2px] shadow-md group-hover:shadow-lg transition-all group-hover:scale-105" style={{ background: `linear-gradient(to br, ${branding.primary_color}, ${branding.secondary_color})` }}>
                                 <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
-                                    <img
-                                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.display_name}`}
-                                        alt="Avatar"
-                                        className="w-full h-full"
-                                    />
+                                    {hasMounted && (
+                                        <img
+                                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.display_name}`}
+                                            alt="Avatar"
+                                            className="w-full h-full"
+                                        />
+                                    )}
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     </div>
                 </header>
 
@@ -637,10 +664,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <Link
                                 key={item.id}
                                 href={item.href}
-                                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all ${isActive
-                                    ? "text-[#0066FF]"
-                                    : "text-slate-500"
-                                    }`}
+                                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all`}
+                                style={isActive ? { color: branding.primary_color } : { color: '#64748b' }}
                             >
                                 <item.icon className={`w-6 h-6 ${isActive ? 'scale-110' : ''} transition-transform`} strokeWidth={isActive ? 2.5 : 2} />
                                 <span className="text-[10px] font-bold uppercase tracking-tight">{item.label}</span>

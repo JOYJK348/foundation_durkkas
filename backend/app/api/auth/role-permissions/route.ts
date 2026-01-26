@@ -29,36 +29,63 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
-        const scope = await getUserTenantScope(userId);
+        const actingUserId = await getUserIdFromToken(req);
+        if (!actingUserId) return errorResponse(null, 'Unauthorized', 401);
 
-        // Only Platform Admin (Level 5) can modify global role permissions
-        if (scope.roleLevel < 5) {
-            return errorResponse(null, 'Forbidden: Platform Admin only', 403);
+        const scope = await getUserTenantScope(actingUserId);
+
+        // 🏗️ MNC SECURITY POLICY:
+        // Level 5 (Platform) can manage EVERYTHING.
+        // Level 4 (Company) can manage Role Defaults for their system context.
+        if (scope.roleLevel < 4) {
+            return errorResponse(null, 'Forbidden: Company Admin access required', 403);
         }
 
         const body = await req.json();
-        const { data, error } = await app_auth.rolePermissions()
-            .insert(body)
-            .select()
-            .single();
+        const { roleId, permissionIds } = body;
 
-        if (error) throw new Error(error.message);
+        if (!roleId || !Array.isArray(permissionIds)) {
+            return errorResponse(null, 'Role ID and Permission IDs (array) are required', 400);
+        }
 
-        const record = data as any;
+        const rid = parseInt(String(roleId));
 
-        await AuditService.logAction({
-            userId,
-            action: 'CREATE',
-            tableName: 'role_permissions',
-            recordId: record.id?.toString(),
-            newData: record,
-            ipAddress: AuditService.getIP(req)
-        } as any);
+        // 1. Delete existing role permissions for this role
+        const { error: deleteError } = await app_auth.rolePermissions()
+            .delete()
+            .eq('role_id', rid);
 
-        return successResponse(record, 'Role permission assignment established', 201);
+        if (deleteError) throw new Error(`Delete Error: ${deleteError.message}`);
+
+        // 2. Insert new assignments
+        if (permissionIds.length > 0) {
+            const inserts = permissionIds.map(pid => ({
+                role_id: rid,
+                permission_id: parseInt(String(pid)),
+                is_active: true,
+                created_by: actingUserId
+            }));
+
+            const { error: insertError } = await app_auth.rolePermissions().insert(inserts);
+            if (insertError) throw new Error(`Insert Error: ${insertError.message}`);
+        }
+
+        try {
+            await AuditService.logAction({
+                userId: actingUserId,
+                action: 'UPDATE',
+                tableName: 'role_permissions',
+                recordId: String(rid),
+                newData: { roleId: rid, permissionIds },
+                ipAddress: AuditService.getIP(req)
+            } as any);
+        } catch (auditErr) {
+            console.warn('[ROLE PERMISSIONS] Audit log failed (non-critical):', auditErr);
+        }
+
+        return successResponse(null, 'Role permissions synchronized successfully', 200);
     } catch (error: any) {
+        console.error('[ROLE PERMISSIONS] Error:', error.message);
         return errorResponse(null, error.message);
     }
 }

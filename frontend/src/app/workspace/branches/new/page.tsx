@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
@@ -42,6 +42,7 @@ import { platformService } from "@/services/platformService";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useFeatureAccess } from "@/contexts/FeatureAccessContext";
 
 interface Menu {
     id: number;
@@ -77,18 +78,19 @@ const MODULE_ICONS: Record<string, React.ComponentType<any>> = {
     FINANCE: CircleDollarSign
 };
 
-const ADMIN_TYPES = [
-    { id: 'BRANCH_ADMIN', name: 'Branch Admin', description: 'Full branch access' },
-    { id: 'HR_ADMIN', name: 'HR Admin', description: 'Human resources management' },
-    { id: 'FINANCE_ADMIN', name: 'Finance Admin', description: 'Financial operations' },
-    { id: 'LMS_ADMIN', name: 'LMS Admin', description: 'Learning system' },
-    { id: 'CRM_ADMIN', name: 'CRM Admin', description: 'Customer relations' },
-    { id: 'PRODUCT_ADMIN', name: 'Product Admin', description: 'Product management' }
+const ALL_ADMIN_TYPES = [
+    { id: 'BRANCH_ADMIN', name: 'Branch Admin', description: 'Full branch access', module: 'CORE' },
+    { id: 'HR_ADMIN', name: 'HR Admin', description: 'Human resources management', module: 'HR' },
+    { id: 'FINANCE_ADMIN', name: 'Finance Admin', description: 'Financial operations', module: 'FINANCE' },
+    { id: 'LMS_ADMIN', name: 'LMS Admin', description: 'Learning system', module: 'LMS' },
+    { id: 'CRM_ADMIN', name: 'CRM Admin', description: 'Customer relations', module: 'CRM' },
+    { id: 'PRODUCT_ADMIN', name: 'Product Admin', description: 'Product management', module: 'INVENTORY' }
 ];
 
 export default function CreateBranchPage() {
     const router = useRouter();
     const { user } = useAuthStore();
+    const { enabledModules, accessibleMenuIds, isPlatformAdmin } = useFeatureAccess();
 
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -128,6 +130,39 @@ export default function CreateBranchPage() {
         lastName: '',
         password: ''
     });
+
+    // 🚀 NEW: Reactive Filtering for Modules (Handles race condition with context)
+    const displayedModules = useMemo(() => {
+        if (!modules || modules.length === 0) return [];
+
+        // 1. Filter modules based on company's subscription
+        let filtered = isPlatformAdmin
+            ? modules
+            : modules.filter((mod: Module) => {
+                // For "CORE" menus or if the module itself is in the enabled list
+                return enabledModules.includes(mod.key as any);
+            });
+
+        // 2. Deep filter menus within those modules based on accessibleMenuIds
+        if (!isPlatformAdmin && (accessibleMenuIds || []).length > 0) {
+            filtered = filtered.map((mod: Module) => {
+                const filterMenus = (menus: Menu[]): Menu[] => {
+                    return (menus || [])
+                        .filter((m: Menu) => accessibleMenuIds.includes(m.id))
+                        .map((m: Menu) => ({
+                            ...m,
+                            children: m.children ? filterMenus(m.children) : undefined
+                        }));
+                };
+                return {
+                    ...mod,
+                    menus: filterMenus(mod.menus)
+                };
+            }).filter((mod: Module) => mod.menus && mod.menus.length > 0);
+        }
+
+        return filtered;
+    }, [modules, enabledModules, accessibleMenuIds, isPlatformAdmin]);
 
     useEffect(() => {
         loadInitialData();
@@ -286,7 +321,8 @@ export default function CreateBranchPage() {
             });
             router.push("/workspace/branches");
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Branch creation failed");
+            const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || "Branch creation failed";
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -525,7 +561,7 @@ export default function CreateBranchPage() {
                                     Select Modules
                                 </h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    {modules.map(mod => {
+                                    {displayedModules.map((mod: Module) => {
                                         const Icon = MODULE_ICONS[mod.key] || Users;
                                         const isSelected = selectedModules.has(mod.key);
                                         return (
@@ -561,7 +597,7 @@ export default function CreateBranchPage() {
                                         Configure Menu Access
                                     </h3>
                                     <div className="space-y-4">
-                                        {modules.filter(mod => selectedModules.has(mod.key)).map(mod => {
+                                        {displayedModules.filter((mod: Module) => selectedModules.has(mod.key)).map((mod: Module) => {
                                             const Icon = MODULE_ICONS[mod.key] || Users;
                                             const isExpanded = expandedModules.has(mod.key);
                                             return (
@@ -630,9 +666,12 @@ export default function CreateBranchPage() {
                                                 onChange={(e) => setNewAdmin(prev => ({ ...prev, type: e.target.value }))}
                                                 className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none appearance-none cursor-pointer"
                                             >
-                                                {ADMIN_TYPES.map(t => (
-                                                    <option key={t.id} value={t.id}>{t.name} - {t.description}</option>
-                                                ))}
+                                                {ALL_ADMIN_TYPES
+                                                    .filter(t => t.module === 'CORE' || enabledModules.includes(t.module as any))
+                                                    .map(t => (
+                                                        <option key={t.id} value={t.id}>{t.name} - {t.description}</option>
+                                                    ))
+                                                }
                                             </select>
                                         </div>
                                         <div className="space-y-2">
@@ -706,7 +745,7 @@ export default function CreateBranchPage() {
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg uppercase tracking-wider">
-                                                    {ADMIN_TYPES.find(t => t.id === admin.type)?.name || admin.type}
+                                                    {ALL_ADMIN_TYPES.find((t: any) => t.id === admin.type)?.name || admin.type}
                                                 </span>
                                                 <button onClick={() => removeBranchAdmin(admin.id)} className="p-2 text-slate-400 hover:text-rose-600">
                                                     <X size={18} />

@@ -13,10 +13,18 @@ export async function GET(req: NextRequest) {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
-        const scope = await getUserTenantScope(userId);
-        if (scope.roleLevel < 5) {
-            return errorResponse('FORBIDDEN', 'Platform Admin access required', 403);
+        const { getCachedData, cacheData, CACHE_KEYS, CACHE_TTL } = require('@/lib/redis');
+
+        // 1. Try Cache First
+        const cached = await getCachedData(CACHE_KEYS.BRANDING_PLATFORM);
+        if (cached) {
+            console.log('[BRANDING] Platform branding fetched from Redis cache');
+            return successResponse(cached, 'Platform branding fetched (cached)');
         }
+
+        // Platform branding should be visible to any logged-in user for fallback UI/UX
+        // But scope check is good for other reasons
+        const scope = await getUserTenantScope(userId);
 
         const { data: branding, error } = await core.platformBranding()
             .select('*')
@@ -27,7 +35,12 @@ export async function GET(req: NextRequest) {
             throw new Error(error.message);
         }
 
-        return successResponse(branding || {}, 'Platform branding fetched');
+        const result = branding || {};
+
+        // 2. Cache the result for 24 hours
+        await cacheData(CACHE_KEYS.BRANDING_PLATFORM, result, CACHE_TTL.BRANDING);
+
+        return successResponse(result, 'Platform branding fetched');
     } catch (error: any) {
         return errorResponse('INTERNAL_ERROR', error.message);
     }
@@ -40,6 +53,8 @@ export async function PUT(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
+
+        const { deleteCachedData, CACHE_KEYS } = require('@/lib/redis');
 
         const scope = await getUserTenantScope(userId);
         if (scope.roleLevel < 5) {
@@ -103,6 +118,10 @@ export async function PUT(req: NextRequest) {
         if (result.error) {
             throw new Error(result.error.message);
         }
+
+        // 🛡️ INVALIDATE CACHE
+        await deleteCachedData(CACHE_KEYS.BRANDING_PLATFORM);
+        console.log('[BRANDING] Platform branding cache invalidated after update');
 
         // Log to audit
         const ipAddress = AuditService.getIP(req);

@@ -39,6 +39,16 @@ export async function GET(req: NextRequest) {
 
         if (error) throw new Error(error.message);
 
+        // 🛡️ High-Verbosity Audit
+        const { AuditService } = await import('@/lib/services/AuditService');
+        await AuditService.logAction({
+            userId,
+            action: 'LIST',
+            tableName: 'employees',
+            schemaName: 'core',
+            ipAddress: AuditService.getIP(req),
+        });
+
         return successResponse(data, `Employees fetched successfully (${data?.length || 0} records)`);
 
     } catch (error: any) {

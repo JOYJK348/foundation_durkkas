@@ -38,6 +38,7 @@ export interface TenantScope {
     roleType: string;
     companyId: number | null;
     branchId: number | null;
+    isScoped: boolean; // True if scoped to a specific company
 }
 
 export interface TenantFilterOptions {
@@ -61,7 +62,26 @@ export interface TenantFilterOptions {
  */
 // Refactored to use direct query instead of RPC to avoid schema/path issues
 // Refactored to use direct query instead of RPC to avoid schema/path issues
-export async function getUserTenantScope(userId: number, preferredBranchId?: number | string): Promise<TenantScope> {
+export async function getUserTenantScope(
+    userId: number,
+    preferredBranchId?: number | string,
+    preferredCompanyId?: number | string
+): Promise<TenantScope> {
+    // NEW: Autonomic sensing of context from request environment if not explicitly provided
+    let pBranch = preferredBranchId;
+    let pCompany = preferredCompanyId;
+
+    if (!pBranch || !pCompany) {
+        try {
+            const reqHeaders = headers();
+            const reqCookies = cookies();
+            pBranch = pBranch || reqHeaders.get('x-branch-id') || reqCookies.get('x-branch-id')?.value || undefined;
+            pCompany = pCompany || reqHeaders.get('x-company-id') || reqCookies.get('x-company-id')?.value || undefined;
+        } catch (e) {
+            // Probably not in a request context (e.g. background job)
+        }
+    }
+
     // Rerunning the logic with the correct schema accessor
     try {
         // 1. Get User Roles
@@ -103,11 +123,31 @@ export async function getUserTenantScope(userId: number, preferredBranchId?: num
         // 4. Select Role based on preference or highest level
         let selectedRole = combined[0];
 
-        if (preferredBranchId) {
-            const pref = combined.find(r => String(r.branch_id) === String(preferredBranchId));
+        if (pBranch) {
+            const pref = combined.find(r => String(r.branch_id) === String(pBranch));
             if (pref) {
                 selectedRole = pref;
-                logger.info('[TenantFilter] Using preferred branch scope', { userId, branchId: preferredBranchId });
+                logger.info('[TenantFilter] Using preferred branch scope', { userId, branchId: pBranch });
+            }
+        }
+
+        // 5. Scoping for Platform Admins (Level 5) or users with many roles
+        let isScoped = false;
+        if (pCompany && !isNaN(Number(pCompany)) && Number(pCompany) !== 0) {
+            const companyRole = combined.find(r => String(r.company_id) === String(pCompany));
+            if (companyRole) {
+                selectedRole = companyRole;
+                isScoped = true;
+                logger.info('[TenantFilter] Scoped to specific company context', { userId, companyId: pCompany });
+            } else if (combined[0].role_level >= 5) {
+                // Platform admin can scope to ANY company even if not explicitly assigned
+                selectedRole = {
+                    ...combined[0],
+                    company_id: Number(pCompany),
+                    branch_id: (pBranch && !isNaN(Number(pBranch))) ? Number(pBranch) : null
+                };
+                isScoped = true;
+                logger.info('[TenantFilter] Platform Admin scoped to specific company', { userId, companyId: pCompany });
             }
         }
 
@@ -117,7 +157,8 @@ export async function getUserTenantScope(userId: number, preferredBranchId?: num
             roleName: selectedRole.role_name,
             roleType: selectedRole.role_type,
             companyId: selectedRole.company_id,
-            branchId: selectedRole.branch_id
+            branchId: selectedRole.branch_id,
+            isScoped
         };
 
         return tenantScope;
@@ -186,13 +227,14 @@ export async function applyTenantFilter(
         const reqHeaders = headers();
         const reqCookies = cookies();
         const preferredBranchId = reqHeaders.get('x-branch-id') || reqCookies.get('x-branch-id')?.value || undefined;
+        const preferredCompanyId = reqHeaders.get('x-company-id') || reqCookies.get('x-company-id')?.value || undefined;
 
         // Get user's tenant scope
-        const scope = await getUserTenantScope(userId, preferredBranchId);
+        const scope = await getUserTenantScope(userId, preferredBranchId, preferredCompanyId);
 
-        // PLATFORM_ADMIN (Level 5+): No filter - can see ALL companies
-        if (scope.roleLevel >= 5) {
-            logger.info('[TenantFilter] Platform Admin - No filter applied', {
+        // PLATFORM_ADMIN (Level 5+): No filter - can see ALL companies UNLESS scoped
+        if (scope.roleLevel >= 5 && !scope.isScoped) {
+            logger.info('[TenantFilter] Platform Admin (Global) - No filter applied', {
                 userId,
                 roleName: scope.roleName,
                 roleLevel: scope.roleLevel
@@ -355,7 +397,7 @@ export async function getUserAccessibleCompanies(
 
             if (error) {
                 logger.error('[TenantFilter] Error fetching companies', { error: error.message });
-                return [];
+                throw new Error(`Data Infrastructure Error: Unable to fetch entity registry. ${error.message}`);
             }
 
             return (data as any)?.map((c: any) => c.id) || [];
@@ -416,12 +458,19 @@ export async function autoAssignCompany<T extends Record<string, any>>(
             return data;
         }
 
-        // Company Admin & Others: Auto-assign their company
+        // Company Admin & Others: Auto-assign their company/branch
         if (scope.companyId) {
             (data as any).company_id = scope.companyId;
-            logger.debug('[TenantFilter] Auto-assigned company_id', {
+
+            // NEW: Also auto-assign branch if the user has one and it's not already set
+            if (scope.branchId && !(data as any).branch_id) {
+                (data as any).branch_id = scope.branchId;
+            }
+
+            logger.debug('[TenantFilter] Auto-assigned tenant context', {
                 userId,
-                companyId: scope.companyId
+                companyId: scope.companyId,
+                branchId: scope.branchId
             });
             return data;
         }

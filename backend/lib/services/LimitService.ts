@@ -3,15 +3,7 @@
  * Checks if a company can add more resources based on their subscription plan
  */
 
-import { core, app_auth } from '@/lib/supabase';
-
-// Plan limits configuration
-const PLAN_LIMITS: Record<string, Record<string, number>> = {
-    'TRIAL': { user: 10, employee: 10, branch: 3, department: 10, designation: 10 },
-    'BASIC': { user: 25, employee: 25, branch: 5, department: 20, designation: 20 },
-    'STANDARD': { user: 100, employee: 100, branch: 10, department: 50, designation: 50 },
-    'ENTERPRISE': { user: 0, employee: 0, branch: 0, department: 0, designation: 0 }, // 0 = Unlimited
-};
+import { core, app_auth, supabaseService } from '@/lib/supabase';
 
 export type ResourceType = 'user' | 'employee' | 'branch' | 'department' | 'designation';
 
@@ -32,9 +24,9 @@ export async function canAddResource(
     resourceType: ResourceType
 ): Promise<LimitCheckResult> {
     try {
-        // 1. Get company's current plan and limits
+        // 1. Get company's current status and custom overrides
         const { data: company, error: companyError } = await core.companies()
-            .select('subscription_plan, max_users, max_branches')
+            .select('subscription_plan, max_users, max_employees, max_branches, max_departments, max_designations')
             .eq('id', companyId)
             .single();
 
@@ -50,25 +42,41 @@ export async function canAddResource(
         }
 
         const planName = company.subscription_plan || 'TRIAL';
-        const defaultLimits = PLAN_LIMITS[planName] || PLAN_LIMITS['TRIAL'];
 
-        // Use company-specific limits if set, otherwise use plan defaults
+        // 2. Fetch Plan Metadata DYNAMICALLY from database
+        const { data: planMetadata } = await supabaseService
+            .schema('core')
+            .from('subscription_plans')
+            .select('user_limit, employee_limit, branch_limit, department_limit, designation_limit')
+            .eq('code', planName)
+            .single();
+
+        // Fallback to safe defaults if plan metadata is missing from DB
+        const defaultLimits = planMetadata ? {
+            user: planMetadata.user_limit,
+            employee: planMetadata.employee_limit,
+            branch: planMetadata.branch_limit,
+            department: planMetadata.department_limit,
+            designation: planMetadata.designation_limit
+        } : { user: 10, employee: 10, branch: 3, department: 10, designation: 10 };
+
+        // Use company-specific overrides if set, otherwise use plan defaults
         let maxAllowed: number;
         switch (resourceType) {
             case 'user':
                 maxAllowed = company.max_users ?? defaultLimits.user;
                 break;
             case 'employee':
-                maxAllowed = company.max_users ?? defaultLimits.employee;
+                maxAllowed = company.max_employees ?? defaultLimits.employee;
                 break;
             case 'branch':
                 maxAllowed = company.max_branches ?? defaultLimits.branch;
                 break;
             case 'department':
-                maxAllowed = defaultLimits.department;
+                maxAllowed = company.max_departments ?? defaultLimits.department;
                 break;
             case 'designation':
-                maxAllowed = defaultLimits.designation;
+                maxAllowed = company.max_designations ?? defaultLimits.designation;
                 break;
             default:
                 maxAllowed = 0;

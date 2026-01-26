@@ -47,18 +47,28 @@ interface Employee {
     display_name: string;
     email: string;
     roleLevel: number;
+    role_name: string;
 }
+
+import { useFeatureAccess, ModuleType } from "@/contexts/FeatureAccessContext";
 
 const ActivitySquare = (props: any) => <Zap {...props} />;
 
-const MODULE_MAP = [
-    { id: "hrms", name: "HR & Payroll", icon: Users, color: "blue" },
-    { id: "lms", name: "Learning (LMS)", icon: LayoutDashboard, color: "violet" },
-    { id: "finance", name: "Finance & Accounts", icon: FileText, color: "emerald" },
-    { id: "crm", name: "CRM & Sales", icon: ActivitySquare, color: "amber" },
+const MODULE_MAP_BASE = [
+    { id: "hrms", name: "HR & Payroll", icon: Users, color: "blue", module: "HR" },
+    { id: "lms", name: "Learning (LMS)", icon: LayoutDashboard, color: "violet", module: "LMS" },
+    { id: "finance", name: "Finance & Accounts", icon: FileText, color: "emerald", module: "FINANCE" },
+    { id: "crm", name: "CRM & Sales", icon: ActivitySquare, color: "amber", module: "CRM" },
 ];
 
 export default function AccessControl() {
+    const { enabledModules, isLoading: isAccessLoading } = useFeatureAccess();
+
+    // Filter MODULE_MAP based on subscription
+    const MODULE_MAP = MODULE_MAP_BASE.filter(mod =>
+        enabledModules.includes(mod.module as ModuleType)
+    );
+
     const [roles, setRoles] = useState<Role[]>([]);
     const [selectedRole, setSelectedRole] = useState<Role | null>(null);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -86,7 +96,31 @@ export default function AccessControl() {
                 platformService.getPermissions()
             ]);
 
-            const filteredRoles = rolesData.filter((r: any) => r.level < 5);
+            const filteredRoles = rolesData.filter((r: any) => {
+                const name = r.name;
+                const level = r.level;
+
+                // 1. Level 5 (Platform Admin) is always hidden from workspace users
+                if (level >= 5) return false;
+
+                // 2. Core Workspace Roles: Always Visible
+                const coreRoles = ['COMPANY_ADMIN', 'BRANCH_ADMIN', 'EMPLOYEE'];
+                if (coreRoles.includes(name)) return true;
+
+                // 3. Module-Specific Roles (Gated by Subscription)
+                // Filter logic: Only show admin roles for modules that are actually enabled
+                if (name === 'CRM_ADMIN' && !enabledModules.includes('CRM')) return false;
+                if (name === 'FINANCE_ADMIN' && !enabledModules.includes('FINANCE')) return false;
+                if (name === 'HRMS_ADMIN' && !enabledModules.includes('HR')) return false;
+                if (name === 'EMS_ADMIN' && !enabledModules.includes('LMS')) return false;
+                if (name === 'TEACHER' && !enabledModules.includes('LMS')) return false;
+
+                // PRODUCT_ADMIN: Show if either HR or LMS is enabled
+                if (name === 'PRODUCT_ADMIN' && !enabledModules.includes('HR') && !enabledModules.includes('LMS')) return false;
+
+                return true;
+            });
+
             setRoles(filteredRoles);
 
             // Self-healing: Ensure required module permissions exist
@@ -119,12 +153,15 @@ export default function AccessControl() {
                 id: u.id,
                 display_name: u.display_name,
                 email: u.email,
-                roleLevel: u.user_roles?.[0]?.roles?.level || 0
+                roleLevel: u.user_roles?.[0]?.roles?.level || 0,
+                role_name: u.user_roles?.[0]?.roles?.display_name || 'Staff'
             }));
             setAllUsers(transformedUsers);
 
             if (filteredRoles.length > 0) {
-                setSelectedRole(filteredRoles[filteredRoles.length - 1]);
+                // Priority: Company Administrator (Level 4)
+                const defaultRole = filteredRoles.find((r: Role) => r.level === 4) || filteredRoles[0];
+                setSelectedRole(defaultRole);
             }
         } catch (error) {
             console.error("Data fetch failed", error);
@@ -147,7 +184,7 @@ export default function AccessControl() {
         setMatrixLoading(true);
         try {
             const rp = await platformService.getRolePermissions(roleId);
-            const enabledIds = new Set(rp.map((item: any) => String(item.permission_id)));
+            const enabledIds = new Set<string>(rp.map((item: any) => String(item.permission_id)));
             setActivePermissionIds(enabledIds);
         } catch (e) {
             toast.error("Failed to load role permissions");
@@ -160,7 +197,7 @@ export default function AccessControl() {
         setMatrixLoading(true);
         try {
             const up = await platformService.getUserPermissions(userId);
-            const enabledIds = new Set(up.map((item: any) => String(item.permission_id)));
+            const enabledIds = new Set<string>(up.map((item: any) => String(item.permission_id)));
             setActivePermissionIds(enabledIds);
         } catch (e) {
             toast.error("Failed to load user permissions");
@@ -199,8 +236,9 @@ export default function AccessControl() {
                 await platformService.updateRolePermissions(selectedRole.id, permissionIds);
                 toast.success(`Permissions updated for ${selectedRole.display_name}`);
             }
-        } catch (error) {
-            toast.error("Failed to save permissions");
+        } catch (error: any) {
+            console.error("❌ [AccessControl] Save failed:", error.response?.data || error.message);
+            toast.error("Failed to save permissions: " + (error.response?.data?.message || error.message));
         } finally {
             setLoading(false);
         }
@@ -211,7 +249,7 @@ export default function AccessControl() {
         return perm?.id || null;
     };
 
-    if (fetchingData) {
+    if (fetchingData || isAccessLoading) {
         return (
             <DashboardLayout>
                 <div className="flex items-center justify-center min-h-[60vh]">
@@ -284,8 +322,8 @@ export default function AccessControl() {
                                         key={role.id}
                                         onClick={() => { setSelectedRole(role); setSelectedEmployee(null); setShowMobileMenu(false); }}
                                         className={`w-full text-left p-4 rounded-xl border-2 transition-all ${selectedRole?.id === role.id && !selectedEmployee
-                                                ? "border-violet-600 bg-violet-50 shadow-md"
-                                                : "border-slate-100 bg-white hover:border-violet-200 hover:bg-violet-50/50"
+                                            ? "border-violet-600 bg-violet-50 shadow-md"
+                                            : "border-slate-100 bg-white hover:border-violet-200 hover:bg-violet-50/50"
                                             }`}
                                     >
                                         <div className="flex items-center justify-between mb-1">
@@ -333,8 +371,8 @@ export default function AccessControl() {
                                 <button
                                     onClick={() => { setSelectedEmployee(null); setShowMobileMenu(false); }}
                                     className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${!selectedEmployee
-                                            ? "bg-slate-900 border-slate-900 text-white shadow-lg"
-                                            : "bg-white border-slate-100 hover:border-slate-900"
+                                        ? "bg-slate-900 border-slate-900 text-white shadow-lg"
+                                        : "bg-white border-slate-100 hover:border-slate-900"
                                         }`}
                                 >
                                     <Building2 className={`w-4 h-4 ${!selectedEmployee ? "text-violet-400" : "text-slate-400"}`} />
@@ -360,8 +398,8 @@ export default function AccessControl() {
                                                 key={emp.id}
                                                 onClick={() => { setSelectedEmployee(emp); setShowMobileMenu(false); }}
                                                 className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${selectedEmployee?.id === emp.id
-                                                        ? "bg-violet-50 border-violet-200 shadow-md"
-                                                        : "bg-white border-slate-100 hover:border-violet-200"
+                                                    ? "bg-violet-50 border-violet-200 shadow-md"
+                                                    : "bg-white border-slate-100 hover:border-violet-200"
                                                     }`}
                                             >
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${selectedEmployee?.id === emp.id ? "bg-violet-600 text-white" : "bg-slate-200 text-slate-600"
@@ -369,10 +407,18 @@ export default function AccessControl() {
                                                     {emp.display_name.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div className="text-left flex-1 min-w-0">
-                                                    <p className={`text-sm font-bold truncate ${selectedEmployee?.id === emp.id ? "text-violet-900" : "text-slate-900"
-                                                        }`}>
-                                                        {emp.display_name}
-                                                    </p>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className={`text-sm font-bold truncate ${selectedEmployee?.id === emp.id ? "text-violet-900" : "text-slate-900"
+                                                            }`}>
+                                                            {emp.display_name}
+                                                        </p>
+                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${emp.roleLevel === 4 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                            emp.roleLevel === 1 ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                                'bg-slate-50 text-slate-500 border-slate-100'
+                                                            }`}>
+                                                            {emp.role_name}
+                                                        </span>
+                                                    </div>
                                                     <p className="text-xs text-slate-500 truncate">{emp.email}</p>
                                                 </div>
                                             </button>
@@ -504,8 +550,8 @@ function PermissionToggle({ enabled, onClick, action }: { enabled: boolean, onCl
         <button
             onClick={onClick}
             className={`relative w-10 h-10 rounded-xl transition-all flex items-center justify-center mx-auto ${enabled
-                    ? `bg-${color}-600 text-white shadow-lg shadow-${color}-200 scale-110`
-                    : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105"
+                ? `bg-${color}-600 text-white shadow-lg shadow-${color}-200 scale-110`
+                : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105"
                 }`}
         >
             <Icon className="w-4 h-4" />

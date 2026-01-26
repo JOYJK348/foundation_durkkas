@@ -36,6 +36,8 @@ export const CACHE_KEYS = {
     BRANCHES_ALL: 'branches:all',
     DEPARTMENTS_ALL: 'departments:all',
     DESIGNATIONS_ALL: 'designations:all',
+    BRANDING_PLATFORM: 'branding:platform',
+    BRANDING_COMPANY: (companyId: number | string) => `branding:company:${companyId}`,
     RATE_LIMIT: (ip: string, endpoint: string) => `ratelimit:${ip}:${endpoint}`,
 } as const;
 
@@ -48,6 +50,7 @@ export const CACHE_TTL = {
     ROLES: 60 * 60, // 1 hour
     MENUS: 60 * 60, // 1 hour
     MASTER_DATA: 2 * 60 * 60, // 2 hours
+    BRANDING: 24 * 60 * 60, // 24 hours (Aggressive caching for static assets)
     RATE_LIMIT: 15 * 60, // 15 minutes
 } as const;
 
@@ -175,17 +178,43 @@ export async function invalidateUserCaches(userId: number): Promise<void> {
         deleteCachedUserPermissions(userId),
         redis.del(CACHE_KEYS.USER_ROLES(userId)),
         redis.del(CACHE_KEYS.USER_MENUS(userId)),
+        redis.del(`user:${userId}:sessions`) // Also clear session list
     ]);
 }
 
 /**
+ * 🔒 CONCURRENCY ENGINE
+ * Tracks and enforces max session limits per user
+ */
+export async function enforceMaxConcurrency(userId: number, sessionId: string, maxSessions: number) {
+    const key = `user:${userId}:sessions`;
+
+    // 1. Register new session
+    await redis.lpush(key, sessionId);
+
+    // 2. Trim list to max allowed
+    // If maxSessions is 3, we keep index 0 to 2
+    await redis.ltrim(key, 0, maxSessions - 1);
+
+    // 3. Set expiry for the list itself (align with token expiry)
+    await redis.expire(key, CACHE_TTL.SESSION);
+}
+
+/**
+ * 🛡️ SESSION VALIDATOR
+ * Checks if a specific Session ID is still in the active list
+ */
+export async function validateSessionActive(userId: number, sessionId: string): Promise<boolean> {
+    if (!sessionId) return true; // Legacy compatibility
+
+    const key = `user:${userId}:sessions`;
+    const activeSessions = await redis.lrange(key, 0, -1);
+
+    return activeSessions.includes(sessionId);
+}
+
+/**
  * Rate limiting check
- * 
- * @param ip - Client IP address
- * @param endpoint - API endpoint
- * @param maxRequests - Maximum requests allowed
- * @param windowMs - Time window in milliseconds
- * @returns true if rate limit exceeded, false otherwise
  */
 export async function checkRateLimit(
     ip: string,

@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { apiRoute, getPaginationParams, applyPagination } from '@/lib/apiHelpers';
 import { successResponse, errorResponse, asyncHandler } from '@/lib/errorHandler';
 import { vendorApplicationSchema } from '@/lib/validations/crm';
+import { getUserIdFromToken } from '@/lib/jwt';
+import { autoAssignCompany } from '@/middleware/tenantFilter';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -37,7 +39,7 @@ export const GET = apiRoute({
 
         const { data, error, count } = await query;
 
-        if (error) return errorResponse(error.message, 500);
+        if (error) return errorResponse('DATABASE_ERROR', error.message, 500);
 
         return successResponse(data, 'Vendor applications fetched successfully', 200, {
             total: count || 0,
@@ -51,7 +53,20 @@ export const GET = apiRoute({
 // POST - Submit Vendor Application (Public or Authenticated)
 export const POST = asyncHandler(async (req: NextRequest) => {
     try {
-        const body = await req.json();
+        let body = await req.json();
+        console.log(`[CRM VENDOR] 🚀 Submission received:`, { email: body.email });
+
+        // CRM PROTECTION: If user is logged in, auto-attribute to their company/branch
+        try {
+            const userId = await getUserIdFromToken(req);
+            if (userId) {
+                console.log(`[CRM VENDOR] 🔐 Auth user detected: ${userId}`);
+                body = await autoAssignCompany(userId, body);
+                console.log(`[CRM VENDOR] ✅ Attributed to Company: ${body.company_id}, Branch: ${body.branch_id}`);
+            }
+        } catch (e: any) {
+            console.log(`[CRM VENDOR] 🔓 Public submission or auth error: ${e.message}`);
+        }
 
         // Validate request
         const validatedData = vendorApplicationSchema.safeParse(body);
@@ -59,8 +74,7 @@ export const POST = asyncHandler(async (req: NextRequest) => {
             return errorResponse('VALIDATION_ERROR', validatedData.error.errors[0].message, 400);
         }
 
-        // Insert into database - note we use supabaseService to bypass RLS if public
-        // or ensure public has insert permission in crm schema
+        // Insert into database
         const { data, error } = await supabase
             .schema('crm')
             .from('vendor_applications')

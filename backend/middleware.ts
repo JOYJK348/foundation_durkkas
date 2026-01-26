@@ -36,12 +36,12 @@ export async function middleware(req: NextRequest) {
             response.headers.set('Access-Control-Allow-Origin', origin || '*');
             response.headers.set('Access-Control-Allow-Credentials', 'true');
             response.headers.set('Access-Control-Allow-Methods', 'GET,DELETE,PATCH,POST,PUT,OPTIONS');
-            response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, Cache-Control, Pragma');
+            response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, Cache-Control, Pragma, x-durkkas-client-ip, x-device-fingerprint');
         } else if (isAllowedOrigin && origin) {
             response.headers.set('Access-Control-Allow-Origin', origin);
             response.headers.set('Access-Control-Allow-Credentials', 'true');
             response.headers.set('Access-Control-Allow-Methods', 'GET,DELETE,PATCH,POST,PUT,OPTIONS');
-            response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, Cache-Control, Pragma');
+            response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, Cache-Control, Pragma, x-durkkas-client-ip, x-device-fingerprint');
         }
 
         // Standard Security Headers
@@ -105,7 +105,52 @@ export async function middleware(req: NextRequest) {
             return applySecurityHeaders(response);
         }
 
-        // 6. Request Context Injection
+        // 6. Concurrency & Session Validation
+        // If the token has a Session ID (sid), verify it's still active in Redis
+        if (payload.sid) {
+            try {
+                const redisUrl = process.env.REDIS_URL;
+                const redisToken = process.env.REDIS_TOKEN;
+
+                if (!redisUrl || !redisToken) {
+                    console.error('❌ [SESSION] Redis credentials missing in Middleware environment');
+                } else {
+                    const checkKey = `user:${payload.userId}:sessions`;
+                    // Encode the key for the REST URL
+                    const encodedKey = encodeURIComponent(checkKey);
+                    const res = await fetch(`${redisUrl}/lrange/${encodedKey}/0/-1`, {
+                        headers: { Authorization: `Bearer ${redisToken}` }
+                    });
+
+                    if (res.ok) {
+                        const body = await res.json();
+                        const activeSessions = body.result;
+                        const isActive = Array.isArray(activeSessions) && activeSessions.includes(payload.sid);
+
+                        console.error(`🛡️ [SESSION CHECK] User: ${payload.userId} | SID: ${payload.sid} | Active: ${isActive} | Sessions: ${JSON.stringify(activeSessions)}`);
+
+                        if (!isActive) {
+                            console.error(`🚨 [SESSION KICK] Invalidation triggered for User: ${payload.userId} | SID ${payload.sid} not in ${JSON.stringify(activeSessions)}`);
+                            const response = NextResponse.json({
+                                success: false,
+                                error: {
+                                    code: 'SESSION_EXPIRED',
+                                    message: 'This session has been invalidated by a newer login.'
+                                },
+                                timestamp: new Date().toISOString()
+                            }, { status: 401 });
+                            return applySecurityHeaders(response);
+                        }
+                    } else {
+                        const errText = await res.text();
+                        console.error('❌ [SESSION] Redis fetch failed:', res.status, errText);
+                    }
+                }
+            } catch (redisErr: any) {
+                console.error('❌ [SESSION ERROR] Redis Validation Failed:', redisErr.message);
+            }
+        }
+        // 7. Request Context Injection
         const requestHeaders = new Headers(req.headers);
         requestHeaders.set('x-user-id', payload.userId.toString());
         requestHeaders.set('x-user-email', payload.email);

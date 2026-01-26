@@ -32,7 +32,10 @@ export default function LoginPage() {
         Cookie.set("user_role_level", (selectedRole.level ?? 0).toString());
         Cookie.set("user_display_name", displayName);
 
-        // CRITICAL: Store active branch ID for middleware
+        // CRITICAL: Store active branch ID and Company ID for middleware and hydration
+        if (selectedRole.company_id) {
+            Cookie.set("x-company-id", selectedRole.company_id.toString(), { expires: 1 });
+        }
         if (selectedRole.branch_id) {
             Cookie.set("x-branch-id", selectedRole.branch_id.toString(), { expires: 1 });
         } else {
@@ -48,6 +51,7 @@ export default function LoginPage() {
                 name: selectedRole.name || "GUEST",
                 level: selectedRole.level ?? 0
             },
+            company_id: selectedRole.company_id?.toString(),
             branch_id: selectedRole.branch_id
         });
 

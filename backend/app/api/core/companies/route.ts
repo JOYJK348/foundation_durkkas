@@ -34,6 +34,15 @@ export async function GET(req: NextRequest) {
 
         console.log(`[API COMPANIES] Found ${data?.length || 0} companies for user ${userId}`);
 
+        // 🛡️ High-Verbosity Audit (Tracks listing of companies)
+        await AuditService.logAction({
+            userId,
+            action: 'LIST',
+            tableName: 'companies',
+            schemaName: 'core',
+            ipAddress: AuditService.getIP(req),
+        });
+
         return successResponse(data || [], `Companies fetched successfully (${data?.length || 0} records)`);
 
     } catch (error: any) {

@@ -16,7 +16,8 @@ import {
     BarChart3,
     Trash2,
     AlertTriangle,
-    X
+    X,
+    LayoutDashboard
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { platformService } from "@/services/platformService";
@@ -303,6 +304,18 @@ export default function PlatformCompanies() {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={async () => {
+                                                                platformService.switchCompany(company.id);
+                                                                toast.success(`Entering ${company.name} workspace...`);
+                                                                // Redirect to workspace dashboard
+                                                                window.location.href = '/workspace/dashboard';
+                                                            }}
+                                                            className="p-2 hover:bg-emerald-50 rounded-lg text-slate-600 hover:text-emerald-600 transition-all"
+                                                            title="Enter Workspace"
+                                                        >
+                                                            <LayoutDashboard className="w-4 h-4" />
+                                                        </button>
                                                         <Link href={`/platform/core/companies/${company.id}`}>
                                                             <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-[#0066FF] transition-all" title="View Details">
                                                                 <Eye className="w-4 h-4" />
@@ -377,6 +390,17 @@ export default function PlatformCompanies() {
                                                 View
                                             </button>
                                         </Link>
+                                        <button
+                                            onClick={async () => {
+                                                platformService.switchCompany(company.id);
+                                                toast.success(`Entering ${company.name} workspace...`);
+                                                window.location.href = '/workspace/dashboard';
+                                            }}
+                                            className="px-4 py-2.5 rounded-xl font-semibold text-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all flex items-center justify-center"
+                                            title="Enter Workspace"
+                                        >
+                                            <LayoutDashboard className="w-4 h-4" />
+                                        </button>
                                         <button
                                             onClick={() => toggleStatus(company.id, company.status)}
                                             className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${company.status === 'ACTIVE'

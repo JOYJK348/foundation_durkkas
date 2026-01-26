@@ -17,8 +17,18 @@ export async function GET(req: NextRequest, { params }: Params) {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
-        const scope = await getUserTenantScope(userId);
+        const { getCachedData, cacheData, CACHE_KEYS, CACHE_TTL } = require('@/lib/redis');
         const companyId = parseInt(params.companyId);
+
+        // 1. Try Cache First
+        const cacheKey = CACHE_KEYS.BRANDING_COMPANY(companyId);
+        const cached = await getCachedData(cacheKey);
+        if (cached) {
+            console.log(`[BRANDING] Company ${companyId} branding fetched from Redis cache`);
+            return successResponse(cached, 'Company branding fetched (cached)');
+        }
+
+        const scope = await getUserTenantScope(userId);
 
         // Platform Admin can access any, Company Admin only their own
         if (scope.roleLevel < 5 && scope.companyId !== companyId) {
@@ -35,7 +45,12 @@ export async function GET(req: NextRequest, { params }: Params) {
             throw new Error(error.message);
         }
 
-        return successResponse(branding || {}, 'Company branding fetched');
+        const result = branding || {};
+
+        // 2. Cache the result for 24 hours
+        await cacheData(cacheKey, result, CACHE_TTL.BRANDING);
+
+        return successResponse(result, 'Company branding fetched');
     } catch (error: any) {
         return errorResponse('INTERNAL_ERROR', error.message);
     }
@@ -49,8 +64,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
-        const scope = await getUserTenantScope(userId);
+        const { deleteCachedData, CACHE_KEYS } = require('@/lib/redis');
         const companyId = parseInt(params.companyId);
+        const scope = await getUserTenantScope(userId);
 
         // Platform Admin can update any, Company Admin only their own
         if (scope.roleLevel < 5 && scope.companyId !== companyId) {
@@ -110,6 +126,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
             throw new Error(result.error.message);
         }
 
+        // 🛡️ INVALIDATE CACHE
+        await deleteCachedData(CACHE_KEYS.BRANDING_COMPANY(companyId));
+        console.log(`[BRANDING] Company ${companyId} branding cache invalidated after update`);
+
         // Log to audit
         const ipAddress = AuditService.getIP(req);
         const userAgent = req.headers.get('user-agent') || 'unknown';
@@ -140,8 +160,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
-        const scope = await getUserTenantScope(userId);
+        const { deleteCachedData, CACHE_KEYS } = require('@/lib/redis');
         const companyId = parseInt(params.companyId);
+        const scope = await getUserTenantScope(userId);
 
         // Only Platform Admin can delete
         if (scope.roleLevel < 5) {
@@ -167,6 +188,10 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         if (error) {
             throw new Error(error.message);
         }
+
+        // 🛡️ INVALIDATE CACHE
+        await deleteCachedData(CACHE_KEYS.BRANDING_COMPANY(companyId));
+        console.log(`[BRANDING] Company ${companyId} branding cache invalidated after delete`);
 
         // Log to audit
         const ipAddress = AuditService.getIP(req);

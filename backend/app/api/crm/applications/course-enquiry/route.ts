@@ -35,16 +35,73 @@ export const GET = apiRoute({
 });
 
 export const POST = asyncHandler(async (req: NextRequest) => {
-    const body = await req.json();
+    let body = await req.json();
+
+    // CRM PROTECTION: If user is logged in, auto-attribute to their company/branch
+    try {
+        const { getUserIdFromToken } = require('@/lib/jwt');
+        const { autoAssignCompany } = require('@/middleware/tenantFilter');
+        const userId = await getUserIdFromToken(req);
+        if (userId) {
+            body = await autoAssignCompany(userId, body);
+        }
+    } catch (e) {
+        // Fallback for public submissions
+    }
+
     const validatedData = courseEnquirySchema.safeParse(body);
     if (!validatedData.success) {
         return errorResponse('VALIDATION_ERROR', validatedData.error.errors[0].message, 400);
     }
 
+    // DB INTEGRITY: Ensure age is at least 1 to avoid check constraint violation
+    if (validatedData.data.age < 1) {
+        validatedData.data.age = 1;
+    }
+
+    // 🛡️ SCHEMA GUARD: Define columns that actually exist in the DB table
+    const DB_COLUMNS = [
+        'company_id', 'branch_id', 'date', 'category', 'sub_category', 'name',
+        'email', 'phone_number', 'date_of_birth', 'age', 'address',
+        'course_enquiry', 'remarks'
+    ];
+
+    const finalPayload: Record<string, any> = {};
+    const extraData: Record<string, any> = {};
+
+    Object.keys(body).forEach(key => {
+        if (DB_COLUMNS.includes(key)) {
+            // @ts-ignore
+            finalPayload[key] = (validatedData.data as any)[key] ?? body[key];
+        } else if (body[key] !== undefined && body[key] !== '' && key !== 'id') {
+            extraData[key] = body[key];
+        }
+    });
+
+    Object.keys(validatedData.data).forEach(key => {
+        if (DB_COLUMNS.includes(key)) {
+            finalPayload[key] = (validatedData.data as any)[key];
+        } else {
+            // @ts-ignore
+            if (validatedData.data[key] !== undefined && validatedData.data[key] !== '') {
+                // @ts-ignore
+                extraData[key] = validatedData.data[key];
+            }
+        }
+    });
+
+    let finalRemarks = validatedData.data.remarks || '';
+    if (Object.keys(extraData).length > 0) {
+        const metadataString = `\n--- Additional High-Fidelity Data ---\n${JSON.stringify(extraData, null, 2)}`;
+        finalRemarks = finalRemarks ? `${finalRemarks}\n${metadataString}` : metadataString;
+    }
+    finalPayload.remarks = finalRemarks;
+    finalPayload.created_at = new Date().toISOString();
+
     const { data, error } = await supabase
         .schema('crm')
         .from('course_enquiry_registrations')
-        .insert([validatedData.data])
+        .insert([finalPayload])
         .select()
         .single();
 

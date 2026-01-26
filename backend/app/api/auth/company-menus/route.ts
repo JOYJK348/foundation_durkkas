@@ -6,6 +6,7 @@ import { getUserTenantScope } from '@/middleware/tenantFilter';
 
 // Use core helper which targets SCHEMAS.CORE ('core')
 import { core } from '@/lib/supabase';
+import { getCachedData, cacheData, deleteCachedData } from '@/lib/redis';
 // ... (keep other imports)
 
 export async function GET(req: NextRequest) {
@@ -19,7 +20,13 @@ export async function GET(req: NextRequest) {
         }
 
         const key = `company_${scope.companyId}_menu_config`;
+        const cacheToken = `nav:config:${scope.companyId}`;
 
+        // ⚡ Fast Path: Redis Cache
+        const cached = await getCachedData(cacheToken);
+        if (cached) return successResponse(cached, 'Menu configuration fetched (cached)');
+
+        // Slow Path: Database
         // Use core.globalSettings() wrapper but with correct column names 'key' and 'value'
         const { data, error } = await core.globalSettings()
             .select('value')
@@ -31,6 +38,10 @@ export async function GET(req: NextRequest) {
         }
 
         const config = data?.value ? JSON.parse(data.value) : {};
+
+        // Cache for 1 hour to prevent constant DB hits
+        await cacheData(cacheToken, config, 3600);
+
         return successResponse(config, 'Menu configuration fetched');
 
     } catch (error: any) {
@@ -74,6 +85,9 @@ export async function POST(req: NextRequest) {
             .single();
 
         if (error) throw new Error(error.message);
+
+        // 🔄 Sync: Invalidate cache so frontend gets new config immediately
+        await deleteCachedData(`nav:config:${scope.companyId}`);
 
         return successResponse(data, 'Menu configuration saved');
 

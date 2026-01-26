@@ -510,6 +510,13 @@ export const platformService = {
         return response.data.data;
     },
 
+    // 🔄 CONTEXT SWITCHING
+    switchCompany: (companyId: string) => {
+        const Cookie = require('js-cookie');
+        Cookie.set('x-company-id', companyId, { expires: 7 }); // Persist for 7 days
+        // We don't reload here, let the caller handle UI transition or refresh
+    },
+
     // Fallback for other modules to ensure they exist/are reachable
     getGeneric: async (modulePath: string) => {
         const response = await api.get(modulePath);

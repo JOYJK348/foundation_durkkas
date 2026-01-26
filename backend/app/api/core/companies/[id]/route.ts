@@ -28,6 +28,18 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             .single();
 
         if (error) throw new Error(error.message);
+
+        // 🛡️ High-Verbosity Audit (Tracks granular view of a specific company)
+        await AuditService.logAction({
+            userId,
+            action: 'VIEW',
+            tableName: 'companies',
+            schemaName: 'core',
+            recordId: id,
+            companyId: parseInt(id),
+            ipAddress: AuditService.getIP(req),
+        });
+
         return successResponse(data, 'Company details fetched');
 
     } catch (error: any) {

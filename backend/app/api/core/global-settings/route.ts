@@ -18,6 +18,20 @@ export async function GET(_req: NextRequest) {
 
         if (error) return errorResponse('DATABASE_ERROR', error.message, 500);
 
+        // 🛡️ High-Verbosity Audit (Tracks who is reading system parameters)
+        try {
+            const userId = await getUserIdFromToken(_req);
+            if (userId) {
+                await AuditService.logAction({
+                    userId,
+                    action: 'VIEW',
+                    tableName: 'global_settings',
+                    schemaName: 'core',
+                    ipAddress: AuditService.getIP(_req),
+                });
+            }
+        } catch (e) { /* Bypass audit if token fails on READ */ }
+
         return successResponse(data, 'Global settings fetched successfully');
     } catch (error: any) {
         return errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Failed to fetch settings', 500);

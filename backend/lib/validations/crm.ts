@@ -43,8 +43,8 @@ export const jobSeekerApplicationSchema = z.object({
 
 export const internshipApplicationSchema = z.object({
     date: z.string(),
-    company_id: z.number(),
-    branch_id: z.number().optional().nullable(),
+    company_id: z.coerce.number(),
+    branch_id: z.coerce.number().optional().nullable(),
     category: z.string().optional().nullable(),
     categoryname: z.string().optional().nullable(),
     full_name: z.string().min(1),
@@ -77,7 +77,7 @@ export const careerGuidanceSchema = z.object({
     education_level: z.string().optional().nullable(),
     institution_name: z.string().optional().nullable(),
     date_of_birth: z.string().optional().nullable(),
-    age: z.coerce.number().optional().nullable(),
+    age: z.coerce.number().min(1).max(120),
     gender: z.string().optional().nullable(),
     location: z.string().optional().nullable(),
     city: z.string().optional().nullable(),
@@ -127,8 +127,8 @@ export const careerGuidanceSchema = z.object({
 
 export const courseEnquirySchema = z.object({
     date: z.string(),
-    company_id: z.number(),
-    branch_id: z.number().optional().nullable(),
+    company_id: z.coerce.number(),
+    branch_id: z.coerce.number().optional().nullable(),
     category: z.string().min(1),
     sub_category: z.string().min(1),
     name: z.string().min(1),

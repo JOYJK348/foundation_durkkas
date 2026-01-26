@@ -9,6 +9,7 @@ import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { getUserTenantScope } from '@/middleware/tenantFilter';
 import bcrypt from 'bcryptjs';
+import { GlobalSettings } from '@/lib/settings';
 
 export async function GET(req: NextRequest) {
     try {
@@ -38,7 +39,42 @@ export async function GET(req: NextRequest) {
         const { data, error } = await query;
         if (error) throw new Error(error.message);
 
-        return successResponse(data, 'Users fetched successfully');
+        const companyIds = Array.from(new Set(data.flatMap((u: any) => u.user_roles.map((r: any) => r.company_id)).filter(Boolean))) as string[];
+        const branchIds = Array.from(new Set(data.flatMap((u: any) => u.user_roles.map((r: any) => r.branch_id)).filter(Boolean))) as string[];
+        // Use Email for more robust linking (fixes missing user_id links)
+        const userEmails = data.map((u: any) => u.email).filter(Boolean);
+
+        // Import core client dynamically or typically it's imported at top
+        // Assuming implicit access or requiring import. Let's rely on importing 'core' from @/lib/supabase
+        const { core } = await import('@/lib/supabase');
+
+        const [companiesRes, branchesRes, employeesRes] = await Promise.all([
+            companyIds.length > 0 ? core.companies().select('id, name, code').in('id', companyIds) : { data: [] },
+            branchIds.length > 0 ? core.branches().select('id, name, code').in('id', branchIds) : { data: [] },
+            userEmails.length > 0 ? core.employees().select('email, employee_code, phone').in('email', userEmails) : { data: [] }
+        ]);
+
+        const companiesMap = new Map((companiesRes.data?.map((c: any) => [c.id, c]) || []) as any);
+        const branchesMap = new Map((branchesRes.data?.map((b: any) => [b.id, b]) || []) as any);
+        // Map by Email
+        const employeesMap = new Map((employeesRes.data?.map((e: any) => [e.email, e]) || []) as any);
+
+        // Enrich Data
+        const enrichedData = data.map((u: any) => {
+            const emp = employeesMap.get(u.email) as any;
+            return {
+                ...u,
+                unique_code: emp?.employee_code || `USR-${u.id}`, // Fallback to INT ID
+                phone: emp?.phone || 'N/A',
+                user_roles: u.user_roles.map((r: any) => ({
+                    ...r,
+                    companies: r.company_id ? companiesMap.get(r.company_id) : null,
+                    branches: r.branch_id ? branchesMap.get(r.branch_id) : null
+                }))
+            };
+        });
+
+        return successResponse(enrichedData, 'Users fetched successfully');
     } catch (error: any) {
         return errorResponse('INTERNAL_ERROR', error.message);
     }
@@ -56,6 +92,12 @@ export async function POST(req: NextRequest) {
         const { email, password, first_name, last_name, display_name, role_id, company_id, branch_id } = body;
 
         if (!email || !password) return errorResponse('VALIDATION_ERROR', 'Email and password required', 400);
+
+        // 🛡️ Password Length Enforcement
+        const minLength = await GlobalSettings.getMinPasswordLength();
+        if (password.length < minLength) {
+            return errorResponse('VALIDATION_ERROR', `Password must be at least ${minLength} characters as per system policy.`, 400);
+        }
 
         // Security: Ensure Company Admin only creates users for their company
         const targetCompanyId = scope.roleLevel >= 5 ? company_id : scope.companyId;

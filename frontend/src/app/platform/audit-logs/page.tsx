@@ -82,15 +82,22 @@ export default function PlatformAuditLogs() {
         try {
             setLoading(true);
             const [logsData, companiesData] = await Promise.all([
-                platformService.getAuditLogs(selectedCompany || undefined),
-                platformService.getCompanies()
+                platformService.getAuditLogs(selectedCompany || undefined).catch(e => {
+                    console.error("Audit Logs API failed:", e);
+                    throw e;
+                }),
+                platformService.getCompanies().catch(e => {
+                    console.error("Companies API failed:", e);
+                    throw e;
+                })
             ]);
             setLogs(logsData || []);
             setCompanies(companiesData || []);
             setLastSync(new Date());
         } catch (error: any) {
             console.error("[AuditLogs] Feed Error:", error);
-            toast.error("Failed to load audit logs");
+            const msg = error.response?.data?.error?.message || "Failed to load audit logs";
+            toast.error(msg);
         } finally {
             setLoading(false);
         }

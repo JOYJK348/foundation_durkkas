@@ -33,12 +33,85 @@ const api = axios.create({
     withCredentials: true,
 });
 
+// 🌐 Professional Public IP Detection with Location
+let cachedClientIp: string | null = null;
+let cachedLocation: string | null = null;
+let ipDetectionComplete = false;
+
+const detectClientIp = async (): Promise<void> => {
+    if (typeof window === 'undefined') return;
+    if (ipDetectionComplete && cachedClientIp) return;
+
+    console.log('📡 [Identity] Detecting Public IP...');
+
+    try {
+        // Primary: ipinfo.io (provides IP + location in one call)
+        try {
+            const res = await fetch('https://ipinfo.io/json?token=free');
+            const data = await res.json();
+
+            if (data.ip) {
+                cachedClientIp = data.ip;
+                // Format location: "Chennai, IN" or "City, Country"
+                const city = data.city || '';
+                const country = data.country || '';
+                cachedLocation = city && country ? `${city}, ${country}` : (country || '');
+
+                ipDetectionComplete = true;
+                console.log(`✅ [Identity] IP: ${cachedClientIp} ${cachedLocation ? `(${cachedLocation})` : ''}`);
+                return;
+            }
+        } catch (err) {
+            console.warn('⚠️ [Identity] ipinfo.io failed, trying fallback...');
+        }
+
+        // Fallback: ipify (IP only, no location)
+        try {
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+
+            if (data.ip) {
+                cachedClientIp = data.ip;
+                ipDetectionComplete = true;
+                console.log(`✅ [Identity] IP: ${cachedClientIp} (location unavailable)`);
+                return;
+            }
+        } catch (err) {
+            console.error('❌ [Identity] All IP detection methods failed');
+        }
+
+    } catch (err) {
+        console.error('❌ [Identity] Critical error:', err);
+    }
+};
+
+// Run detection on load
+if (typeof window !== 'undefined') {
+    detectClientIp();
+}
+
 api.interceptors.request.use((config) => {
     const token = Cookies.get('access_token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`, config.headers);
+
+    // Inject client-side detected IP for better audit accuracy (Local/VPN bypass)
+    if (cachedClientIp) {
+        config.headers['x-durkkas-client-ip'] = cachedClientIp;
+    }
+
+    // 🔐 Device Fingerprinting (Persistent Hardware ID)
+    if (typeof window !== 'undefined') {
+        let fingerprint = localStorage.getItem('durkkas_fingerprint');
+        if (!fingerprint) {
+            fingerprint = `dk_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`;
+            localStorage.setItem('durkkas_fingerprint', fingerprint);
+        }
+        config.headers['x-device-fingerprint'] = fingerprint;
+    }
+
+    console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
     return config;
 });
 
@@ -57,10 +130,18 @@ api.interceptors.response.use(
         });
 
         if (error.response?.status === 401) {
-            // Optional: Redirect to login or clear auth
-            console.warn('Unauthorized access - potential token expiry');
-            // Cookies.remove('access_token');
-            // window.location.href = '/login'; 
+            const errorCode = error.response?.data?.error?.code;
+
+            if (errorCode === 'SESSION_EXPIRED') {
+                console.warn('⛔ Session invalidated by newer login. Forcing logout...');
+                Cookies.remove('access_token', { path: '/' });
+                Cookies.remove('refresh_token', { path: '/' });
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/?error=session_invalidated';
+                }
+            } else {
+                console.warn('Unauthorized access - potential token expiry');
+            }
         }
         return Promise.reject(error);
     }

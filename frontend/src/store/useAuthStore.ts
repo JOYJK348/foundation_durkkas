@@ -5,10 +5,13 @@ interface User {
     id: string;
     email: string;
     display_name: string;
+    first_name?: string;
+    last_name?: string;
     role: {
         name: string;
         level: number;
     };
+    user_roles?: any[];
     company_id?: string | null;
     branch_id?: string | number | null;
 }

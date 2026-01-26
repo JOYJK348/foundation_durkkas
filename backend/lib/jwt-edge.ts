@@ -13,6 +13,7 @@ export interface JWTPayload {
     email: string;
     roles: string[];
     type: 'access' | 'refresh';
+    sid?: string; // Session ID for concurrency tracking
     exp?: number;
 }
 

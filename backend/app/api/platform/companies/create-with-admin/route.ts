@@ -395,6 +395,30 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        // 10. Create Company Branding (if provided)
+        if (company.logo_url || company.branding) {
+            console.log('[Onboarding] Setting up company branding...');
+            const brandingData = {
+                company_id: companyId,
+                logo_url: company.logo_url || company.branding?.logo_url,
+                favicon_url: company.favicon_url || company.branding?.favicon_url,
+                primary_color: company.branding?.primary_color || '#0066FF',
+                secondary_color: company.branding?.secondary_color || '#0052CC',
+                accent_color: company.branding?.accent_color || '#00C853',
+                is_active: true,
+                created_by: requestUserId
+            };
+
+            const { error: brandingError } = await supabase
+                .schema('core')
+                .from('company_branding')
+                .insert(brandingData as any);
+
+            if (brandingError) {
+                console.warn('[Onboarding] Branding setup failed (non-critical):', brandingError.message);
+            }
+        }
+
         return successResponse({
             company: newCompany,
             admin: {
