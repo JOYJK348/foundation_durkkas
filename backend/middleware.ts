@@ -19,16 +19,14 @@ export async function middleware(req: NextRequest) {
     const isAllowedOrigin =
         ALLOWED_ORIGINS.includes(origin) ||
         process.env.NODE_ENV === 'development' ||
-        origin.endsWith('.vercel.app') || // Allow all Vercel domains (e.g. preview deployments)
+        (!!origin && (origin.endsWith('.vercel.app') || origin.includes('vercel.app'))) ||
         (process.env.NEXT_PUBLIC_FRONTEND_URL && origin === process.env.NEXT_PUBLIC_FRONTEND_URL);
 
     // 2. Security Headers Helper
     const applySecurityHeaders = (response: NextResponse) => {
         // [RADAR] Log request for diagnostic purposes
-        if (process.env.NODE_ENV === 'development') {
-            const ip = req.headers.get('x-forwarded-for') || 'local';
-            console.log(`\x1b[36m[REQUEST]\x1b[0m ${req.method} ${pathname} | Origin: ${origin || 'none'} | Source: ${ip}`);
-        }
+        const ip = req.headers.get('x-forwarded-for') || 'local';
+        console.log(`[CORS DEBUG] Method: ${req.method} | Path: ${pathname} | Origin: ${origin} | Allowed: ${isAllowedOrigin}`);
 
         // CORS Headers
         const allowedHeaders = [
@@ -47,11 +45,14 @@ export async function middleware(req: NextRequest) {
             'x-durkkas-client-ip',
             'x-device-fingerprint',
             'x-company-id',
-            'x-branch-id'
+            'x-branch-id',
+            'X-Durkkas-Client-IP',
+            'X-Device-Fingerprint',
+            'X-Company-Id',
+            'X-Branch-Id'
         ].join(', ');
 
         if (process.env.NODE_ENV === 'development') {
-            // Force open for development mobile testing
             response.headers.set('Access-Control-Allow-Origin', origin || '*');
             response.headers.set('Access-Control-Allow-Credentials', 'true');
             response.headers.set('Access-Control-Allow-Methods', 'GET,DELETE,PATCH,POST,PUT,OPTIONS');
@@ -61,6 +62,7 @@ export async function middleware(req: NextRequest) {
             response.headers.set('Access-Control-Allow-Credentials', 'true');
             response.headers.set('Access-Control-Allow-Methods', 'GET,DELETE,PATCH,POST,PUT,OPTIONS');
             response.headers.set('Access-Control-Allow-Headers', allowedHeaders);
+            response.headers.set('Vary', 'Origin');
         }
 
         // Standard Security Headers

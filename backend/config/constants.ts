@@ -35,6 +35,8 @@ export const ALLOWED_ORIGINS = [
     'http://localhost:3003',
     'http://localhost:3004',
     'http://localhost:3005',
+    'https://foundation-durkkas.vercel.app',
+    'https://foundation-durkkas-8fj4.vercel.app',
     FRONTEND_URLS.ERP,
     FRONTEND_URLS.EMS,
     FRONTEND_URLS.HRMS,
