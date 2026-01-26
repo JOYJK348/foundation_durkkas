@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { redis } from '@/lib/redis';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * HEALTH CHECK ENDPOINT
