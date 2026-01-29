@@ -34,7 +34,13 @@ import {
     Box,
     LayoutGrid,
     MonitorPlay,
-    Database
+    Database,
+    BookOpen,
+    Video,
+    FileCheck,
+    Calendar,
+    GraduationCap,
+    Clock
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
@@ -58,7 +64,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "DYNAMIC_DASHBOARD", roles: [1, 2, 3, 4, 5], menuId: 44 },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "DYNAMIC_DASHBOARD", roles: [0, 1, 2, 3, 4, 5], menuId: 44 },
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🛡️ PLATFORM ADMIN (Level 5) - SYSTEM ONLY
@@ -82,26 +88,31 @@ const navItems: NavItem[] = [
     { id: "departments", label: "Departments", icon: LayoutGrid, href: "/workspace/settings?tab=DEPARTMENTS", roles: [4], menuId: 50 },
     { id: "designations", label: "Designations", icon: Users2, href: "/workspace/settings?tab=DESIGNATIONS", roles: [4], menuId: 51 },
     { id: "employees", label: "Employees", icon: Users, href: "DYNAMIC_EMPLOYEES", roles: [1, 2, 3, 4], menuId: 49 },
-    { id: "reports", label: "Reports", icon: FileText, href: "DYNAMIC_REPORTS", roles: [1, 2, 3, 4], menuId: 85 },
-    { id: "access", label: "Access Control", icon: Lock, href: "/workspace/access", roles: [4], menuId: 86 },
+    { id: "reports", label: "Reports", icon: FileText, href: "DYNAMIC_REPORTS", roles: [1, 2, 3, 4], menuId: 87 },
+    { id: "access", label: "Access Control", icon: Lock, href: "/workspace/access", roles: [4], menuId: 88 },
     { id: "subscription", label: "Subscription", icon: CreditCard, href: "/workspace/subscription", roles: [4] },
     { id: "company_settings", label: "Settings", icon: Settings, href: "/workspace/settings", roles: [4], menuId: 47 },
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 📦 MODULE-BASED EXTENSIONS (Gated by Subscription)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    { id: "attendance", label: "Attendance", icon: CalendarCheck, href: "DYNAMIC_ATTENDANCE", roles: [1, 2, 3, 4], module: "ATTENDANCE", menuId: 55 },
-    { id: "leaves", label: "Leaves", icon: MailCheck, href: "DYNAMIC_LEAVES", roles: [1, 2, 3, 4], module: "ATTENDANCE", menuId: 57 },
+    { id: "attendance", label: "Attendance", icon: CalendarCheck, href: "DYNAMIC_ATTENDANCE", roles: [0, 1, 2, 3, 4], module: "ATTENDANCE", menuId: 55 },
+    { id: "leaves", label: "Leaves", icon: MailCheck, href: "DYNAMIC_LEAVES", roles: [0, 1, 2, 3, 4], module: "ATTENDANCE", menuId: 57 },
     { id: "payroll", label: "Payroll", icon: Briefcase, href: "/workspace/payroll", roles: [4], module: "PAYROLL", menuId: 61 },
-    { id: "crm", label: "CRM", icon: LayoutGrid, href: "/workspace/crm", roles: [4, 1], module: "CRM", menuId: 87 },
-    { id: "lms", label: "LMS", icon: MonitorPlay, href: "/workspace/lms", roles: [4, 1], module: "LMS", menuId: 73 },
-    { id: "finance", label: "Finance", icon: CreditCard, href: "/workspace/finance", roles: [4, 1], module: "FINANCE", menuId: 79 },
+    { id: "crm", label: "CRM", icon: LayoutGrid, href: "/workspace/crm", roles: [4, 1], module: "CRM", menuId: 89 },
+    { id: "lms", label: "LMS", icon: MonitorPlay, href: "/workspace/lms", roles: [0, 4, 1], module: "LMS", menuId: 73 },
+    { id: "lms_courses", label: "Courses", icon: BookOpen, href: "DYNAMIC_LMS_COURSES", roles: [0, 4, 1], module: "LMS", menuId: 74 },
+    { id: "lms_classes", label: "Live Classes", icon: Video, href: "DYNAMIC_LMS_CLASSES", roles: [0, 4, 1], module: "LMS", menuId: 75 },
+    { id: "lms_assessments", label: "Assessments", icon: FileCheck, href: "DYNAMIC_LMS_ASSESSMENTS", roles: [0, 4, 1], module: "LMS", menuId: 76 },
+    { id: "lms_students", label: "Students", icon: GraduationCap, href: "DYNAMIC_LMS_STUDENTS", roles: [0, 4, 1], module: "LMS", menuId: 79 },
+    { id: "lms_batches", label: "Batches", icon: Calendar, href: "DYNAMIC_LMS_BATCHES", roles: [0, 4, 1], module: "LMS", menuId: 80 },
+    { id: "finance", label: "Finance", icon: CreditCard, href: "/workspace/finance", roles: [4, 1], module: "FINANCE", menuId: 81 },
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 👤 SHARED USER CENTRIC
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    { id: "notifications", label: "Notifications", icon: Bell, href: "DYNAMIC_NOTIFICATIONS", roles: [1, 2, 3, 4, 5], menuId: 46 },
-    { id: "profile", label: "Profile", icon: UserCircle, href: "DYNAMIC_PROFILE", roles: [1, 2, 3, 4, 5], menuId: 45 },
+    { id: "notifications", label: "Notifications", icon: Bell, href: "DYNAMIC_NOTIFICATIONS", roles: [0, 1, 2, 3, 4, 5], menuId: 46 },
+    { id: "profile", label: "Profile", icon: UserCircle, href: "DYNAMIC_PROFILE", roles: [0, 1, 2, 3, 4, 5], menuId: 45 },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -331,6 +342,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const getDashboardHref = () => {
         if (userLevel === 5) return "/platform/dashboard";
         if (userLevel === 4) return "/workspace/dashboard";
+        // Default for Level 1 (Branch Admin) and Level 0 (Employee)
         return "/branch/dashboard";
     };
 
@@ -369,6 +381,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return "/branch/profile";
     };
 
+    const getLmsCoursesHref = () => {
+        if (userLevel === 4) return "/workspace/lms/courses";
+        return "/ems/admin/courses"; // Fallback for specialized routing if any
+    };
+
+    const getLmsClassesHref = () => {
+        if (userLevel === 4) return "/workspace/lms/classes";
+        return "/ems/admin/classes";
+    };
+
+    const getLmsAssessmentsHref = () => {
+        if (userLevel === 4) return "/workspace/lms/assessments";
+        return "/ems/admin/assessments";
+    };
+
+    const getLmsStudentsHref = () => {
+        if (userLevel === 4) return "/workspace/lms/students";
+        return "/ems/admin/students";
+    };
+
+    const getLmsBatchesHref = () => {
+        if (userLevel === 4) return "/workspace/lms/batches";
+        return "/ems/admin/batches";
+    };
+
     // 🚀 NEW: Dynamic Subscription-Driven Filter Logic
     const filteredNav = navItems.filter(item => {
         // 1. Base Role Check
@@ -390,7 +427,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return true;
         }
 
-        // 4. Module Check (For Extensions like CRM, LMS, etc.)
+        // 4. EMPLOYEE / STUDENT BASE OVERRIDE
+        const employeeBaseIds = ['dashboard', 'profile', 'notifications', 'attendance', 'leaves', 'lms', 'lms_courses', 'lms_classes', 'lms_assessments', 'lms_students', 'lms_batches'];
+        if (userLevel === 0 && employeeBaseIds.includes(item.id)) {
+            return true;
+        }
+
+        // 5. Module Check (For Extensions like CRM, LMS, etc.)
         if (item.module && !enabledModules.includes(item.module as any)) {
             return false;
         }
@@ -424,6 +467,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (href === "DYNAMIC_REPORTS") href = getReportsHref();
         if (href === "DYNAMIC_NOTIFICATIONS") href = getNotificationsHref();
         if (href === "DYNAMIC_PROFILE") href = getProfileHref();
+        if (href === "DYNAMIC_LMS_COURSES") href = getLmsCoursesHref();
+        if (href === "DYNAMIC_LMS_CLASSES") href = getLmsClassesHref();
+        if (href === "DYNAMIC_LMS_ASSESSMENTS") href = getLmsAssessmentsHref();
+        if (href === "DYNAMIC_LMS_STUDENTS") href = getLmsStudentsHref();
+        if (href === "DYNAMIC_LMS_BATCHES") href = getLmsBatchesHref();
 
         // UNIQUE URL REWRITING: Replace standard paths with MNC Unique IDs
         if (userLevel === 4) {

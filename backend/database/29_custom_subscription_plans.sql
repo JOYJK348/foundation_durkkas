@@ -187,6 +187,8 @@ VALUES
 ('mod.lms.assessments', 'Assessments', 'Tests & Exams', (SELECT id FROM app_auth.menu_registry WHERE menu_key = 'mod.lms'), 3, 'LMS', FALSE, TRUE, '/workspace/lms/assessments', 'FileCheck', TRUE, TRUE, 'EMS'),
 ('mod.lms.certificates', 'Certificates', 'Certificate Generation', (SELECT id FROM app_auth.menu_registry WHERE menu_key = 'mod.lms'), 4, 'LMS', FALSE, TRUE, '/workspace/lms/certificates', 'Award', TRUE, TRUE, 'EMS'),
 ('mod.lms.attendance', 'LMS Attendance', 'Class Attendance', (SELECT id FROM app_auth.menu_registry WHERE menu_key = 'mod.lms'), 5, 'LMS', FALSE, TRUE, '/workspace/lms/attendance', 'ClipboardCheck', TRUE, TRUE, 'EMS'),
+('mod.lms.students', 'Student Directory', 'Student Management', (SELECT id FROM app_auth.menu_registry WHERE menu_key = 'mod.lms'), 6, 'LMS', FALSE, TRUE, '/workspace/lms/students', 'Users', TRUE, TRUE, 'EMS'),
+('mod.lms.batches', 'Batches', 'Batch Management', (SELECT id FROM app_auth.menu_registry WHERE menu_key = 'mod.lms'), 7, 'LMS', FALSE, TRUE, '/workspace/lms/batches', 'Calendar', TRUE, TRUE, 'EMS'),
 
 -- ━━━ FINANCE MODULE ━━━
 ('mod.finance', 'Finance', 'Finance & Accounting', NULL, 60, 'FINANCE', FALSE, TRUE, NULL, 'CircleDollarSign', TRUE, TRUE, 'FINANCE'),

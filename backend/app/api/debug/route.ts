@@ -37,11 +37,40 @@ export async function GET(req: NextRequest) {
         }
 
         // 3. Schema Data Test
-        const { data: companies, error: compError } = await core.companies().select('id, name').limit(1);
-        results.core_test = compError ? `ERROR: ${compError.message}` : `OK (${companies?.length} found)`;
+        const { data: users, error: userError } = await app_auth.users().select('id, email, is_active').limit(10);
+        results.users_list = userError ? `ERROR: ${userError.message}` : users;
 
-        const { data: settings, error: setError } = await core.globalSettings().select('key, value').limit(1);
-        results.settings_test = setError ? `ERROR: ${setError.message}` : `OK (${settings?.length} found)`;
+        const userIdQuery = req.nextUrl.searchParams.get('userId');
+        const emailQuery = req.nextUrl.searchParams.get('email');
+
+        if (emailQuery) {
+            const { data: userByEmail } = await app_auth.users().select('id, email').eq('email', emailQuery).single();
+            results.found_user = userByEmail;
+        }
+
+        const effectiveUserId = userIdQuery ? parseInt(userIdQuery) : (results.found_user?.id || userId);
+
+        if (effectiveUserId) {
+            results.testing_user = `USER_${effectiveUserId}`;
+
+            // Check roles directly
+            const { data: userRoles } = await app_auth.userRoles().select('*, roles(name, level)').eq('user_id', effectiveUserId);
+            results.user_roles_direct = userRoles;
+
+            try {
+                const scope = await getUserTenantScope(effectiveUserId);
+                results.tenant_scope = scope;
+                results.auth_test = 'OK';
+            } catch (e: any) {
+                results.auth_test = `ERROR: ${e.message}`;
+            }
+        }
+
+        const { data: allRoles } = await app_auth.roles().select('id, name, level').limit(50);
+        results.all_roles = allRoles;
+
+        const { data: adminRole } = await app_auth.roles().select('id, name, level').eq('name', 'ADMIN').single();
+        results.admin_role = adminRole;
 
         return successResponse(results, 'Debug info fetched');
     } catch (error: any) {

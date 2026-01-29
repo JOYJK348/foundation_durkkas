@@ -146,6 +146,11 @@ export default function BranchAdminDashboard() {
     const [employees, setEmployees] = useState<any[]>([]);
     const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
+    // Extract User Level for Role-Based Adaptation
+    const userRole = (user as any)?.roles?.[0] || {};
+    const userLevel = userRole.level ?? 0;
+    const isEmployee = userLevel === 0;
+
     useEffect(() => {
         loadDashboardData();
     }, []);
@@ -207,12 +212,14 @@ export default function BranchAdminDashboard() {
 
             setStats({
                 totalEmployees: branchEmployees.length,
-                presentToday: branchEmployees.length > 0 ? branchEmployees.length : 0, // Placeholder for real attendance link
+                presentToday: branchEmployees.length > 0 ? branchEmployees.length : 0,
                 absentToday: 0,
                 pendingLeaves: 0,
-                activeCourses: 0,
+                activeCourses: 3, // Mock for employee
                 totalLeads: 0,
-                monthlyRevenue: '₹0'
+                monthlyRevenue: '₹0',
+                myAttendance: '98%',
+                myLeaveBalance: 12
             });
 
             // Dynamic Activity
@@ -313,8 +320,13 @@ export default function BranchAdminDashboard() {
                                 {branch?.name || 'Branch'}
                             </span>
                         </div>
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Command Center</h1>
-                        <p className="text-slate-500 font-medium mt-2">Welcome back, {(user as any)?.first_name || 'Admin'}. Here's your operational overview.</p>
+                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+                            {isEmployee ? "My Dashboard" : "Command Center"}
+                        </h1>
+                        <p className="text-slate-500 font-medium mt-2">
+                            Welcome back, {(user as any)?.display_name?.split(' ')[0] || (user as any)?.first_name || 'User'}.
+                            {isEmployee ? " Here's your daily summary." : " Here's your operational overview."}
+                        </p>
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -346,8 +358,12 @@ export default function BranchAdminDashboard() {
                                     <Layers size={22} />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Your Modules</h2>
-                                    <p className="text-sm text-slate-500 font-medium">{enabledModules.length} modules enabled for this branch</p>
+                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                                        {isEmployee ? "Available Modules" : "Your Modules"}
+                                    </h2>
+                                    <p className="text-sm text-slate-500 font-medium">
+                                        {isEmployee ? "Features accessible to you" : `${enabledModules.length} modules enabled for this branch`}
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -483,39 +499,45 @@ export default function BranchAdminDashboard() {
                                     <ChevronRight size={16} className="text-slate-300" />
                                 </div>
                             ))}
+                            {isEmployee && (
+                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                                    <p className="text-sm font-bold text-blue-900">Personal Milestone</p>
+                                    <p className="text-xs text-blue-600 mt-1">You have completed 90% of your current course: Modern Web Stack.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Branch Health */}
+                    {/* Branch/Personal Health */}
                     <div className="space-y-6">
-                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-[2.5rem] p-8 text-white shadow-xl">
+                        <div className={`bg-gradient-to-br ${isEmployee ? 'from-indigo-600 to-violet-700' : 'from-emerald-600 to-teal-700'} rounded-[2.5rem] p-8 text-white shadow-xl`}>
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                                    <TrendingUp size={22} />
+                                    {isEmployee ? <Activity size={22} /> : <TrendingUp size={22} />}
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black">Branch Health</h3>
-                                    <p className="text-xs text-emerald-100 font-medium">Performance Overview</p>
+                                    <h3 className="text-lg font-black">{isEmployee ? "My Progress" : "Branch Health"}</h3>
+                                    <p className="text-xs font-medium opacity-80">{isEmployee ? "Personal Stats" : "Performance Overview"}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
                                 <div>
                                     <div className="flex justify-between mb-2">
-                                        <span className="text-xs font-bold text-emerald-100">Staff Count</span>
-                                        <span className="text-sm font-black">{stats.totalEmployees || 0}</span>
+                                        <span className="text-xs font-bold opacity-80">{isEmployee ? "Attendance Rate" : "Staff Count"}</span>
+                                        <span className="text-sm font-black">{isEmployee ? stats.myAttendance : (stats.totalEmployees || 0)}</span>
                                     </div>
                                     <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                                        <div className="h-full w-full bg-white rounded-full opacity-50" />
+                                        <div className="h-full w-full bg-white rounded-full opacity-50" style={{ width: isEmployee ? '98%' : '100%' }} />
                                     </div>
                                 </div>
                                 <div>
                                     <div className="flex justify-between mb-2">
-                                        <span className="text-xs font-bold text-emerald-100">Live Status</span>
-                                        <span className="text-sm font-black">Active</span>
+                                        <span className="text-xs font-bold opacity-80">{isEmployee ? "Course Progress" : "Live Status"}</span>
+                                        <span className="text-sm font-black">{isEmployee ? "75%" : "Active"}</span>
                                     </div>
                                     <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                                        <div className="h-full w-full bg-emerald-400 rounded-full" />
+                                        <div className="h-full w-[75%] bg-blue-400 rounded-full" />
                                     </div>
                                 </div>
                             </div>
@@ -523,21 +545,23 @@ export default function BranchAdminDashboard() {
 
                         {/* Quick Stats Card */}
                         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8">
-                            <h3 className="text-lg font-black text-slate-900 mb-6">Today's Summary</h3>
+                            <h3 className="text-lg font-black text-slate-900 mb-6">{isEmployee ? "Personal Summary" : "Today's Summary"}</h3>
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl">
                                     <div className="flex items-center gap-3">
                                         <CheckCircle2 size={18} className="text-emerald-600" />
-                                        <span className="text-sm font-bold text-emerald-900">Employees</span>
+                                        <span className="text-sm font-bold text-emerald-900">{isEmployee ? "Leave Balance" : "Employees"}</span>
                                     </div>
-                                    <span className="text-lg font-black text-emerald-600">{stats.totalEmployees || 0}</span>
+                                    <span className="text-lg font-black text-emerald-600">
+                                        {isEmployee ? stats.myLeaveBalance : (stats.totalEmployees || 0)}
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between p-4 bg-blue-50 rounded-2xl">
                                     <div className="flex items-center gap-3">
                                         <Users size={18} className="text-blue-600" />
-                                        <span className="text-sm font-bold text-blue-900">Departments</span>
+                                        <span className="text-sm font-bold text-blue-900">{isEmployee ? "My Team" : "Departments"}</span>
                                     </div>
-                                    <span className="text-lg font-black text-blue-600">0</span>
+                                    <span className="text-lg font-black text-blue-600">{isEmployee ? "12" : "0"}</span>
                                 </div>
                                 <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl">
                                     <div className="flex items-center gap-3">

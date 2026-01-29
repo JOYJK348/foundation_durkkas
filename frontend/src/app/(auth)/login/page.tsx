@@ -68,14 +68,19 @@ export default function LoginPage() {
 
         // Role-based Redirect
         const roleLevel = selectedRole.level ?? 0;
-        if (roleLevel >= 5) {
+        const roleName = selectedRole.name || "";
+
+        // Check for Student role first (regardless of level)
+        if (roleName === "STUDENT") {
+            router.push("/ems/student");
+        } else if (roleLevel >= 5) {
             router.push("/platform/dashboard");
         } else if (roleLevel >= 4) {
             router.push("/workspace/dashboard");
-        } else if (roleLevel >= 1) {
+        } else if (roleLevel >= 1 || roleLevel === 0) {
             router.push("/branch/dashboard");
         } else {
-            router.push("/employee/dashboard");
+            router.push("/dashboard");
         }
     };
 

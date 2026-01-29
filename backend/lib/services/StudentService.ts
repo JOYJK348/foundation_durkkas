@@ -29,6 +29,16 @@ export class StudentService {
         return data as Student & { student_guardians: StudentGuardian[] };
     }
 
+    static async getStudentByUserId(userId: number) {
+        const { data, error } = await ems.students()
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+        if (error) throw error;
+        return data as Student;
+    }
+
     static async createStudent(studentData: Partial<Student>) {
         const { data, error } = await ems.students()
             .insert(studentData)

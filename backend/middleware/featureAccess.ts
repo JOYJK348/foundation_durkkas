@@ -137,9 +137,9 @@ export async function getCompanyFeatureAccess(userId: number): Promise<CompanyFe
         return access;
 
     } catch (error: any) {
-        logger.error('[FeatureAccess] Error in getCompanyFeatureAccess', {
+        console.error('❌ [FeatureAccess] CRITICAL ERROR in getCompanyFeatureAccess:', {
             userId,
-            error: error.message,
+            message: error.message,
             stack: error.stack
         });
         throw error;

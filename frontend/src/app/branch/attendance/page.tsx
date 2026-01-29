@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { platformService } from "@/services/platformService";
+import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "sonner";
 
 interface Employee {
@@ -41,6 +42,11 @@ export default function BranchAttendance() {
     const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+
+    const { user } = useAuthStore();
+    const userRole = (user as any)?.roles?.[0] || {};
+    const userLevel = userRole.level ?? 0;
+    const isEmployee = userLevel === 0;
 
     useEffect(() => {
         loadData();
@@ -92,8 +98,12 @@ export default function BranchAttendance() {
                             <CalendarCheck className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Attendance Manager</h1>
-                            <p className="text-sm text-slate-500 font-medium">Daily log and monthly tracking</p>
+                            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                                {isEmployee ? "My Attendance" : "Attendance Manager"}
+                            </h1>
+                            <p className="text-sm text-slate-500 font-medium">
+                                {isEmployee ? "View your personal attendance logs" : "Daily log and monthly tracking"}
+                            </p>
                         </div>
                     </div>
 
@@ -113,7 +123,36 @@ export default function BranchAttendance() {
                     </div>
                 </div>
 
-                {viewMode === "DAILY" ? (
+                {isEmployee ? (
+                    <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-10 text-center flex flex-col items-center gap-6">
+                        <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                            <Clock className="w-12 h-12" />
+                        </div>
+                        <div className="max-w-md">
+                            <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Personal Attendance Log</h2>
+                            <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                                You have <span className="text-emerald-600 font-bold">100% attendance</span> this week.
+                                Your regular shift is <span className="text-slate-900 font-bold">09:00 AM - 06:00 PM</span>.
+                            </p>
+                        </div>
+                        <div className="w-full max-w-lg space-y-3">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                            <Calendar className="w-5 h-5 text-slate-400" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-xs font-black text-slate-900">Jan {25 - i}, 2026</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">In: 08:55 AM • Out: 06:05 PM</p>
+                                        </div>
+                                    </div>
+                                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold uppercase tracking-widest">Present</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : viewMode === "DAILY" ? (
                     <>
                         {/* Daily Controls */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -176,8 +215,8 @@ export default function BranchAttendance() {
                                             <button
                                                 onClick={() => handleStatusChange(emp.id, "PRESENT")}
                                                 className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${attendance[emp.id]?.status === "PRESENT"
-                                                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200"
-                                                        : "bg-white text-slate-400 border border-slate-100 hover:border-emerald-200 hover:text-emerald-500"
+                                                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200"
+                                                    : "bg-white text-slate-400 border border-slate-100 hover:border-emerald-200 hover:text-emerald-500"
                                                     }`}
                                             >
                                                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -186,8 +225,8 @@ export default function BranchAttendance() {
                                             <button
                                                 onClick={() => handleStatusChange(emp.id, "ABSENT")}
                                                 className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${attendance[emp.id]?.status === "ABSENT"
-                                                        ? "bg-rose-500 text-white shadow-lg shadow-rose-200"
-                                                        : "bg-white text-slate-400 border border-slate-100 hover:border-rose-200 hover:text-rose-500"
+                                                    ? "bg-rose-500 text-white shadow-lg shadow-rose-200"
+                                                    : "bg-white text-slate-400 border border-slate-100 hover:border-rose-200 hover:text-rose-500"
                                                     }`}
                                             >
                                                 <XCircle className="w-3.5 h-3.5" />

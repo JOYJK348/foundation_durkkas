@@ -164,11 +164,14 @@ export async function getUserTenantScope(
         return tenantScope;
 
     } catch (error: any) {
-        logger.error('[TenantFilter] Error in getUserTenantScope', {
+        console.error('❌ [TenantFilter] CRITICAL ERROR in getUserTenantScope:', {
             userId,
-            error: error.message,
+            message: error.message,
+            code: error.code,
             stack: error.stack
         });
+
+        if (error instanceof AppError) throw error;
         throw new Error(`Failed to get tenant scope: ${error.message}`);
     }
 }
