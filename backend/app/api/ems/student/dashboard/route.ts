@@ -6,7 +6,6 @@
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
-import { EnrollmentService } from '@/lib/services/EnrollmentService';
 import { ems } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
@@ -29,45 +28,65 @@ export async function GET(req: NextRequest) {
             return errorResponse(null, 'Student record not found', 404);
         }
 
-        // Get student enrollments with progress
-        const enrollments = await EnrollmentService.getStudentEnrollments(
-            student.id,
-            scope.companyId!
-        );
-
-        // Get pending assignments
-        const { data: pendingAssignments } = await ems.supabase
-            .from('assignments')
-            .select(`
-                id,
-                assignment_title,
-                deadline,
-                max_marks,
-                assignment_submissions!left (
-                    id,
-                    submission_status
-                )
-            `)
-            .in('course_id', enrollments?.map(e => e.course_id) || [])
-            .eq('is_active', true)
+        // Get student enrollments (simplified query)
+        const { data: enrollments, error: enrollError } = await ems.enrollments()
+            .select('*')
+            .eq('student_id', student.id)
+            .eq('company_id', scope.companyId!)
             .is('deleted_at', null)
-            .gte('deadline', new Date().toISOString())
-            .order('deadline', { ascending: true });
+            .order('enrollment_date', { ascending: false });
 
-        // Filter out already submitted assignments
-        const pendingOnly = pendingAssignments?.filter(a =>
-            !a.assignment_submissions || a.assignment_submissions.length === 0
+        if (enrollError) {
+            console.error('Enrollment fetch error:', enrollError);
+        }
+
+        // Get course names for enrollments
+        const enrollmentsWithCourses = await Promise.all(
+            (enrollments || []).map(async (enrollment) => {
+                const { data: course } = await ems.courses()
+                    .select('course_name, course_code')
+                    .eq('id', enrollment.course_id)
+                    .single();
+
+                return {
+                    ...enrollment,
+                    course_name: course?.course_name || 'Unknown Course',
+                    course_code: course?.course_code || 'N/A'
+                };
+            })
         );
+
+        // Get pending assignments (only if student has enrollments)
+        let pendingAssignments: any[] = [];
+        if (enrollmentsWithCourses && enrollmentsWithCourses.length > 0) {
+            const courseIds = enrollmentsWithCourses.map(e => e.course_id);
+            const { data } = await ems.supabase
+                .schema('ems')
+                .from('assignments')
+                .select(`
+                    id,
+                    assignment_title,
+                    deadline,
+                    max_marks
+                `)
+                .in('course_id', courseIds)
+                .eq('is_active', true)
+                .is('deleted_at', null)
+                .gte('deadline', new Date().toISOString())
+                .order('deadline', { ascending: true });
+
+            pendingAssignments = data || [];
+        }
 
         const dashboardData = {
             student: student,
-            total_enrollments: enrollments?.length || 0,
-            enrollments: enrollments,
-            pending_assignments_count: pendingOnly?.length || 0,
-            pending_assignments: pendingOnly,
-            overall_progress: enrollments?.reduce((acc, e) =>
+            total_enrollments: enrollmentsWithCourses?.length || 0,
+            enrollments: enrollmentsWithCourses,
+            pending_assignments_count: pendingAssignments?.length || 0,
+            pending_assignments: pendingAssignments,
+            overall_progress: enrollmentsWithCourses?.reduce((acc, e) =>
                 acc + (e.completion_percentage || 0), 0
-            ) / (enrollments?.length || 1),
+            ) / (enrollmentsWithCourses?.length || 1),
         };
 
         return successResponse(dashboardData, 'Student dashboard data fetched successfully');
