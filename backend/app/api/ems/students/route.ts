@@ -5,29 +5,19 @@
 
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
-import { supabase } from '@/lib/supabase';
-import { applyTenantFilter, autoAssignCompany } from '@/middleware/tenantFilter';
+import { getUserTenantScope, autoAssignCompany } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
+import { studentSchema } from '@/lib/validations/ems';
+import { StudentService } from '@/lib/services/StudentService';
 
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        let query = supabase
-            .from('students')
-            .select(`
-                *,
-                companies:company_id (id, name),
-                branches:branch_id (id, name)
-            `)
-            .eq('is_active', true)
-            .order('created_at', { ascending: false });
+        const scope = await getUserTenantScope(userId);
 
-        query = await applyTenantFilter(userId, query);
-
-        const { data, error } = await query;
-        if (error) throw new Error(error.message);
+        const data = await StudentService.getAllStudents(scope.companyId!);
 
         return successResponse(data, `Students fetched successfully (${data?.length || 0} records)`);
 
@@ -42,23 +32,22 @@ export async function POST(req: NextRequest) {
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         let data = await req.json();
+
+        // 1. Auto-assign company_id and branch_id based on user session
         data = await autoAssignCompany(userId, data);
 
-        if (!data.first_name || !data.student_code) {
-            return errorResponse(null, 'first_name and student_code are required', 400);
-        }
+        // 2. Validate input using Zod
+        const validatedData = studentSchema.parse(data);
 
-        const { data: student, error } = await supabase
-            .from('students')
-            .insert(data)
-            .select('*, companies:company_id (id, name)')
-            .single();
+        // 3. Insert into database using Service
+        const student = await StudentService.createStudent(validatedData);
 
-        if (error) throw new Error(error.message);
-
-        return successResponse(student, 'Student created successfully', 201);
+        return successResponse(student, 'Student admitted successfully', 201);
 
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Failed to create student');
+        if (error.name === 'ZodError') {
+            return errorResponse(error.errors, 'Validation failed', 400);
+        }
+        return errorResponse(null, error.message || 'Failed to admit student');
     }
 }

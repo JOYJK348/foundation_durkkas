@@ -451,20 +451,47 @@ export interface TrainingEnrollment {
 
 export interface Student {
     id: number;
+    company_id: number;
+    branch_id?: number;
+    user_id?: number;
     student_code: string;
     first_name: string;
+    middle_name?: string;
     last_name?: string;
-    full_name: string;
     date_of_birth?: string;
     gender?: string;
     email?: string;
     phone?: string;
-    company_id: number;
-    branch_id: number;
-    academic_year_id?: number;
-    enrollment_date: string;
-    user_id?: number;
+    address_line1?: string;
+    address_line2?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postal_code?: string;
+    profile_url?: string;
+    status: string;
     is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    created_by?: number;
+    updated_by?: number;
+    deleted_at?: string;
+    deleted_by?: number;
+    delete_reason?: string;
+}
+
+export interface StudentGuardian {
+    id: number;
+    company_id: number;
+    student_id: number;
+    guardian_name: string;
+    relationship?: string;
+    phone?: string;
+    email?: string;
+    occupation?: string;
+    address?: string;
+    is_primary: boolean;
+    is_emergency_contact: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -472,15 +499,220 @@ export interface Student {
 export interface Course {
     id: number;
     company_id: number;
-    name: string;
-    code: string;
-    description?: string;
-    course_type: 'ONLINE' | 'OFFLINE' | 'HYBRID';
+    branch_id?: number;
+    tutor_id?: number;
+    course_code: string;
+    course_name: string;
+    course_description?: string;
+    course_category?: string;
+    course_level?: string;
+    course_type?: string;
     duration_hours?: number;
-    fee?: number;
+    total_lessons: number;
+    enrollment_capacity?: number;
+    price: number;
+    thumbnail_url?: string;
+    syllabus_url?: string;
+    start_date?: string;
+    end_date?: string;
+    is_published: boolean;
+    status: string;
     is_active: boolean;
     created_at: string;
     updated_at: string;
+}
+
+export interface CourseModule {
+    id: number;
+    company_id: number;
+    course_id: number;
+    parent_module_id?: number;
+    module_name: string;
+    module_description?: string;
+    module_order: number;
+    duration_hours?: number;
+    is_mandatory: boolean;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Lesson {
+    id: number;
+    company_id: number;
+    course_id: number;
+    module_id?: number;
+    lesson_name: string;
+    lesson_description?: string;
+    lesson_type?: string;
+    lesson_order: number;
+    duration_minutes?: number;
+    video_url?: string;
+    is_preview: boolean;
+    is_mandatory: boolean;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Batch {
+    id: number;
+    company_id: number;
+    branch_id?: number;
+    course_id: number;
+    batch_code: string;
+    batch_name: string;
+    batch_type?: string;
+    start_date?: string;
+    end_date?: string;
+    start_time?: string;
+    end_time?: string;
+    max_students?: number;
+    current_strength: number;
+    status: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface StudentEnrollment {
+    id: number;
+    company_id: number;
+    student_id: number;
+    course_id: number;
+    batch_id?: number;
+    enrollment_date: string;
+    enrollment_status: string;
+    payment_status: string;
+    payment_amount?: number;
+    completion_percentage: number;
+    total_lessons: number;
+    lessons_completed: number;
+    last_accessed_at?: string;
+    expected_completion_date?: string;
+    actual_completion_date?: string;
+    certificate_issued: boolean;
+    certificate_url?: string;
+    enrolled_by?: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LessonProgress {
+    id: number;
+    company_id: number;
+    student_id: number;
+    enrollment_id: number;
+    lesson_id: number;
+    course_id: number;
+    is_completed: boolean;
+    completion_percentage: number;
+    time_spent_minutes: number;
+    started_at?: string;
+    completed_at?: string;
+    last_accessed_at?: string;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Quiz {
+    id: number;
+    company_id: number;
+    course_id: number;
+    module_id?: number;
+    lesson_id?: number;
+    quiz_title: string;
+    total_questions: number;
+    total_marks?: number;
+    passing_marks?: number;
+    duration_minutes?: number;
+    max_attempts: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Assignment {
+    id: number;
+    company_id: number;
+    course_id: number;
+    module_id?: number;
+    lesson_id?: number;
+    tutor_id?: number;
+    assignment_title: string;
+    assignment_description?: string;
+    max_marks?: number;
+    passing_marks?: number;
+    deadline?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LiveClass {
+    id: number;
+    company_id: number;
+    course_id: number;
+    batch_id?: number;
+    tutor_id?: number;
+    class_title: string;
+    class_description?: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    duration_minutes: number;
+    meeting_link?: string;
+    meeting_platform: string;
+    meeting_password?: string;
+    recording_url?: string;
+    status: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string;
+}
+
+export interface AttendanceSession {
+    id: number;
+    company_id: number;
+    batch_id?: number;
+    course_id: number;
+    lesson_id?: number;
+    session_date: string;
+    session_type: string;
+    start_time?: string;
+    end_time?: string;
+    taken_by?: number;
+    remarks?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AttendanceRecord {
+    id: number;
+    company_id: number;
+    session_id: number;
+    student_id: number;
+    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+    check_in_time?: string;
+    check_out_time?: string;
+    remarks?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface QuizAttempt {
+    id: number;
+    company_id: number;
+    student_id: number;
+    enrollment_id: number;
+    quiz_id: number;
+    course_id: number;
+    score_percentage: number;
+    is_passed: boolean;
+    attempt_number: number;
+    started_at: string;
+    completed_at?: string;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -562,7 +794,19 @@ export interface Database {
     ems: {
         Tables: {
             students: TableDefinition<Student>;
+            student_guardians: TableDefinition<StudentGuardian>;
             courses: TableDefinition<Course>;
+            course_modules: TableDefinition<CourseModule>;
+            lessons: TableDefinition<Lesson>;
+            batches: TableDefinition<Batch>;
+            student_enrollments: TableDefinition<StudentEnrollment>;
+            lesson_progress: TableDefinition<LessonProgress>;
+            quizzes: TableDefinition<Quiz>;
+            assignments: TableDefinition<Assignment>;
+            live_classes: TableDefinition<LiveClass>;
+            attendance_sessions: TableDefinition<AttendanceSession>;
+            attendance_records: TableDefinition<AttendanceRecord>;
+            quiz_attempts: TableDefinition<QuizAttempt>;
         };
     };
     finance: {

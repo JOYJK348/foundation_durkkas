@@ -89,8 +89,21 @@ export const hrms = {
 
 export const ems = {
     students: () => fromSchema(SCHEMAS.EMS, 'students'),
+    studentGuardians: () => fromSchema(SCHEMAS.EMS, 'student_guardians'),
     courses: () => fromSchema(SCHEMAS.EMS, 'courses'),
+    courseModules: () => fromSchema(SCHEMAS.EMS, 'course_modules'),
+    lessons: () => fromSchema(SCHEMAS.EMS, 'lessons'),
+    courseMaterials: () => fromSchema(SCHEMAS.EMS, 'course_materials'),
     batches: () => fromSchema(SCHEMAS.EMS, 'batches'),
+    enrollments: () => fromSchema(SCHEMAS.EMS, 'student_enrollments'),
+    lessonProgress: () => fromSchema(SCHEMAS.EMS, 'lesson_progress'),
+    quizzes: () => fromSchema(SCHEMAS.EMS, 'quizzes'),
+    assignments: () => fromSchema(SCHEMAS.EMS, 'assignments'),
+    liveClasses: () => fromSchema(SCHEMAS.EMS, 'live_classes'),
+    attendanceSessions: () => fromSchema(SCHEMAS.EMS, 'attendance_sessions'),
+    attendanceRecords: () => fromSchema(SCHEMAS.EMS, 'attendance_records'),
+    quizAttempts: () => fromSchema(SCHEMAS.EMS, 'quiz_attempts'),
+    supabase: supabase
 };
 
 export const finance = {
