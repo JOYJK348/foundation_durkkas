@@ -254,7 +254,7 @@ export default function PlatformDashboard() {
                             Hello, Platform Admin !👋
                         </h1>
                         <p className="text-sm md:text-base text-slate-600 font-medium">
-                            Welcome back!!! Here's what's happening with your platform today.
+                            Welcoomeeee back!!! Here's what's happening with your platform today.
                         </p>
                     </div>
                     <Link href="/platform/core/companies/create-with-admin">
