@@ -1,219 +1,103 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { UniversalTopNavbar } from "@/components/dashboard/UniversalTopNavbar";
-import { UniversalBottomNav } from "@/components/dashboard/UniversalBottomNav";
+import { TutorTopNavbar } from "@/components/ems/dashboard/tutor-top-navbar";
+import { TutorBottomNav } from "@/components/ems/dashboard/tutor-bottom-nav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+    BookOpen,
+    FileText,
+    ClipboardCheck,
+    Users,
+    TrendingUp,
+    Calendar,
+    Video,
+    Clock,
+    ArrowRight,
+    Play,
+    GraduationCap,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-    Building2,
-    Users,
-    GraduationCap,
-    DollarSign,
-    Phone,
-    BarChart3,
-    Settings,
-    TrendingUp,
-    UserCheck,
-    FileText,
-    Calendar,
-    ArrowUpRight,
-    Loader2,
-} from "lucide-react";
-
-// Dashboard configuration based on user role and permissions
-interface DashboardConfig {
-    role: string;
-    permissions: string[];
-    modules: string[];
-}
+import api from "@/lib/api";
 
 export default function BranchDashboard() {
     const [loading, setLoading] = useState(true);
-    const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);
-    const [stats, setStats] = useState<any[]>([]);
-    const [quickActions, setQuickActions] = useState<any[]>([]);
-    const [recentActivity, setRecentActivity] = useState<any[]>([]);
+    const [stats, setStats] = useState({
+        totalStudents: 0,
+        activeCourses: 0,
+        runningBatches: 0,
+        totalAssignments: 0,
+    });
+    const [recentCourses, setRecentCourses] = useState<any[]>([]);
+    const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
 
     useEffect(() => {
-        // TODO: Fetch user role and permissions from API
-        // For now, using mock data
-        fetchDashboardConfig();
+        fetchDashboardData();
     }, []);
 
-    const fetchDashboardConfig = async () => {
+    const fetchDashboardData = async () => {
         try {
-            // TODO: Replace with actual API call
-            // const response = await fetch('/api/branch/dashboard/config');
-            // const data = await response.json();
+            setLoading(true);
 
-            // Mock data - will be replaced with API
-            const mockConfig: DashboardConfig = {
-                role: "BRANCH_ADMIN",
-                permissions: ["hrms.view", "ems.view", "finance.view", "crm.view"],
-                modules: ["HRMS", "EMS", "Finance", "CRM"],
-            };
+            // Fetch students
+            const studentsRes = await api.get('/ems/students');
+            const students = studentsRes.data?.data || [];
 
-            setDashboardConfig(mockConfig);
-            loadDashboardData(mockConfig);
+            // Fetch courses
+            const coursesRes = await api.get('/ems/courses');
+            const courses = coursesRes.data?.data || [];
+
+            // Fetch batches
+            const batchesRes = await api.get('/ems/batches');
+            const batches = batchesRes.data?.data || [];
+
+            setStats({
+                totalStudents: students.length,
+                activeCourses: courses.filter((c: any) => c.status === 'PUBLISHED').length,
+                runningBatches: batches.filter((b: any) => b.status === 'ACTIVE').length,
+                totalAssignments: 12, // Mock data
+            });
+
+            // Get active courses (last 2)
+            setRecentCourses(courses.filter((c: any) => c.status === 'PUBLISHED').slice(0, 2));
+
+            // Mock upcoming classes
+            setUpcomingClasses([
+                { id: 1, title: "React Advanced Patterns", time: "Today, 2:00 PM", course: "Full Stack Development" },
+                { id: 2, title: "Data Visualization with Python", time: "Tomorrow, 10:00 AM", course: "Data Science" },
+            ]);
+
         } catch (error) {
-            console.error("Failed to load dashboard config:", error);
+            console.error('Failed to fetch dashboard data:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const loadDashboardData = (config: DashboardConfig) => {
-        // Build stats based on available modules
-        const statsData = [];
+    const statsData = [
+        { label: "Students", value: stats.totalStudents, icon: Users, color: "blue", href: "/branch/students" },
+        { label: "Courses", value: stats.activeCourses, icon: BookOpen, color: "green", href: "/branch/courses" },
+        { label: "Batches", value: stats.runningBatches, icon: Calendar, color: "purple", href: "/branch/batches" },
+        { label: "Assignments", value: stats.totalAssignments, icon: FileText, color: "orange", href: "/branch/assignments" },
+    ];
 
-        if (config.modules.includes("HRMS")) {
-            statsData.push({ label: "Total Employees", value: "45", change: "+5", icon: Users, color: "blue" });
-        }
-
-        if (config.modules.includes("EMS")) {
-            statsData.push({ label: "Active Students", value: "128", change: "+12", icon: GraduationCap, color: "green" });
-        }
-
-        if (config.modules.includes("Finance")) {
-            statsData.push({ label: "Monthly Revenue", value: "₹8.5L", change: "+18%", icon: DollarSign, color: "purple" });
-        }
-
-        if (config.modules.includes("CRM")) {
-            statsData.push({ label: "Active Leads", value: "34", change: "+8", icon: Phone, color: "orange" });
-        }
-
-        setStats(statsData);
-
-        // Build quick actions based on permissions
-        const actionsData = [];
-
-        if (config.permissions.includes("hrms.view")) {
-            actionsData.push({ label: "Employee Management", href: "/branch/hrms/employees", icon: Users, color: "blue" });
-            actionsData.push({ label: "Attendance", href: "/branch/hrms/attendance", icon: UserCheck, color: "pink" });
-        }
-
-        if (config.permissions.includes("ems.view")) {
-            actionsData.push({ label: "Student Admissions", href: "/branch/ems/students", icon: GraduationCap, color: "green" });
-        }
-
-        if (config.permissions.includes("finance.view")) {
-            actionsData.push({ label: "Invoice Management", href: "/branch/finance/invoices", icon: FileText, color: "purple" });
-        }
-
-        if (config.permissions.includes("crm.view")) {
-            actionsData.push({ label: "Lead Follow-ups", href: "/branch/crm/leads", icon: Phone, color: "orange" });
-        }
-
-        actionsData.push({ label: "Reports", href: "/branch/reports", icon: BarChart3, color: "indigo" });
-
-        setQuickActions(actionsData);
-
-        // Build recent activity
-        const activityData = [
-            { title: "New Employee Onboarded", subtitle: "John Doe - Software Developer", time: "2 hours ago", icon: Users },
-            { title: "Student Admission", subtitle: "5 new students enrolled in Full Stack course", time: "3 hours ago", icon: GraduationCap },
-            { title: "Invoice Generated", subtitle: "Invoice #INV-2024-001 for ₹45,000", time: "5 hours ago", icon: DollarSign },
-            { title: "New Lead Assigned", subtitle: "Career Guidance inquiry from Mumbai", time: "1 day ago", icon: Phone },
-        ];
-
-        setRecentActivity(activityData);
-    };
-
-    // Build navbar config dynamically
-    const getNavbarConfig = () => {
-        if (!dashboardConfig) return null;
-
-        const quickActionsForNav = [];
-        quickActionsForNav.push({ label: "Dashboard", href: "/branch/dashboard", icon: BarChart3 });
-
-        if (dashboardConfig.modules.includes("HRMS")) {
-            quickActionsForNav.push({ label: "HRMS", href: "/branch/hrms", icon: Users });
-        }
-
-        if (dashboardConfig.modules.includes("EMS")) {
-            quickActionsForNav.push({ label: "EMS", href: "/branch/ems", icon: GraduationCap });
-        }
-
-        if (dashboardConfig.modules.includes("Finance")) {
-            quickActionsForNav.push({ label: "Finance", href: "/branch/finance", icon: DollarSign });
-        }
-
-        if (dashboardConfig.modules.includes("CRM")) {
-            quickActionsForNav.push({ label: "CRM", href: "/branch/crm", icon: Phone });
-        }
-
-        quickActionsForNav.push({ label: "Reports", href: "/branch/reports", icon: FileText });
-
-        return {
-            logo: {
-                icon: Building2,
-                text: "Branch Dashboard",
-                href: "/branch/dashboard",
-            },
-            searchPlaceholder: "Search employees, students, invoices...",
-            quickActions: quickActionsForNav,
-            notificationHref: "/branch/notifications",
-            profileHref: "/branch/profile",
-            logoutHref: "/login",
-            userName: "Branch Manager", // TODO: Get from user session
-            userEmail: "manager@durkkas.com", // TODO: Get from user session
-            moduleColor: "orange",
-        };
-    };
-
-    // Build bottom nav config dynamically
-    const getBottomNavConfig = () => {
-        if (!dashboardConfig) return null;
-
-        const navItems = [];
-
-        if (dashboardConfig.modules.includes("HRMS")) {
-            navItems.push({ href: "/branch/hrms", icon: Users, label: "HRMS" });
-        }
-
-        if (dashboardConfig.modules.includes("EMS")) {
-            navItems.push({ href: "/branch/ems", icon: GraduationCap, label: "EMS" });
-        }
-
-        if (dashboardConfig.modules.includes("Finance")) {
-            navItems.push({ href: "/branch/finance", icon: DollarSign, label: "Finance" });
-        }
-
-        if (dashboardConfig.modules.includes("CRM")) {
-            navItems.push({ href: "/branch/crm", icon: Phone, label: "CRM" });
-        }
-
-        navItems.push({ href: "/branch/reports", icon: BarChart3, label: "Reports" });
-        navItems.push({ href: "/branch/settings", icon: Settings, label: "Settings" });
-
-        return {
-            items: navItems.slice(0, 6), // Max 6 items
-            moduleColor: "orange",
-        };
-    };
+    const quickActions = [
+        { label: "My Courses", icon: BookOpen, href: "/branch/courses", color: "blue" },
+        { label: "Students", icon: GraduationCap, href: "/branch/students", color: "green" },
+        { label: "Batches", icon: Calendar, href: "/branch/batches", color: "purple" },
+        { label: "Assignments", icon: FileText, href: "/branch/assignments", color: "red" },
+        { label: "Live Classes", icon: Video, href: "/branch/live-classes", color: "orange" },
+        { label: "Analytics", icon: TrendingUp, href: "/branch/analytics", color: "pink" },
+    ];
 
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <Loader2 className="h-12 w-12 animate-spin text-orange-600 mx-auto mb-4" />
+                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-gray-600">Loading dashboard...</p>
-                </div>
-            </div>
-        );
-    }
-
-    const navbarConfig = getNavbarConfig();
-    const bottomNavConfig = getBottomNavConfig();
-
-    if (!navbarConfig || !bottomNavConfig) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-red-600">Failed to load dashboard configuration</p>
                 </div>
             </div>
         );
@@ -221,7 +105,7 @@ export default function BranchDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
-            <UniversalTopNavbar config={navbarConfig} />
+            <TutorTopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                 {/* Welcome Section */}
@@ -230,112 +114,141 @@ export default function BranchDashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-8"
                 >
-                    <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent">
-                        Branch Dashboard
+                    <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                        Welcome Back, Tutor!
                     </h1>
-                    <p className="text-gray-600">Welcome back! Here's what's happening in your branch.</p>
+                    <p className="text-gray-600">Manage your courses and students</p>
                 </motion.div>
 
-                {/* Stats Grid - Dynamic based on modules */}
-                {stats.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                        {stats.map((stat, index) => (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                            >
-                                <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    {statsData.map((stat, index) => (
+                        <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                        >
+                            <Link href={stat.href}>
+                                <Card className="border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer bg-white group">
                                     <CardContent className="p-6">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className={`w-12 h-12 rounded-xl bg-${stat.color}-100 flex items-center justify-center`}>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
+                                                <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                                            </div>
+                                            <div className={`w-12 h-12 rounded-xl bg-${stat.color}-100 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                                                 <stat.icon className={`h-6 w-6 text-${stat.color}-600`} />
                                             </div>
-                                            <span className="text-sm font-semibold text-green-600 flex items-center gap-1">
-                                                <TrendingUp className="h-3 w-3" />
-                                                {stat.change}
-                                            </span>
                                         </div>
-                                        <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-                                        <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
                                     </CardContent>
                                 </Card>
-                            </motion.div>
+                            </Link>
+                        </motion.div>
+                    ))}
+                </div>
+
+                {/* Continue Teaching */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="mb-8"
+                >
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">Your Courses</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {recentCourses.map((course, index) => (
+                            <Card key={course.id} className="border-0 shadow-lg hover:shadow-xl transition-all overflow-hidden group">
+                                <div className="relative h-48 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                    <div className="absolute bottom-4 left-4 right-4">
+                                        <h3 className="text-white font-bold text-lg mb-1">{course.course_name}</h3>
+                                        <p className="text-white/90 text-sm">{course.course_category} • {course.course_level}</p>
+                                    </div>
+                                </div>
+                                <CardContent className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-sm text-gray-600">Total Lessons</span>
+                                        <span className="text-sm font-bold text-blue-600">{course.total_lessons}</span>
+                                    </div>
+                                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                                        <Play className="h-4 w-4 mr-2" />
+                                        Manage Course
+                                    </Button>
+                                </CardContent>
+                            </Card>
                         ))}
                     </div>
-                )}
+                </motion.div>
 
-                {/* Quick Actions - Dynamic based on permissions */}
-                {quickActions.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className="mb-8"
-                    >
-                        <h2 className="text-2xl font-bold mb-4 text-gray-900">Quick Actions</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                            {quickActions.map((action, index) => (
-                                <Link key={index} href={action.href}>
-                                    <Card className="border-0 shadow-md hover:shadow-xl transition-all cursor-pointer group">
-                                        <CardContent className="p-6 text-center">
-                                            <div className={`w-14 h-14 mx-auto mb-3 rounded-xl bg-${action.color}-100 group-hover:bg-${action.color}-600 flex items-center justify-center transition-colors`}>
-                                                <action.icon className={`h-7 w-7 text-${action.color}-600 group-hover:text-white transition-colors`} />
-                                            </div>
-                                            <p className="text-sm font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
-                                                {action.label}
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* Recent Activity */}
-                {recentActivity.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 }}
-                    >
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl font-bold text-gray-900">Recent Activity</h2>
-                            <Link href="/branch/activity">
-                                <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-700">
-                                    View All
-                                    <ArrowUpRight className="h-4 w-4 ml-1" />
-                                </Button>
+                {/* Quick Actions */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="mb-8"
+                >
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">Quick Actions</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {quickActions.map((action, index) => (
+                            <Link key={index} href={action.href}>
+                                <Card className="border-0 shadow-md hover:shadow-lg transition-all cursor-pointer group">
+                                    <CardContent className="p-4 text-center">
+                                        <div className={`w-12 h-12 mx-auto mb-3 rounded-xl bg-${action.color}-100 flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                                            <action.icon className={`h-6 w-6 text-${action.color}-600`} />
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-900">{action.label}</p>
+                                    </CardContent>
+                                </Card>
                             </Link>
-                        </div>
-                        <div className="space-y-3">
-                            {recentActivity.map((activity, index) => (
-                                <Card key={index} className="border-0 shadow-md hover:shadow-lg transition-all">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                                                <activity.icon className="h-5 w-5 text-orange-600" />
+                        ))}
+                    </div>
+                </motion.div>
+
+                {/* Upcoming Classes */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                >
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-2xl font-bold text-gray-900">Upcoming Classes</h2>
+                        <Link href="/branch/live-classes">
+                            <Button variant="ghost" size="sm">
+                                View All
+                                <ArrowRight className="h-4 w-4 ml-2" />
+                            </Button>
+                        </Link>
+                    </div>
+                    <div className="space-y-3">
+                        {upcomingClasses.map((classItem) => (
+                            <Card key={classItem.id} className="border-0 shadow-md hover:shadow-lg transition-all">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                                                <Video className="h-5 w-5 text-purple-600" />
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="font-semibold text-gray-900 mb-1">{activity.title}</h3>
-                                                <p className="text-sm text-gray-600 mb-1">{activity.subtitle}</p>
-                                                <p className="text-xs text-gray-500 flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" />
-                                                    {activity.time}
+                                            <div>
+                                                <h3 className="font-semibold text-gray-900">{classItem.title}</h3>
+                                                <p className="text-sm text-gray-600 flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {classItem.time}
                                                 </p>
                                             </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
+                                        <Button size="sm" variant="outline">
+                                            Join
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </motion.div>
             </div>
 
-            <UniversalBottomNav config={bottomNavConfig} />
+            <TutorBottomNav />
         </div>
     );
 }

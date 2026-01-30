@@ -100,7 +100,7 @@ const navItems: NavItem[] = [
     { id: "leaves", label: "Leaves", icon: MailCheck, href: "DYNAMIC_LEAVES", roles: [0, 1, 2, 3, 4], module: "ATTENDANCE", menuId: 57 },
     { id: "payroll", label: "Payroll", icon: Briefcase, href: "/workspace/payroll", roles: [4], module: "PAYROLL", menuId: 61 },
     { id: "crm", label: "CRM", icon: LayoutGrid, href: "/workspace/crm", roles: [4, 1], module: "CRM", menuId: 89 },
-    { id: "lms", label: "LMS", icon: MonitorPlay, href: "/workspace/lms", roles: [0, 4, 1], module: "LMS", menuId: 73 },
+    { id: "lms", label: "LMS", icon: MonitorPlay, href: "DYNAMIC_LMS_DASHBOARD", roles: [0, 4, 1], module: "LMS", menuId: 73 },
     { id: "lms_courses", label: "Courses", icon: BookOpen, href: "DYNAMIC_LMS_COURSES", roles: [0, 4, 1], module: "LMS", menuId: 74 },
     { id: "lms_classes", label: "Live Classes", icon: Video, href: "DYNAMIC_LMS_CLASSES", roles: [0, 4, 1], module: "LMS", menuId: 75 },
     { id: "lms_assessments", label: "Assessments", icon: FileCheck, href: "DYNAMIC_LMS_ASSESSMENTS", roles: [0, 4, 1], module: "LMS", menuId: 76 },
@@ -342,7 +342,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const getDashboardHref = () => {
         if (userLevel === 5) return "/platform/dashboard";
         if (userLevel === 4) return "/workspace/dashboard";
-        // Default for Level 1 (Branch Admin) and Level 0 (Employee)
         return "/branch/dashboard";
     };
 
@@ -373,6 +372,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (userLevel === 5) return "/platform/notifications";
         if (userLevel === 4) return "/workspace/notifications";
         return "/branch/notifications";
+    };
+
+    const getLmsDashboardHref = () => {
+        if (userLevel === 4) return "/workspace/lms";
+        return "/branch/dashboard";
     };
 
     const getProfileHref = () => {
@@ -467,6 +471,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (href === "DYNAMIC_REPORTS") href = getReportsHref();
         if (href === "DYNAMIC_NOTIFICATIONS") href = getNotificationsHref();
         if (href === "DYNAMIC_PROFILE") href = getProfileHref();
+        if (href === "DYNAMIC_LMS_DASHBOARD") href = getLmsDashboardHref();
         if (href === "DYNAMIC_LMS_COURSES") href = getLmsCoursesHref();
         if (href === "DYNAMIC_LMS_CLASSES") href = getLmsClassesHref();
         if (href === "DYNAMIC_LMS_ASSESSMENTS") href = getLmsAssessmentsHref();
