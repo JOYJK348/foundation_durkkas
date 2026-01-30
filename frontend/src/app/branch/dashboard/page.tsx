@@ -1,580 +1,341 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { UniversalTopNavbar } from "@/components/dashboard/UniversalTopNavbar";
+import { UniversalBottomNav } from "@/components/dashboard/UniversalBottomNav";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
-    Users,
-    MapPin,
-    Activity,
-    Briefcase,
-    Award,
-    TrendingUp,
-    Clock,
-    CheckCircle2,
-    BarChart3,
-    UserPlus,
-    CalendarCheck,
-    FileText,
-    MailCheck,
-    XCircle,
-    ClipboardList,
-    ChevronRight,
-    ArrowUpRight,
-    CreditCard,
-    Wallet,
-    Handshake,
-    GraduationCap,
-    CircleDollarSign,
-    Loader2,
-    Settings,
     Building2,
-    Layers,
-    Shield,
-    BookOpen,
-    Package,
-    LineChart,
-    Bell,
-    Search,
-    MoreVertical,
-    Zap,
-    Target,
-    Crown,
-    TrendingDown,
-    AlertTriangle
+    Users,
+    GraduationCap,
+    DollarSign,
+    Phone,
+    BarChart3,
+    Settings,
+    TrendingUp,
+    UserCheck,
+    FileText,
+    Calendar,
+    ArrowUpRight,
+    Loader2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { platformService } from "@/services/platformService";
-import { useAuthStore } from "@/store/useAuthStore";
-import { toast } from "sonner";
 
-interface ModuleConfig {
-    key: string;
-    name: string;
-    icon: any;
-    color: string;
-    bgColor: string;
-    description: string;
-    quickActions: { label: string; href: string; icon: any }[];
+// Dashboard configuration based on user role and permissions
+interface DashboardConfig {
+    role: string;
+    permissions: string[];
+    modules: string[];
 }
 
-const MODULE_CONFIG: Record<string, ModuleConfig> = {
-    HR: {
-        key: 'HR',
-        name: 'Human Resources',
-        icon: Users,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-600',
-        description: 'Team management & workforce',
-        quickActions: [
-            { label: 'Add Staff', href: '/branch/employees/new', icon: UserPlus },
-            { label: 'Team Directory', href: '/branch/employees', icon: Users },
-            { label: 'Leave Requests', href: '/branch/leaves', icon: CalendarCheck }
-        ]
-    },
-    ATTENDANCE: {
-        key: 'ATTENDANCE',
-        name: 'Attendance',
-        icon: CalendarCheck,
-        color: 'text-emerald-600',
-        bgColor: 'bg-emerald-600',
-        description: 'Time tracking & presence',
-        quickActions: [
-            { label: 'Mark Attendance', href: '/branch/attendance/mark', icon: CheckCircle2 },
-            { label: 'Attendance Reports', href: '/branch/attendance/reports', icon: BarChart3 }
-        ]
-    },
-    PAYROLL: {
-        key: 'PAYROLL',
-        name: 'Payroll',
-        icon: Wallet,
-        color: 'text-violet-600',
-        bgColor: 'bg-violet-600',
-        description: 'Salary & compensations',
-        quickActions: [
-            { label: 'Process Salary', href: '/branch/payroll/process', icon: CreditCard },
-            { label: 'Payslips', href: '/branch/payroll/slips', icon: FileText }
-        ]
-    },
-    CRM: {
-        key: 'CRM',
-        name: 'CRM & Sales',
-        icon: Handshake,
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-600',
-        description: 'Customer relations & leads',
-        quickActions: [
-            { label: 'New Lead', href: '/branch/crm/leads/new', icon: UserPlus },
-            { label: 'All Leads', href: '/branch/crm/leads', icon: Briefcase },
-            { label: 'Deals Pipeline', href: '/branch/crm/deals', icon: Target }
-        ]
-    },
-    LMS: {
-        key: 'LMS',
-        name: 'Learning (LMS)',
-        icon: GraduationCap,
-        color: 'text-pink-600',
-        bgColor: 'bg-pink-600',
-        description: 'Courses & training',
-        quickActions: [
-            { label: 'Courses', href: '/branch/lms/courses', icon: BookOpen },
-            { label: 'Enrollments', href: '/branch/lms/enrollments', icon: Users },
-            { label: 'Certificates', href: '/branch/lms/certificates', icon: Award }
-        ]
-    },
-    FINANCE: {
-        key: 'FINANCE',
-        name: 'Finance',
-        icon: CircleDollarSign,
-        color: 'text-cyan-600',
-        bgColor: 'bg-cyan-600',
-        description: 'Invoicing & accounts',
-        quickActions: [
-            { label: 'New Invoice', href: '/branch/finance/invoices/new', icon: FileText },
-            { label: 'Payments', href: '/branch/finance/payments', icon: CreditCard },
-            { label: 'Reports', href: '/branch/finance/reports', icon: LineChart }
-        ]
-    }
-};
-
-export default function BranchAdminDashboard() {
-    const { user } = useAuthStore();
+export default function BranchDashboard() {
     const [loading, setLoading] = useState(true);
-    const [branch, setBranch] = useState<any>(null);
-    const [company, setCompany] = useState<any>(null);
-    const [enabledModules, setEnabledModules] = useState<string[]>(['HR', 'ATTENDANCE']);
-    const [stats, setStats] = useState<any>({});
-    const [employees, setEmployees] = useState<any[]>([]);
+    const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);
+    const [stats, setStats] = useState<any[]>([]);
+    const [quickActions, setQuickActions] = useState<any[]>([]);
     const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
-    // Extract User Level for Role-Based Adaptation
-    const userRole = (user as any)?.roles?.[0] || {};
-    const userLevel = userRole.level ?? 0;
-    const isEmployee = userLevel === 0;
-
     useEffect(() => {
-        loadDashboardData();
+        // TODO: Fetch user role and permissions from API
+        // For now, using mock data
+        fetchDashboardConfig();
     }, []);
 
-    const loadDashboardData = async () => {
+    const fetchDashboardConfig = async () => {
         try {
-            setLoading(true);
+            // TODO: Replace with actual API call
+            // const response = await fetch('/api/branch/dashboard/config');
+            // const data = await response.json();
 
-            // Get current user context
-            const me = await platformService.getMe();
-            const myScope = me?.scope || {};
+            // Mock data - will be replaced with API
+            const mockConfig: DashboardConfig = {
+                role: "BRANCH_ADMIN",
+                permissions: ["hrms.view", "ems.view", "finance.view", "crm.view"],
+                modules: ["HRMS", "EMS", "Finance", "CRM"],
+            };
 
-            // Fetch all required data in parallel
-            const [companyData, branchesData, employeesData] = await Promise.all([
-                myScope.companyId ? platformService.getCompany(myScope.companyId.toString()) : null,
-                platformService.getBranches(),
-                platformService.getEmployees()
-            ]);
-
-            if (companyData) setCompany(companyData);
-            setEmployees(employeesData || []);
-
-            // Find the branch for this admin
-            const activeBranch = branchesData?.find((b: any) =>
-                String(b.id) === String(myScope.branchId)
-            ) || branchesData?.[0];
-
-            if (activeBranch) {
-                setBranch(activeBranch);
-
-                // Parse enabled modules for this branch
-                let branchModules: string[] = [];
-                if (activeBranch.enabled_modules) {
-                    branchModules = Array.isArray(activeBranch.enabled_modules)
-                        ? activeBranch.enabled_modules
-                        : JSON.parse(activeBranch.enabled_modules);
-                }
-
-                // Fallback to company modules or standard defaults
-                if (branchModules.length === 0) {
-                    const compModules = companyData?.enabled_modules;
-                    if (compModules) {
-                        branchModules = Array.isArray(compModules) ? compModules : JSON.parse(compModules);
-                    }
-                }
-
-                // Final safety fallback if everything is empty
-                if (branchModules.length === 0) {
-                    branchModules = ['HR', 'ATTENDANCE'];
-                }
-
-                setEnabledModules(branchModules);
-            }
-
-            // Calculate REAL stats
-            const branchEmployees = employeesData?.filter((e: any) =>
-                String(e.branch_id) === String(activeBranch?.id)
-            ) || [];
-
-            setStats({
-                totalEmployees: branchEmployees.length,
-                presentToday: branchEmployees.length > 0 ? branchEmployees.length : 0,
-                absentToday: 0,
-                pendingLeaves: 0,
-                activeCourses: 3, // Mock for employee
-                totalLeads: 0,
-                monthlyRevenue: '₹0',
-                myAttendance: '98%',
-                myLeaveBalance: 12
-            });
-
-            // Dynamic Activity
-            const activities = [];
-            if (branchEmployees.length > 0) {
-                const latestEmp = branchEmployees[0];
-                activities.push({
-                    type: 'employee',
-                    message: `Employee ${latestEmp.first_name} ${latestEmp.last_name} belongs to this branch.`,
-                    time: 'Active',
-                    icon: UserPlus,
-                    color: 'bg-blue-500'
-                });
-            } else {
-                activities.push({
-                    type: 'info',
-                    message: 'No recent activity found. Start by adding employees.',
-                    time: 'Just now',
-                    icon: Shield,
-                    color: 'bg-slate-400'
-                });
-            }
-            setRecentActivity(activities);
-
+            setDashboardConfig(mockConfig);
+            loadDashboardData(mockConfig);
         } catch (error) {
-            console.error("Dashboard load error:", error);
-            toast.error("Failed to load dashboard data");
+            console.error("Failed to load dashboard config:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    const getModuleStats = (moduleKey: string) => {
-        switch (moduleKey) {
-            case 'HR':
-                return [
-                    { label: 'Total Staff', value: stats.totalEmployees || 0, trend: '+2 this month' },
-                    { label: 'Pending Requests', value: stats.pendingLeaves || 0, trend: null }
-                ];
-            case 'ATTENDANCE':
-                return [
-                    { label: 'Present Today', value: stats.presentToday || 0, trend: `${Math.round((stats.presentToday / (stats.totalEmployees || 1)) * 100)}%` },
-                    { label: 'Absent', value: stats.absentToday || 0, trend: null }
-                ];
-            case 'LMS':
-                return [
-                    { label: 'Active Courses', value: stats.activeCourses || 0, trend: null },
-                    { label: 'Enrollments', value: 128, trend: '+12 this week' }
-                ];
-            case 'CRM':
-                return [
-                    { label: 'Total Leads', value: stats.totalLeads || 0, trend: '+8 this week' },
-                    { label: 'Conversions', value: 12, trend: '26% rate' }
-                ];
-            case 'FINANCE':
-                return [
-                    { label: 'Revenue (MTD)', value: stats.monthlyRevenue || '₹0', trend: '+18%' },
-                    { label: 'Pending Invoices', value: 5, trend: null }
-                ];
-            case 'PAYROLL':
-                return [
-                    { label: 'Processed', value: stats.totalEmployees || 0, trend: 'This month' },
-                    { label: 'Pending', value: 0, trend: null }
-                ];
-            default:
-                return [];
+    const loadDashboardData = (config: DashboardConfig) => {
+        // Build stats based on available modules
+        const statsData = [];
+
+        if (config.modules.includes("HRMS")) {
+            statsData.push({ label: "Total Employees", value: "45", change: "+5", icon: Users, color: "blue" });
         }
+
+        if (config.modules.includes("EMS")) {
+            statsData.push({ label: "Active Students", value: "128", change: "+12", icon: GraduationCap, color: "green" });
+        }
+
+        if (config.modules.includes("Finance")) {
+            statsData.push({ label: "Monthly Revenue", value: "₹8.5L", change: "+18%", icon: DollarSign, color: "purple" });
+        }
+
+        if (config.modules.includes("CRM")) {
+            statsData.push({ label: "Active Leads", value: "34", change: "+8", icon: Phone, color: "orange" });
+        }
+
+        setStats(statsData);
+
+        // Build quick actions based on permissions
+        const actionsData = [];
+
+        if (config.permissions.includes("hrms.view")) {
+            actionsData.push({ label: "Employee Management", href: "/branch/hrms/employees", icon: Users, color: "blue" });
+            actionsData.push({ label: "Attendance", href: "/branch/hrms/attendance", icon: UserCheck, color: "pink" });
+        }
+
+        if (config.permissions.includes("ems.view")) {
+            actionsData.push({ label: "Student Admissions", href: "/branch/ems/students", icon: GraduationCap, color: "green" });
+        }
+
+        if (config.permissions.includes("finance.view")) {
+            actionsData.push({ label: "Invoice Management", href: "/branch/finance/invoices", icon: FileText, color: "purple" });
+        }
+
+        if (config.permissions.includes("crm.view")) {
+            actionsData.push({ label: "Lead Follow-ups", href: "/branch/crm/leads", icon: Phone, color: "orange" });
+        }
+
+        actionsData.push({ label: "Reports", href: "/branch/reports", icon: BarChart3, color: "indigo" });
+
+        setQuickActions(actionsData);
+
+        // Build recent activity
+        const activityData = [
+            { title: "New Employee Onboarded", subtitle: "John Doe - Software Developer", time: "2 hours ago", icon: Users },
+            { title: "Student Admission", subtitle: "5 new students enrolled in Full Stack course", time: "3 hours ago", icon: GraduationCap },
+            { title: "Invoice Generated", subtitle: "Invoice #INV-2024-001 for ₹45,000", time: "5 hours ago", icon: DollarSign },
+            { title: "New Lead Assigned", subtitle: "Career Guidance inquiry from Mumbai", time: "1 day ago", icon: Phone },
+        ];
+
+        setRecentActivity(activityData);
+    };
+
+    // Build navbar config dynamically
+    const getNavbarConfig = () => {
+        if (!dashboardConfig) return null;
+
+        const quickActionsForNav = [];
+        quickActionsForNav.push({ label: "Dashboard", href: "/branch/dashboard", icon: BarChart3 });
+
+        if (dashboardConfig.modules.includes("HRMS")) {
+            quickActionsForNav.push({ label: "HRMS", href: "/branch/hrms", icon: Users });
+        }
+
+        if (dashboardConfig.modules.includes("EMS")) {
+            quickActionsForNav.push({ label: "EMS", href: "/branch/ems", icon: GraduationCap });
+        }
+
+        if (dashboardConfig.modules.includes("Finance")) {
+            quickActionsForNav.push({ label: "Finance", href: "/branch/finance", icon: DollarSign });
+        }
+
+        if (dashboardConfig.modules.includes("CRM")) {
+            quickActionsForNav.push({ label: "CRM", href: "/branch/crm", icon: Phone });
+        }
+
+        quickActionsForNav.push({ label: "Reports", href: "/branch/reports", icon: FileText });
+
+        return {
+            logo: {
+                icon: Building2,
+                text: "Branch Dashboard",
+                href: "/branch/dashboard",
+            },
+            searchPlaceholder: "Search employees, students, invoices...",
+            quickActions: quickActionsForNav,
+            notificationHref: "/branch/notifications",
+            profileHref: "/branch/profile",
+            logoutHref: "/login",
+            userName: "Branch Manager", // TODO: Get from user session
+            userEmail: "manager@durkkas.com", // TODO: Get from user session
+            moduleColor: "orange",
+        };
+    };
+
+    // Build bottom nav config dynamically
+    const getBottomNavConfig = () => {
+        if (!dashboardConfig) return null;
+
+        const navItems = [];
+
+        if (dashboardConfig.modules.includes("HRMS")) {
+            navItems.push({ href: "/branch/hrms", icon: Users, label: "HRMS" });
+        }
+
+        if (dashboardConfig.modules.includes("EMS")) {
+            navItems.push({ href: "/branch/ems", icon: GraduationCap, label: "EMS" });
+        }
+
+        if (dashboardConfig.modules.includes("Finance")) {
+            navItems.push({ href: "/branch/finance", icon: DollarSign, label: "Finance" });
+        }
+
+        if (dashboardConfig.modules.includes("CRM")) {
+            navItems.push({ href: "/branch/crm", icon: Phone, label: "CRM" });
+        }
+
+        navItems.push({ href: "/branch/reports", icon: BarChart3, label: "Reports" });
+        navItems.push({ href: "/branch/settings", icon: Settings, label: "Settings" });
+
+        return {
+            items: navItems.slice(0, 6), // Max 6 items
+            moduleColor: "orange",
+        };
     };
 
     if (loading) {
         return (
-            <DashboardLayout>
-                <div className="flex h-[60vh] items-center justify-center">
-                    <div className="text-center">
-                        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-                        <p className="text-sm font-bold text-slate-500">Loading your workspace...</p>
-                    </div>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-orange-600 mx-auto mb-4" />
+                    <p className="text-gray-600">Loading dashboard...</p>
                 </div>
-            </DashboardLayout>
+            </div>
+        );
+    }
+
+    const navbarConfig = getNavbarConfig();
+    const bottomNavConfig = getBottomNavConfig();
+
+    if (!navbarConfig || !bottomNavConfig) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600">Failed to load dashboard configuration</p>
+                </div>
+            </div>
         );
     }
 
     return (
-        <DashboardLayout>
-            <div className="space-y-8 pb-12">
-                {/* Header Section */}
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                    <div>
-                        <div className="flex items-center gap-3 mb-3">
-                            {company && (
-                                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black bg-slate-900 text-white uppercase tracking-widest">
-                                    <Building2 size={12} />
-                                    {company.name}
-                                </span>
-                            )}
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-widest">
-                                <MapPin size={12} />
-                                {branch?.name || 'Branch'}
-                            </span>
-                        </div>
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">
-                            {isEmployee ? "My Dashboard" : "Command Center"}
-                        </h1>
-                        <p className="text-slate-500 font-medium mt-2">
-                            Welcome back, {(user as any)?.display_name?.split(' ')[0] || (user as any)?.first_name || 'User'}.
-                            {isEmployee ? " Here's your daily summary." : " Here's your operational overview."}
-                        </p>
-                    </div>
+        <div className="min-h-screen bg-gray-50 pb-24">
+            <UniversalTopNavbar config={navbarConfig} />
 
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white">
-                                <Clock size={22} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    {new Date().toLocaleDateString(undefined, { weekday: 'long' })}
-                                </p>
-                                <p className="text-lg font-black text-slate-900">
-                                    {new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                                </p>
-                            </div>
-                        </div>
-                        <button className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-slate-900 transition-all shadow-sm">
-                            <Bell size={20} />
-                        </button>
-                    </div>
-                </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                {/* Welcome Section */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-8"
+                >
+                    <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent">
+                        Branch Dashboard
+                    </h1>
+                    <p className="text-gray-600">Welcome back! Here's what's happening in your branch.</p>
+                </motion.div>
 
-                {/* Enabled Modules Overview */}
-                <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="p-8 border-b border-slate-50 bg-slate-50/30">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                                    <Layers size={22} />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                                        {isEmployee ? "Available Modules" : "Your Modules"}
-                                    </h2>
-                                    <p className="text-sm text-slate-500 font-medium">
-                                        {isEmployee ? "Features accessible to you" : `${enabledModules.length} modules enabled for this branch`}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {enabledModules.map(mod => {
-                                    const config = MODULE_CONFIG[mod];
-                                    if (!config) return null;
-                                    return (
-                                        <span key={mod} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${config.bgColor} text-white`}>
-                                            {mod}
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {enabledModules.map(moduleKey => {
-                                const config = MODULE_CONFIG[moduleKey];
-                                if (!config) return null;
-
-                                const moduleStats = getModuleStats(moduleKey);
-                                const Icon = config.icon;
-
-                                return (
-                                    <div
-                                        key={moduleKey}
-                                        className="bg-slate-50/50 rounded-[2rem] p-6 border border-slate-100 hover:border-slate-200 hover:shadow-md transition-all group"
-                                    >
-                                        <div className="flex items-center gap-4 mb-6">
-                                            <div className={`w-14 h-14 ${config.bgColor} rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
-                                                <Icon size={26} />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-lg font-black text-slate-900">{config.name}</h3>
-                                                <p className="text-[11px] font-medium text-slate-500">{config.description}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Module Stats */}
-                                        <div className="grid grid-cols-2 gap-3 mb-6">
-                                            {moduleStats.map((stat, i) => (
-                                                <div key={i} className="bg-white rounded-xl p-4 border border-slate-100">
-                                                    <p className="text-2xl font-black text-slate-900">{stat.value}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stat.label}</p>
-                                                    {stat.trend && (
-                                                        <p className="text-[10px] font-bold text-emerald-600 mt-2 flex items-center gap-1">
-                                                            <TrendingUp size={10} /> {stat.trend}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Quick Actions */}
-                                        <div className="space-y-2">
-                                            {config.quickActions.slice(0, 2).map((action, i) => (
-                                                <Link
-                                                    key={i}
-                                                    href={action.href}
-                                                    className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-200 hover:shadow-sm transition-all group/action"
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <action.icon size={16} className={config.color} />
-                                                        <span className="text-sm font-bold text-slate-700 group-hover/action:text-blue-600 transition-colors">{action.label}</span>
-                                                    </div>
-                                                    <ChevronRight size={14} className="text-slate-300 group-hover/action:text-blue-500 group-hover/action:translate-x-1 transition-all" />
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Quick Actions Bar */}
-                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2.5rem] p-8 text-white shadow-xl">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                                <Zap size={22} className="text-amber-400" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-black tracking-tight">Quick Actions</h2>
-                                <p className="text-sm text-slate-400 font-medium">Frequently used operations</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        {enabledModules.flatMap(moduleKey => {
-                            const config = MODULE_CONFIG[moduleKey];
-                            if (!config) return [];
-                            return config.quickActions.slice(0, 1);
-                        }).slice(0, 6).map((action, i) => (
-                            <Link
-                                key={i}
-                                href={action.href}
-                                className="flex flex-col items-center gap-3 p-6 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all group"
+                {/* Stats Grid - Dynamic based on modules */}
+                {stats.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        {stats.map((stat, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
                             >
-                                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <action.icon size={22} className="text-white" />
-                                </div>
-                                <span className="text-xs font-bold text-center">{action.label}</span>
-                            </Link>
+                                <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+                                    <CardContent className="p-6">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className={`w-12 h-12 rounded-xl bg-${stat.color}-100 flex items-center justify-center`}>
+                                                <stat.icon className={`h-6 w-6 text-${stat.color}-600`} />
+                                            </div>
+                                            <span className="text-sm font-semibold text-green-600 flex items-center gap-1">
+                                                <TrendingUp className="h-3 w-3" />
+                                                {stat.change}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
+                                        <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
                         ))}
                     </div>
-                </div>
+                )}
 
-                {/* Bottom Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Recent Activity */}
-                    <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-                        <div className="p-8 border-b border-slate-50">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-black text-slate-900 tracking-tight">Recent Activity</h2>
-                                <button className="text-sm font-bold text-blue-600 hover:text-blue-700">View All</button>
-                            </div>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            {recentActivity.map((activity, i) => (
-                                <div key={i} className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-sm transition-all">
-                                    <div className={`w-10 h-10 ${activity.color} rounded-xl flex items-center justify-center text-white`}>
-                                        <activity.icon size={18} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-bold text-slate-900">{activity.message}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{activity.time}</p>
-                                    </div>
-                                    <ChevronRight size={16} className="text-slate-300" />
-                                </div>
+                {/* Quick Actions - Dynamic based on permissions */}
+                {quickActions.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="mb-8"
+                    >
+                        <h2 className="text-2xl font-bold mb-4 text-gray-900">Quick Actions</h2>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                            {quickActions.map((action, index) => (
+                                <Link key={index} href={action.href}>
+                                    <Card className="border-0 shadow-md hover:shadow-xl transition-all cursor-pointer group">
+                                        <CardContent className="p-6 text-center">
+                                            <div className={`w-14 h-14 mx-auto mb-3 rounded-xl bg-${action.color}-100 group-hover:bg-${action.color}-600 flex items-center justify-center transition-colors`}>
+                                                <action.icon className={`h-7 w-7 text-${action.color}-600 group-hover:text-white transition-colors`} />
+                                            </div>
+                                            <p className="text-sm font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                                                {action.label}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </Link>
                             ))}
-                            {isEmployee && (
-                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
-                                    <p className="text-sm font-bold text-blue-900">Personal Milestone</p>
-                                    <p className="text-xs text-blue-600 mt-1">You have completed 90% of your current course: Modern Web Stack.</p>
-                                </div>
-                            )}
                         </div>
-                    </div>
+                    </motion.div>
+                )}
 
-                    {/* Branch/Personal Health */}
-                    <div className="space-y-6">
-                        <div className={`bg-gradient-to-br ${isEmployee ? 'from-indigo-600 to-violet-700' : 'from-emerald-600 to-teal-700'} rounded-[2.5rem] p-8 text-white shadow-xl`}>
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                                    {isEmployee ? <Activity size={22} /> : <TrendingUp size={22} />}
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-black">{isEmployee ? "My Progress" : "Branch Health"}</h3>
-                                    <p className="text-xs font-medium opacity-80">{isEmployee ? "Personal Stats" : "Performance Overview"}</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-xs font-bold opacity-80">{isEmployee ? "Attendance Rate" : "Staff Count"}</span>
-                                        <span className="text-sm font-black">{isEmployee ? stats.myAttendance : (stats.totalEmployees || 0)}</span>
-                                    </div>
-                                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                                        <div className="h-full w-full bg-white rounded-full opacity-50" style={{ width: isEmployee ? '98%' : '100%' }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-xs font-bold opacity-80">{isEmployee ? "Course Progress" : "Live Status"}</span>
-                                        <span className="text-sm font-black">{isEmployee ? "75%" : "Active"}</span>
-                                    </div>
-                                    <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                                        <div className="h-full w-[75%] bg-blue-400 rounded-full" />
-                                    </div>
-                                </div>
-                            </div>
+                {/* Recent Activity */}
+                {recentActivity.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-2xl font-bold text-gray-900">Recent Activity</h2>
+                            <Link href="/branch/activity">
+                                <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-700">
+                                    View All
+                                    <ArrowUpRight className="h-4 w-4 ml-1" />
+                                </Button>
+                            </Link>
                         </div>
-
-                        {/* Quick Stats Card */}
-                        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8">
-                            <h3 className="text-lg font-black text-slate-900 mb-6">{isEmployee ? "Personal Summary" : "Today's Summary"}</h3>
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl">
-                                    <div className="flex items-center gap-3">
-                                        <CheckCircle2 size={18} className="text-emerald-600" />
-                                        <span className="text-sm font-bold text-emerald-900">{isEmployee ? "Leave Balance" : "Employees"}</span>
-                                    </div>
-                                    <span className="text-lg font-black text-emerald-600">
-                                        {isEmployee ? stats.myLeaveBalance : (stats.totalEmployees || 0)}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-2xl">
-                                    <div className="flex items-center gap-3">
-                                        <Users size={18} className="text-blue-600" />
-                                        <span className="text-sm font-bold text-blue-900">{isEmployee ? "My Team" : "Departments"}</span>
-                                    </div>
-                                    <span className="text-lg font-black text-blue-600">{isEmployee ? "12" : "0"}</span>
-                                </div>
-                                <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl">
-                                    <div className="flex items-center gap-3">
-                                        <AlertTriangle size={18} className="text-amber-600" />
-                                        <span className="text-sm font-bold text-amber-900">Pending Actions</span>
-                                    </div>
-                                    <span className="text-lg font-black text-amber-600">0</span>
-                                </div>
-                            </div>
+                        <div className="space-y-3">
+                            {recentActivity.map((activity, index) => (
+                                <Card key={index} className="border-0 shadow-md hover:shadow-lg transition-all">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                                                <activity.icon className="h-5 w-5 text-orange-600" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-semibold text-gray-900 mb-1">{activity.title}</h3>
+                                                <p className="text-sm text-gray-600 mb-1">{activity.subtitle}</p>
+                                                <p className="text-xs text-gray-500 flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    {activity.time}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
+                )}
             </div>
-        </DashboardLayout>
+
+            <UniversalBottomNav config={bottomNavConfig} />
+        </div>
     );
 }
