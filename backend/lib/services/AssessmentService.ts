@@ -10,17 +10,51 @@ export class AssessmentService {
     // 1. QUIZ OPERATIONS
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    static async getQuizzesByCourse(courseId: number, companyId: number) {
-        const { data, error } = await ems.quizzes()
-            .select('*')
-            .eq('course_id', courseId)
+    static async getQuizzes(
+        companyId: number,
+        courseId?: number,
+        emsProfile?: { profileType: 'tutor' | 'student' | 'manager' | null; profileId: number | null }
+    ) {
+        let query = ems.quizzes()
+            .select(`
+                *,
+                courses:course_id (
+                    course_name,
+                    course_code
+                )
+            `)
             .eq('company_id', companyId)
-            .eq('is_active', true)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false });
+            .is('deleted_at', null);
+
+        if (courseId) {
+            query = query.eq('course_id', courseId);
+        }
+
+        // Role-based filtering for tutors
+        if (emsProfile?.profileType === 'tutor' && emsProfile.profileId) {
+            // Get tutor's course IDs
+            const { data: tutorCourses } = await ems.courses()
+                .select('id')
+                .eq('tutor_id', emsProfile.profileId)
+                .eq('company_id', companyId);
+
+            const tutorCourseIds = tutorCourses?.map((c: any) => c.id) || [];
+
+            if (tutorCourseIds.length > 0) {
+                query = query.in('course_id', tutorCourseIds);
+            } else {
+                return []; // Tutor has no courses
+            }
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as Quiz[];
+        return data as any[];
+    }
+
+    static async getQuizzesByCourse(courseId: number, companyId: number) {
+        return this.getQuizzes(companyId, courseId);
     }
 
     static async createQuiz(quizData: Partial<Quiz>) {
@@ -54,17 +88,51 @@ export class AssessmentService {
     // 2. ASSIGNMENT OPERATIONS
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    static async getAssignmentsByCourse(courseId: number, companyId: number) {
-        const { data, error } = await ems.assignments()
-            .select('*')
-            .eq('course_id', courseId)
+    static async getAssignments(
+        companyId: number,
+        courseId?: number,
+        emsProfile?: { profileType: 'tutor' | 'student' | 'manager' | null; profileId: number | null }
+    ) {
+        let query = ems.assignments()
+            .select(`
+                *,
+                courses:course_id (
+                    course_name,
+                    course_code
+                )
+            `)
             .eq('company_id', companyId)
-            .eq('is_active', true)
-            .is('deleted_at', null)
-            .order('deadline', { ascending: true });
+            .is('deleted_at', null);
+
+        if (courseId) {
+            query = query.eq('course_id', courseId);
+        }
+
+        // Role-based filtering for tutors
+        if (emsProfile?.profileType === 'tutor' && emsProfile.profileId) {
+            // Get tutor's course IDs
+            const { data: tutorCourses } = await ems.courses()
+                .select('id')
+                .eq('tutor_id', emsProfile.profileId)
+                .eq('company_id', companyId);
+
+            const tutorCourseIds = tutorCourses?.map((c: any) => c.id) || [];
+
+            if (tutorCourseIds.length > 0) {
+                query = query.in('course_id', tutorCourseIds);
+            } else {
+                return []; // Tutor has no courses
+            }
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as Assignment[];
+        return data as any[];
+    }
+
+    static async getAssignmentsByCourse(courseId: number, companyId: number) {
+        return this.getAssignments(companyId, courseId);
     }
 
     static async createAssignment(assignmentData: Partial<Assignment>) {
@@ -99,6 +167,44 @@ export class AssessmentService {
         return data;
     }
 
+    static async getTutorSubmissions(tutorId: number, companyId: number, status?: string) {
+        let query = ems.supabase
+            .from('assignment_submissions')
+            .select(`
+                *,
+                students:student_id (
+                    first_name,
+                    last_name,
+                    student_code
+                ),
+                assignments:assignment_id (
+                    assignment_title,
+                    course_id,
+                    courses:course_id (
+                        course_name,
+                        tutor_id
+                    )
+                )
+            `)
+            .eq('company_id', companyId);
+
+        if (status) {
+            query = query.eq('submission_status', status);
+        }
+
+        const { data, error } = await query.order('submitted_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Filter by tutor_id (since we can't filter deeply in Supabase without inner joins on everything)
+        // Actually, assignment table has tutor_id too.
+        const filteredData = data?.filter((s: any) =>
+            s.assignments?.courses?.tutor_id === tutorId || s.assignments?.tutor_id === tutorId
+        );
+
+        return filteredData || [];
+    }
+
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 3. GRADING OPERATIONS (OPTIMIZED FOR BULK)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -117,7 +223,7 @@ export class AssessmentService {
                 graded_by: gradedBy,
                 graded_at: new Date().toISOString(),
                 submission_status: 'GRADED',
-            })
+            } as any)
             .eq('id', submissionId)
             .select()
             .single();

@@ -90,6 +90,17 @@ export const lessonSchema = z.object({
     is_mandatory: z.boolean().default(true),
 });
 
+export const courseMaterialSchema = z.object({
+    company_id: z.coerce.number(),
+    course_id: z.coerce.number().optional().nullable(),
+    menu_id: z.coerce.number().optional().nullable(),
+    lesson_id: z.coerce.number().optional().nullable(),
+    material_name: z.string().min(1, 'Material name is required'),
+    material_type: z.string().default('DOCUMENT'),
+    file_url: z.string().url('Invalid file URL'),
+    is_published: z.boolean().default(false),
+});
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 3. ACADEMIC OPERATIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

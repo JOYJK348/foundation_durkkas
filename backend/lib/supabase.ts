@@ -99,10 +99,12 @@ export const ems = {
     lessonProgress: () => fromSchema(SCHEMAS.EMS, 'lesson_progress'),
     quizzes: () => fromSchema(SCHEMAS.EMS, 'quizzes'),
     assignments: () => fromSchema(SCHEMAS.EMS, 'assignments'),
-    liveClasses: () => fromSchema(SCHEMAS.EMS, 'live_classes'),
     attendanceSessions: () => fromSchema(SCHEMAS.EMS, 'attendance_sessions'),
     attendanceRecords: () => fromSchema(SCHEMAS.EMS, 'attendance_records'),
+    liveClasses: () => fromSchema(SCHEMAS.EMS, 'live_classes'),
     quizAttempts: () => fromSchema(SCHEMAS.EMS, 'quiz_attempts'),
+    quizQuestions: () => fromSchema(SCHEMAS.EMS, 'quiz_questions'),
+    quizOptions: () => fromSchema(SCHEMAS.EMS, 'quiz_options'),
     supabase: supabase
 };
 

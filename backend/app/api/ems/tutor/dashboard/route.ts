@@ -18,9 +18,10 @@ export async function GET(req: NextRequest) {
             m.getUserTenantScope(userId)
         );
 
+        const { core } = require('@/lib/supabase');
+
         // Get tutor's employee record
-        const { data: employee } = await ems.supabase
-            .from('employees')
+        const { data: employee } = await core.employees()
             .select('id')
             .eq('user_id', userId)
             .eq('company_id', scope.companyId!)
@@ -36,12 +37,25 @@ export async function GET(req: NextRequest) {
             scope.companyId!
         );
 
-        // Get tutor's courses
+        // Get tutor's courses (Including Drafts so they can work on them)
         const { data: courses } = await ems.courses()
-            .select('id, course_name, course_code, total_lessons')
+            .select(`
+                id, 
+                course_name, 
+                course_code, 
+                total_lessons, 
+                is_published,
+                course_modules(count)
+            `)
             .eq('tutor_id', employee.id)
             .eq('company_id', scope.companyId!)
             .eq('is_active', true);
+
+        // Transform module count
+        const coursesWithStats = courses?.map((c: any) => ({
+            ...c,
+            modules_count: c.course_modules?.[0]?.count || 0
+        }));
 
         // Get today's live classes (if implemented)
         const today = new Date().toISOString().split('T')[0];
@@ -58,8 +72,8 @@ export async function GET(req: NextRequest) {
             tutor_id: employee.id,
             pending_grading_count: pendingAssignments?.length || 0,
             pending_assignments: pendingAssignments,
-            total_courses: courses?.length || 0,
-            courses: courses,
+            total_courses: coursesWithStats?.length || 0,
+            courses: coursesWithStats || [],
             upcoming_classes: liveClasses || [],
         };
 

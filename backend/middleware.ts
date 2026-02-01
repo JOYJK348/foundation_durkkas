@@ -100,11 +100,28 @@ export async function middleware(req: NextRequest) {
     }
 
     // 5. Auth Implementation
+    // 5. Auth Implementation
     const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+    // [DEEP INSPECTION] Log all auth-related headers to find if Browser is stripping them
+    if (!authHeader) {
+        const allHeaders: any = {};
+        req.headers.forEach((v, k) => { allHeaders[k] = v; });
+        console.error(`🚨 [AUTH] Authorization Header MISSING | Path: ${pathname} | Headers Received: ${JSON.stringify(allHeaders)}`);
+
         const response = NextResponse.json({
             success: false,
-            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+            error: { code: 'UNAUTHORIZED_MISSING_TOKEN', message: 'No authorization token provided' },
+            timestamp: new Date().toISOString()
+        }, { status: 401 });
+        return applySecurityHeaders(response);
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+        console.error(`🚨 [AUTH] Malformed Header | Path: ${pathname} | Header: ${authHeader.substring(0, 15)}...`);
+        const response = NextResponse.json({
+            success: false,
+            error: { code: 'UNAUTHORIZED_MALFORMED_TOKEN', message: 'Authorization header must start with Bearer' },
             timestamp: new Date().toISOString()
         }, { status: 401 });
         return applySecurityHeaders(response);
@@ -115,29 +132,27 @@ export async function middleware(req: NextRequest) {
     try {
         const payload = await verifyTokenEdge(token);
         if (!payload) {
+            console.error(`🚨 [AUTH] Token Validation FAIL | Path: ${pathname} | Token: ${token.substring(0, 10)}...`);
             const response = NextResponse.json({
                 success: false,
-                error: {
-                    code: 'UNAUTHORIZED',
-                    message: 'Invalid or expired token'
-                },
+                error: { code: 'UNAUTHORIZED_INVALID_TOKEN', message: 'Invalid or expired token' },
                 timestamp: new Date().toISOString()
             }, { status: 401 });
             return applySecurityHeaders(response);
         }
 
+        console.log(`✅ [AUTH] Verified | User: ${payload.userId} | SID: ${payload.sid} | Path: ${pathname}`);
+
         // 6. Concurrency & Session Validation
-        // If the token has a Session ID (sid), verify it's still active in Redis
         if (payload.sid) {
             try {
                 const redisUrl = process.env.REDIS_URL;
                 const redisToken = process.env.REDIS_TOKEN;
 
                 if (!redisUrl || !redisToken) {
-                    console.error('❌ [SESSION] Redis credentials missing in Middleware environment');
+                    console.warn('⚠️ [SESSION] Redis credentials missing in Middleware environment');
                 } else {
                     const checkKey = `user:${payload.userId}:sessions`;
-                    // Encode the key for the REST URL
                     const encodedKey = encodeURIComponent(checkKey);
                     const res = await fetch(`${redisUrl}/lrange/${encodedKey}/0/-1`, {
                         headers: { Authorization: `Bearer ${redisToken}` }
@@ -148,23 +163,17 @@ export async function middleware(req: NextRequest) {
                         const activeSessions = body.result;
                         const isActive = Array.isArray(activeSessions) && activeSessions.includes(payload.sid);
 
-                        console.error(`🛡️ [SESSION CHECK] User: ${payload.userId} | SID: ${payload.sid} | Active: ${isActive} | Sessions: ${JSON.stringify(activeSessions)}`);
-
                         if (!isActive) {
-                            console.error(`🚨 [SESSION KICK] Invalidation triggered for User: ${payload.userId} | SID ${payload.sid} not in ${JSON.stringify(activeSessions)}`);
+                            console.error(`🚨 [SESSION KICK] SID ${payload.sid} not in active list for User: ${payload.userId}`);
                             const response = NextResponse.json({
                                 success: false,
-                                error: {
-                                    code: 'SESSION_EXPIRED',
-                                    message: 'This session has been invalidated by a newer login.'
-                                },
+                                error: { code: 'SESSION_EXPIRED', message: 'Session invalidated by newer login.' },
                                 timestamp: new Date().toISOString()
                             }, { status: 401 });
                             return applySecurityHeaders(response);
                         }
                     } else {
-                        const errText = await res.text();
-                        console.error('❌ [SESSION] Redis fetch failed:', res.status, errText);
+                        console.error('❌ [SESSION] Redis fetch failed:', res.status);
                     }
                 }
             } catch (redisErr: any) {

@@ -18,17 +18,14 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get('course_id');
 
-        if (!courseId) {
-            return errorResponse(null, 'course_id is required', 400);
-        }
-
         const scope = await import('@/middleware/tenantFilter').then(m =>
             m.getUserTenantScope(userId)
         );
 
-        const data = await AssessmentService.getQuizzesByCourse(
-            parseInt(courseId),
-            scope.companyId!
+        const data = await AssessmentService.getQuizzes(
+            scope.companyId!,
+            courseId ? parseInt(courseId) : undefined,
+            scope.emsProfile
         );
 
         return successResponse(data, `Quizzes fetched successfully (${data?.length || 0} records)`);

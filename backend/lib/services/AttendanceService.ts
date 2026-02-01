@@ -1,104 +1,48 @@
-import { ems } from '@/lib/supabase';
-import { Database } from '@/types/database';
-
-type AttendanceSession = Database['ems']['Tables']['attendance_sessions']['Row'];
-type AttendanceRecord = Database['ems']['Tables']['attendance_records']['Row'];
-
 /**
- * Service for Attendance Management
- * Handles daily attendance for batches and sessions
+ * Attendance Service - Professional Validation Logic
  */
+
 export class AttendanceService {
-    static async createSession(sessionData: Partial<AttendanceSession>) {
-        const { data, error } = await ems.attendanceSessions()
-            .insert(sessionData as any)
-            .select()
-            .single();
+    /**
+     * Calculate distance between two GPS points in Meters (Haversine Formula)
+     */
+    static getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+        const R = 6371e3; // Earth Radius in Meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-        if (error) throw error;
-        if (!data) throw new Error('Failed to create session');
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        // Automatically initialize attendance records for all students in the batch
-        if (sessionData.batch_id) {
-            await this.initializeBatchAttendance(data.id, sessionData.batch_id, data.company_id);
+        return R * c;
+    }
+
+    /**
+     * Check if current time falls within valid attendance window
+     * @param classStartTime ISO String or Date
+     * @param classEndTime ISO String or Date
+     * @param type 'IN' (start) or 'OUT' (end)
+     * @param windowMinutes Duration in minutes (default 5)
+     */
+    static isInsideWindow(classStartTime: Date, classEndTime: Date, type: 'IN' | 'OUT', windowMinutes: number = 5): { isValid: boolean; message: string } {
+        const now = new Date();
+        const start = new Date(classStartTime);
+        const end = new Date(classEndTime);
+
+        if (type === 'IN') {
+            const windowEnd = new Date(start.getTime() + windowMinutes * 60000);
+            if (now < start) return { isValid: false, message: 'Class has not started yet' };
+            if (now > windowEnd) return { isValid: false, message: 'Check-in window closed' };
+            return { isValid: true, message: 'Check-in window open' };
+        } else {
+            const windowStart = new Date(end.getTime() - windowMinutes * 60000);
+            if (now < windowStart) return { isValid: false, message: 'Checkout is only allowed in the last 5 minutes' };
+            if (now > end) return { isValid: false, message: 'Class already ended' };
+            return { isValid: true, message: 'Checkout window open' };
         }
-
-        return data;
-    }
-
-    private static async initializeBatchAttendance(sessionId: number, batchId: number, companyId: number) {
-        // Get all students enrolled in this batch
-        const { data: enrollments } = await ems.enrollments()
-            .select('student_id')
-            .eq('batch_id', batchId)
-            .eq('enrollment_status', 'ACTIVE');
-
-        if (enrollments && enrollments.length > 0) {
-            const records = enrollments.map(e => ({
-                company_id: companyId,
-                session_id: sessionId,
-                student_id: e.student_id,
-                status: 'ABSENT' // Default to absent until marked present
-            }));
-
-            const { error } = await ems.attendanceRecords()
-                .insert(records as any);
-
-            if (error) throw error;
-        }
-    }
-
-    static async markBulkAttendance(sessionId: number, records: { student_id: number, status: string, remarks?: string }[]) {
-        const { data, error } = await ems.attendanceRecords()
-            .upsert(
-                records.map(r => ({
-                    session_id: sessionId,
-                    student_id: r.student_id,
-                    status: r.status,
-                    remarks: r.remarks,
-                    company_id: 1 // Default to 1, should be passed in production
-                } as any)),
-                { onConflict: 'session_id,student_id' }
-            )
-            .select();
-
-        if (error) throw error;
-        return data;
-    }
-
-    static async getBatchAttendanceReport(batchId: number, startDate: string, endDate: string) {
-        const { data, error } = await ems.attendanceSessions()
-            .select(`
-                *,
-                attendance_records (
-                    student_id,
-                    status,
-                    students:student_id (first_name, last_name, student_code)
-                )
-            `)
-            .eq('batch_id', batchId)
-            .gte('session_date', startDate)
-            .lte('session_date', endDate)
-            .order('session_date', { ascending: true });
-
-        if (error) throw error;
-        return data;
-    }
-
-    static async getStudentAttendance(studentId: number) {
-        const { data, error } = await ems.attendanceRecords()
-            .select(`
-                *,
-                sessions:session_id (
-                    session_date,
-                    session_type,
-                    courses:course_id (course_name)
-                )
-            `)
-            .eq('student_id', studentId)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return data;
     }
 }

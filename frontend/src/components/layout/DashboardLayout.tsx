@@ -98,15 +98,15 @@ const navItems: NavItem[] = [
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     { id: "attendance", label: "Attendance", icon: CalendarCheck, href: "DYNAMIC_ATTENDANCE", roles: [0, 1, 2, 3, 4], module: "ATTENDANCE", menuId: 55 },
     { id: "leaves", label: "Leaves", icon: MailCheck, href: "DYNAMIC_LEAVES", roles: [0, 1, 2, 3, 4], module: "ATTENDANCE", menuId: 57 },
-    { id: "payroll", label: "Payroll", icon: Briefcase, href: "/workspace/payroll", roles: [4], module: "PAYROLL", menuId: 61 },
-    { id: "crm", label: "CRM", icon: LayoutGrid, href: "/workspace/crm", roles: [4, 1], module: "CRM", menuId: 89 },
+    { id: "payroll", label: "Payroll", icon: Briefcase, href: "/hrms/workspace/payroll", roles: [4], module: "PAYROLL", menuId: 61 },
+    { id: "crm", label: "CRM", icon: LayoutGrid, href: "/crm/workspace", roles: [4, 1], module: "CRM", menuId: 89 },
     { id: "lms", label: "LMS", icon: MonitorPlay, href: "DYNAMIC_LMS_DASHBOARD", roles: [0, 4, 1], module: "LMS", menuId: 73 },
     { id: "lms_courses", label: "Courses", icon: BookOpen, href: "DYNAMIC_LMS_COURSES", roles: [0, 4, 1], module: "LMS", menuId: 74 },
     { id: "lms_classes", label: "Live Classes", icon: Video, href: "DYNAMIC_LMS_CLASSES", roles: [0, 4, 1], module: "LMS", menuId: 75 },
     { id: "lms_assessments", label: "Assessments", icon: FileCheck, href: "DYNAMIC_LMS_ASSESSMENTS", roles: [0, 4, 1], module: "LMS", menuId: 76 },
     { id: "lms_students", label: "Students", icon: GraduationCap, href: "DYNAMIC_LMS_STUDENTS", roles: [0, 4, 1], module: "LMS", menuId: 79 },
     { id: "lms_batches", label: "Batches", icon: Calendar, href: "DYNAMIC_LMS_BATCHES", roles: [0, 4, 1], module: "LMS", menuId: 80 },
-    { id: "finance", label: "Finance", icon: CreditCard, href: "/workspace/finance", roles: [4, 1], module: "FINANCE", menuId: 81 },
+    { id: "finance", label: "Finance", icon: CreditCard, href: "/finance/workspace", roles: [4, 1], module: "FINANCE", menuId: 81 },
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 👤 SHARED USER CENTRIC
@@ -129,6 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const [myPlan, setMyPlan] = useState<string | null>(null);
     const [myPermissions, setMyPermissions] = useState<string[]>([]);
     const [branchName, setBranchName] = useState<string | null>(null);
+    const [branchCode, setBranchCode] = useState<string | null>(null);
     const [branchModules, setBranchModules] = useState<string[]>([]);
     const [branchMenus, setBranchMenus] = useState<number[]>([]);
 
@@ -197,22 +198,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
     }, [user, userLevel]);
 
-    // FETCH BRANCH NAME IF BRANCH ADMIN
+    // FETCH BRANCH NAME AND CODE IF BRANCH ADMIN
     useEffect(() => {
         const fetchBranch = async () => {
-            if (userLevel > 0 && userLevel < 4) {
+            if (userLevel > 0 && userLevel < 4 && user?.branch_id) {
                 try {
                     const branches = await platformService.getBranches();
-                    if (branches && branches.length > 0) {
+                    const currentBranch = branches?.find((b: any) => String(b.id) === String(user.branch_id));
+                    if (currentBranch) {
+                        setBranchName(currentBranch.name);
+                        setBranchCode(currentBranch.code || currentBranch.name.toLowerCase().replace(/\s+/g, '-'));
+                    } else if (branches && branches.length > 0) {
+                        // Fallback to first branch
                         setBranchName(branches[0].name);
+                        setBranchCode(branches[0].code || branches[0].name.toLowerCase().replace(/\s+/g, '-'));
                     }
                 } catch (error) {
-                    console.error("Failed to fetch branch name", error);
+                    console.error("Failed to fetch branch details", error);
                 }
             }
         };
         fetchBranch();
-    }, [userLevel]);
+    }, [userLevel, user?.branch_id]);
 
     // FETCH COMPANY MODULES (COMPANY ADMIN & BRANCH ADMIN)
     useEffect(() => {
@@ -342,71 +349,70 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const getDashboardHref = () => {
         if (userLevel === 5) return "/platform/dashboard";
         if (userLevel === 4) return "/workspace/dashboard";
-        return "/branch/dashboard";
+        return "/branch-admin/dashboard";
     };
 
     const getEmployeesHref = () => {
-        if (userLevel === 5) return "/platform/core/employees";
-        return "/workspace/employees";
+        return "/hrms/workspace/employees";
     };
 
     const getAttendanceHref = () => {
         if (userLevel === 5) return "/platform/reports/attendance";
-        if (userLevel === 4) return "/workspace/attendance";
-        return "/branch/attendance";
+        if (userLevel === 4) return "/hrms/workspace/attendance";
+        return "/branch-admin/attendance";
     };
 
     const getLeavesHref = () => {
         if (userLevel === 5) return "/platform/reports/leaves";
-        if (userLevel === 4) return "/workspace/leaves";
-        return "/branch/leaves";
+        if (userLevel === 4) return "/hrms/workspace/leaves";
+        return "/branch-admin/leaves";
     };
 
     const getReportsHref = () => {
         if (userLevel === 5) return "/platform/reports";
         if (userLevel === 4) return "/workspace/reports";
-        return "/branch/reports";
+        return "/branch-admin/reports";
     };
 
     const getNotificationsHref = () => {
         if (userLevel === 5) return "/platform/notifications";
         if (userLevel === 4) return "/workspace/notifications";
-        return "/branch/notifications";
+        return "/branch-admin/notifications";
     };
 
     const getLmsDashboardHref = () => {
-        if (userLevel === 4) return "/workspace/lms";
-        return "/branch/dashboard";
+        if (userLevel === 4) return "/ems/academic-manager/dashboard";
+        return "/branch-admin/dashboard";
     };
 
     const getProfileHref = () => {
         if (userLevel === 5) return "/platform/profile";
         if (userLevel === 4) return "/workspace/profile";
-        return "/branch/profile";
+        return "/branch-admin/profile";
     };
 
     const getLmsCoursesHref = () => {
-        if (userLevel === 4) return "/workspace/lms/courses";
+        if (userLevel === 4) return "/ems/academic-manager/courses";
         return "/ems/admin/courses"; // Fallback for specialized routing if any
     };
 
     const getLmsClassesHref = () => {
-        if (userLevel === 4) return "/workspace/lms/classes";
+        if (userLevel === 4) return "/ems/academic-manager/live-classes";
         return "/ems/admin/classes";
     };
 
     const getLmsAssessmentsHref = () => {
-        if (userLevel === 4) return "/workspace/lms/assessments";
+        if (userLevel === 4) return "/ems/academic-manager/quizzes";
         return "/ems/admin/assessments";
     };
 
     const getLmsStudentsHref = () => {
-        if (userLevel === 4) return "/workspace/lms/students";
+        if (userLevel === 4) return "/ems/academic-manager/students";
         return "/ems/admin/students";
     };
 
     const getLmsBatchesHref = () => {
-        if (userLevel === 4) return "/workspace/lms/batches";
+        if (userLevel === 4) return "/ems/academic-manager/batches";
         return "/ems/admin/batches";
     };
 
@@ -415,39 +421,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         // 1. Base Role Check
         if (!item.roles.includes(userLevel)) return false;
 
-        // 2. Platform Admin Override
+        // 2. Platform Admin Override (Level 5 sees all their specific items)
         if (userLevel === 5) {
             return item.roles.includes(5) && (item.href.startsWith('/platform') || item.id === 'dashboard' || item.roles.length === 1);
         }
 
-        // 3. COMPANY ADMIN CORE OVERRIDE (Requested items must always be constant)
+        // 3. Module Check (CRITICAL: Gating for purchased extensions)
+        // We check this BEFORE overrides to ensure unpurchased modules are never shown
+        if (item.module && !enabledModules.includes(item.module as any)) {
+            return false;
+        }
+
+        // 4. COMPANY ADMIN CORE OVERRIDE (Modules they should always see if enabled)
         const constantCoreIds = [
             'dashboard', 'branches', 'departments', 'designations',
             'employees', 'reports', 'access', 'subscription',
-            'company_settings', 'notifications', 'profile'
+            'company_settings', 'notifications', 'profile',
+            'crm', 'payroll', 'finance', 'lms', 'attendance', 'leaves',
+            'lms_courses', 'lms_classes', 'lms_assessments', 'lms_students', 'lms_batches'
         ];
 
         if (userLevel === 4 && constantCoreIds.includes(item.id)) {
             return true;
         }
 
-        // 4. EMPLOYEE / STUDENT BASE OVERRIDE
+        // 5. EMPLOYEE / STUDENT BASE OVERRIDE
         const employeeBaseIds = ['dashboard', 'profile', 'notifications', 'attendance', 'leaves', 'lms', 'lms_courses', 'lms_classes', 'lms_assessments', 'lms_students', 'lms_batches'];
         if (userLevel === 0 && employeeBaseIds.includes(item.id)) {
             return true;
         }
 
-        // 5. Module Check (For Extensions like CRM, LMS, etc.)
-        if (item.module && !enabledModules.includes(item.module as any)) {
-            return false;
-        }
-
-        // 5. Menu-Level Gating (For Sub-Admins or restricted plans)
+        // 6. Menu-Level Gating (Granular control from DB registry)
+        // Skip check if accessibleMenuIds is empty (means no granular control applied)
+        // Or if the item doesn't have a menuId
         if (!isAccessLoading && accessibleMenuIds.length > 0 && item.menuId) {
             if (!accessibleMenuIds.includes(item.menuId)) return false;
         }
 
-        // 6. Manual Sub-Admin Config Check (Specific for Level < 4)
+        // 6.5. BRANCH-SPECIFIC Menu Gating (For Branch Admins)
+        // If branch has specific allowed_menu_ids, filter based on that
+        if (userLevel < 4 && userLevel > 0 && branchMenus.length > 0 && item.menuId) {
+            if (!branchMenus.includes(item.menuId)) {
+                console.log(`🚫 [BranchMenu] Blocking menu item "${item.label}" (ID: ${item.menuId}) - not in branch allowed list`);
+                return false;
+            }
+        }
+
+        // 7. Manual Sub-Admin Config Check (Specific for Level < 4)
         if (menuConfig && userLevel < 4) {
             const isAllowed = menuConfig[item.id];
             if (isAllowed === false) return false;
@@ -478,13 +498,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (href === "DYNAMIC_LMS_STUDENTS") href = getLmsStudentsHref();
         if (href === "DYNAMIC_LMS_BATCHES") href = getLmsBatchesHref();
 
-        // UNIQUE URL REWRITING: Replace standard paths with MNC Unique IDs
+        // BRANCH-SPECIFIC URL REWRITING: Use actual branch code (e.g., 'chennai', 'salem')
         if (userLevel === 4) {
-            href = href.replace('/workspace', workspacePrefix);
+            if (href.startsWith('/workspace')) {
+                href = href.replace('/workspace', workspacePrefix);
+            }
         } else if (userLevel < 4) {
-            href = href.replace('/branch', branchPrefix);
-            // Also handle any /workspace links for sub-admins if mapped
-            href = href.replace('/workspace', workspacePrefix);
+            // Branch Admin: Use branch code for URL rewriting
+            const branchSlug = branchCode || `branch-${user?.branch_id || 'default'}`;
+            const branchPrefix = `/b/${branchSlug}`;
+
+            if (href.startsWith('/branch-admin')) {
+                href = href.replace('/branch-admin', branchPrefix);
+            } else if (href.startsWith('/workspace')) {
+                href = href.replace('/workspace', workspacePrefix);
+            } else if (href.startsWith('/hrms/workspace')) {
+                href = href.replace('/hrms/workspace', `${branchPrefix}/hrms`);
+            } else if (href.startsWith('/ems/academic-manager')) {
+                href = href.replace('/ems/academic-manager', `${branchPrefix}/ems`);
+            } else if (href.startsWith('/finance/workspace')) {
+                href = href.replace('/finance/workspace', `${branchPrefix}/finance`);
+            } else if (href.startsWith('/crm/workspace')) {
+                href = href.replace('/crm/workspace', `${branchPrefix}/crm`);
+            }
         }
 
         return { ...item, href };

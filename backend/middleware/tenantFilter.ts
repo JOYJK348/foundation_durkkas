@@ -39,6 +39,11 @@ export interface TenantScope {
     companyId: number | null;
     branchId: number | null;
     isScoped: boolean; // True if scoped to a specific company
+    // EMS Profile Resolution (for role-based filtering)
+    emsProfile?: {
+        profileType: 'tutor' | 'student' | 'manager' | null;
+        profileId: number | null; // employee_id for tutor, student_id for student
+    };
 }
 
 export interface TenantFilterOptions {
@@ -160,6 +165,58 @@ export async function getUserTenantScope(
             branchId: selectedRole.branch_id,
             isScoped
         };
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // EMS PROFILE RESOLUTION (for role-based data filtering)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        try {
+            if (selectedRole.role_name === 'TUTOR') {
+                // Find employee_id for this tutor
+                const { data: employee } = await supabase
+                    .from('employees')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('company_id', selectedRole.company_id)
+                    .single();
+
+                if (employee) {
+                    tenantScope.emsProfile = {
+                        profileType: 'tutor',
+                        profileId: (employee as any).id
+                    };
+                    logger.info('[TenantFilter] Resolved TUTOR profile', { userId, employeeId: (employee as any).id });
+                }
+            } else if (selectedRole.role_name === 'STUDENT') {
+                // Find student_id for this student
+                const { ems } = require('@/lib/supabase');
+                const { data: student } = await ems.students()
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('company_id', selectedRole.company_id)
+                    .single();
+
+                if (student) {
+                    tenantScope.emsProfile = {
+                        profileType: 'student',
+                        profileId: (student as any).id
+                    };
+                    logger.info('[TenantFilter] Resolved STUDENT profile', { userId, studentId: (student as any).id });
+                }
+            } else if (selectedRole.role_name === 'ACADEMIC_MANAGER' || selectedRole.role_level >= 4) {
+                // Managers and admins don't need specific profile resolution
+                tenantScope.emsProfile = {
+                    profileType: 'manager',
+                    profileId: null
+                };
+            }
+        } catch (profileError: any) {
+            logger.warn('[TenantFilter] Could not resolve EMS profile (non-critical)', {
+                userId,
+                roleName: selectedRole.role_name,
+                error: profileError.message
+            });
+            // Non-critical - continue without EMS profile
+        }
 
         return tenantScope;
 

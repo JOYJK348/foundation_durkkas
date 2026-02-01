@@ -87,12 +87,23 @@ if (typeof window !== 'undefined') {
 }
 
 api.interceptors.request.use((config) => {
+    // 🔐 Authentication Token
     const token = Cookies.get('access_token');
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers['Authorization'] = `Bearer ${token}`;
+        console.log(`🔑 [API] Token attached to ${config.url} (Len: ${token.length})`);
+    } else {
+        console.warn('⚠️ [API] No access_token found in cookies for request:', config.url);
     }
 
-    // Inject client-side detected IP for better audit accuracy (Local/VPN bypass)
+    // 🏢 Multi-Tenant Context (CRITICAL for data isolation)
+    const companyId = Cookies.get('x-company-id');
+    const branchId = Cookies.get('x-branch-id');
+
+    if (companyId) config.headers['x-company-id'] = companyId;
+    if (branchId) config.headers['x-branch-id'] = branchId;
+
+    // 🌐 Client IP Detection (for audit trail)
     if (cachedClientIp) {
         config.headers['x-durkkas-client-ip'] = cachedClientIp;
     }

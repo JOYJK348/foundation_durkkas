@@ -26,20 +26,22 @@ export default function LoginPage() {
             ? `${user.firstName} ${user.lastName}`
             : user.display_name || "User";
 
-        // Store tokens and user info in Cookies (for server-side/middleware)
-        Cookie.set("access_token", tokens.accessToken, { expires: 1 });
-        Cookie.set("user_role", selectedRole.name || "GUEST");
-        Cookie.set("user_role_level", (selectedRole.level ?? 0).toString());
-        Cookie.set("user_display_name", displayName);
+        // Store tokens and user info in Cookies (with explicit path and domain safety)
+        const cookieOptions = { expires: 1, path: '/', sameSite: 'Lax' as const };
+
+        Cookie.set("access_token", tokens.accessToken, cookieOptions);
+        Cookie.set("user_role", selectedRole.name || "GUEST", cookieOptions);
+        Cookie.set("user_role_level", (selectedRole.level ?? 0).toString(), cookieOptions);
+        Cookie.set("user_display_name", displayName, cookieOptions);
 
         // CRITICAL: Store active branch ID and Company ID for middleware and hydration
         if (selectedRole.company_id) {
-            Cookie.set("x-company-id", selectedRole.company_id.toString(), { expires: 1 });
+            Cookie.set("x-company-id", selectedRole.company_id.toString(), cookieOptions);
         }
         if (selectedRole.branch_id) {
-            Cookie.set("x-branch-id", selectedRole.branch_id.toString(), { expires: 1 });
+            Cookie.set("x-branch-id", selectedRole.branch_id.toString(), cookieOptions);
         } else {
-            Cookie.remove("x-branch-id");
+            Cookie.remove("x-branch-id", { path: '/' });
         }
 
         // Set User in Zustand Store
@@ -70,15 +72,26 @@ export default function LoginPage() {
         const roleLevel = selectedRole.level ?? 0;
         const roleName = selectedRole.name || "";
 
-        // Check for Student role first (regardless of level)
-        if (roleName === "STUDENT") {
-            router.push("/ems/student");
-        } else if (roleLevel >= 5) {
+        // ========================================
+        // EMS ROLE-SPECIFIC REDIRECTS (Priority)
+        // Note: STUDENT is blocked from this login page
+        // ========================================
+        if (roleName === "TUTOR") {
+            router.push("/ems/tutor/dashboard");
+        } else if (roleName === "ACADEMIC_MANAGER") {
+            router.push("/ems/academic-manager/dashboard");
+        } else if (roleName === "EMPLOYEE") {
+            router.push("/hrms/employee/dashboard");
+        }
+        // ========================================
+        // GENERIC LEVEL-BASED REDIRECTS
+        // ========================================
+        else if (roleLevel >= 5) {
             router.push("/platform/dashboard");
         } else if (roleLevel >= 4) {
             router.push("/workspace/dashboard");
         } else if (roleLevel >= 1 || roleLevel === 0) {
-            router.push("/branch/dashboard");
+            router.push("/branch-admin/dashboard");
         } else {
             router.push("/dashboard");
         }
@@ -100,6 +113,18 @@ export default function LoginPage() {
             const roles = user.roles || [];
             // Roles are pre-sorted by level descending in the backend lib
             const primaryRole = roles[0] || { name: "GUEST", level: 0 };
+
+            // ========================================
+            // BLOCK STUDENT LOGIN FROM MAIN PAGE
+            // ========================================
+            if (primaryRole.name === "STUDENT") {
+                setError("Students must login at /ems/student/login");
+                toast.error("Wrong Login Page", {
+                    description: "Students must use the dedicated student login page"
+                });
+                setIsLoading(false);
+                return;
+            }
 
             completeLogin(user, tokens, primaryRole);
         } catch (err: any) {

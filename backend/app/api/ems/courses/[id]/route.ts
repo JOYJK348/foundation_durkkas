@@ -15,13 +15,16 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const userId = await getUserIdFromToken(req);
+        const userIdHeader = req.headers.get('x-user-id');
+        const userId = userIdHeader ? parseInt(userIdHeader) : null;
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const data = await CourseService.getCourseDetails(parseInt(params.id));
+        const scope = await getUserTenantScope(userId);
+        const data = await CourseService.getCourseDetails(parseInt(params.id), scope.emsProfile);
+
+        if (!data) return errorResponse(null, 'Course not found', 404);
 
         // Security check
-        const scope = await getUserTenantScope(userId);
         if (data.company_id !== scope.companyId && scope.roleLevel < 5) {
             return errorResponse(null, 'Forbidden', 403);
         }

@@ -149,4 +149,38 @@ export class EnrollmentService {
         if (error) throw error;
         return data;
     }
+    static async getTutorStudents(tutorId: number, companyId: number) {
+        // 1. Get courses assigned to tutor
+        const { data: courses } = await ems.courses()
+            .select('id')
+            .eq('tutor_id', tutorId)
+            .eq('company_id', companyId);
+
+        const courseIds = courses?.map((c: any) => c.id) || [];
+        if (courseIds.length === 0) return [];
+
+        // 2. Get enrollments for those courses
+        const { data, error } = await ems.enrollments()
+            .select(`
+                *,
+                students:student_id (
+                    id,
+                    first_name,
+                    last_name,
+                    email,
+                    phone,
+                    student_code
+                ),
+                courses:course_id (
+                    course_name,
+                    course_code
+                )
+            `)
+            .in('course_id', courseIds)
+            .eq('company_id', companyId)
+            .is('deleted_at', null);
+
+        if (error) throw error;
+        return data;
+    }
 }

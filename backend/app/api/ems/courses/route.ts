@@ -17,7 +17,11 @@ export async function GET(req: NextRequest) {
 
         const scope = await getUserTenantScope(userId);
 
-        const data = await CourseService.getAllCourses(scope.companyId!);
+        // Pass EMS profile for role-based filtering
+        const data = await CourseService.getAllCourses(
+            scope.companyId!,
+            scope.emsProfile
+        );
 
         return successResponse(data, `Courses fetched successfully (${data?.length || 0} records)`);
 

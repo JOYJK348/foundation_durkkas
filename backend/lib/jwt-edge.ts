@@ -1,10 +1,6 @@
 
 import * as jose from 'jose';
 
-// Validate environment variables
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_SECRET_UINT8 = new TextEncoder().encode(JWT_SECRET || 'fallback_secret_do_not_use_in_prod');
-
 /**
  * JWT Payload interface
  */
@@ -25,14 +21,28 @@ export async function verifyTokenEdge(token: string): Promise<JWTPayload | null>
     try {
         if (!token) return null;
 
-        const { payload } = await jose.jwtVerify(token, JWT_SECRET_UINT8, {
+        // CRITICAL: Fetch secret inside the function to ensure it's loaded from env correctly
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            console.error('CRITICAL: JWT_SECRET missing in Edge Runtime environment');
+            return null;
+        }
+
+        const secretUint8 = new TextEncoder().encode(secret);
+
+        const { payload } = await jose.jwtVerify(token, secretUint8, {
             issuer: 'durkkas-erp',
             audience: 'durkkas-api',
         });
 
         return payload as unknown as JWTPayload;
     } catch (error: any) {
-        // console.error('JWT Edge verification error:', error.message);
+        // Detailed logging for debugging 401s
+        console.error('JWT Edge verification failure:', {
+            error: error.message,
+            code: error.code,
+            tokenSnippet: token?.substring(0, 15)
+        });
         return null;
     }
 }
