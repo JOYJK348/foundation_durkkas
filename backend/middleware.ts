@@ -1,3 +1,5 @@
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyTokenEdge } from './lib/jwt-edge';
 import { ALLOWED_ORIGINS } from './config/constants';
