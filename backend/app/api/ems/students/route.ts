@@ -37,13 +37,17 @@ export async function POST(req: NextRequest) {
         const validatedData = studentSchema.parse(data);
 
         // 3. User Account Creation Logic
+        // Generate username from student code (e.g., STU001 -> stu001)
+        const generatedUsername = validatedData.student_code.toLowerCase();
+        const generatedPassword = (data as any).password || 'Student@123'; // Use provided password or default
+
         // check if user exists
         let { data: existingUser } = await app_auth.users().select('id').eq('email', validatedData.email).single();
         let newUserId = existingUser?.id;
 
         if (!newUserId) {
             // Create New User
-            const hashedPassword = await bcrypt.hash('Student@123', 10);
+            const hashedPassword = await bcrypt.hash(generatedPassword, 10);
             const displayName = `${validatedData.first_name} ${validatedData.last_name}`;
 
             const { data: newUser, error: userError } = await app_auth.users().insert({
@@ -81,8 +85,16 @@ export async function POST(req: NextRequest) {
         });
 
         return successResponse(
-            { ...student, user_created: !existingUser },
-            'Student admitted successfully. Default Login: Student@123',
+            {
+                ...student,
+                user_created: !existingUser,
+                login_credentials: {
+                    email: validatedData.email,
+                    password: generatedPassword,
+                    student_code: validatedData.student_code
+                }
+            },
+            `Student admitted successfully! Login Email: ${validatedData.email} | Password: ${generatedPassword}`,
             201
         );
 

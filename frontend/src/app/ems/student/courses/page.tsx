@@ -43,9 +43,19 @@ export default function CoursesPage() {
     const fetchCourses = async () => {
         try {
             setLoading(true);
-            const response = await api.get("/ems/courses");
+            const response = await api.get("/ems/students/my-courses");
             if (response.data.success) {
-                setCourses(response.data.data || []);
+                // Map enrollment data to Course interface
+                const mappedCourses = (response.data.data || []).map((enrollment: any) => ({
+                    id: enrollment.course.id,
+                    course_name: enrollment.course.course_name,
+                    course_code: enrollment.course.course_code,
+                    course_description: enrollment.course.course_description,
+                    thumbnail_url: enrollment.course.thumbnail_url,
+                    duration: enrollment.course.duration_hours ? `${enrollment.course.duration_hours}h` : 'N/A',
+                    progress: enrollment.completion_percentage,
+                }));
+                setCourses(mappedCourses);
             }
         } catch (error) {
             console.error("Error fetching courses:", error);

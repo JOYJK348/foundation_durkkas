@@ -105,6 +105,7 @@ export const ems = {
     quizAttempts: () => fromSchema(SCHEMAS.EMS, 'quiz_attempts'),
     quizQuestions: () => fromSchema(SCHEMAS.EMS, 'quiz_questions'),
     quizOptions: () => fromSchema(SCHEMAS.EMS, 'quiz_options'),
+    assignmentSubmissions: () => fromSchema(SCHEMAS.EMS, 'assignment_submissions'),
     supabase: supabase
 };
 

@@ -74,9 +74,10 @@ export default function LoginPage() {
 
         // ========================================
         // EMS ROLE-SPECIFIC REDIRECTS (Priority)
-        // Note: STUDENT is blocked from this login page
         // ========================================
-        if (roleName === "TUTOR") {
+        if (roleName === "STUDENT") {
+            router.push("/ems/student/dashboard");
+        } else if (roleName === "TUTOR") {
             router.push("/ems/tutor/dashboard");
         } else if (roleName === "ACADEMIC_MANAGER") {
             router.push("/ems/academic-manager/dashboard");
@@ -91,7 +92,7 @@ export default function LoginPage() {
         } else if (roleLevel >= 4) {
             router.push("/workspace/dashboard");
         } else if (roleLevel >= 1 || roleLevel === 0) {
-            router.push("/branch-admin/dashboard");
+            router.push("/ems/academic-manager/dashboard");
         } else {
             router.push("/dashboard");
         }

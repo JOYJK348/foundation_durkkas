@@ -14,23 +14,38 @@ import {
     Upload,
     Search,
     ChevronLeft,
+    Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import api from "@/lib/api";
 
 export default function AssignmentsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [filter, setFilter] = useState<"all" | "pending" | "submitted" | "graded">("all");
+    const [assignments, setAssignments] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const assignments = [
-        { id: 1, title: "React Component Assignment", dueDate: "Dec 22, 2024", status: "pending", course: "Web Development" },
-        { id: 2, title: "API Integration Project", dueDate: "Dec 25, 2024", status: "pending", course: "Web Development" },
-        { id: 3, title: "Data Analysis Report", dueDate: "Dec 20, 2024", status: "submitted", course: "Data Science" },
-        { id: 4, title: "Database Design", dueDate: "Dec 15, 2024", status: "graded", score: 85, course: "Web Development" },
-    ];
+    useEffect(() => {
+        fetchAssignments();
+    }, []);
+
+    const fetchAssignments = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get("/ems/students/my-assignments");
+            if (response.data.success) {
+                setAssignments(response.data.data || []);
+            }
+        } catch (error) {
+            console.error("Error fetching assignments:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const filteredAssignments = assignments.filter(a => {
-        const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = a.assignment_title.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFilter = filter === "all" || a.status === filter;
         return matchesSearch && matchesFilter;
     });
@@ -46,7 +61,7 @@ export default function AssignmentsPage() {
 
     const handleUpload = () => {
         toast.success("Assignment Submitted", {
-            description: "Your assignment has been uploaded successfully",
+            description: "Please use the detail view to submit your files.",
         });
     };
 
@@ -96,62 +111,79 @@ export default function AssignmentsPage() {
                 </div>
 
                 <div className="space-y-4">
-                    {filteredAssignments.map((assignment, index) => (
-                        <motion.div
-                            key={assignment.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                        >
-                            <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
-                                <CardContent className="p-6">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <div className="flex items-start gap-4 flex-1">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${assignment.status === "graded" ? "bg-green-100" :
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                            <Loader2 className="h-10 w-10 animate-spin mb-4 text-blue-600" />
+                            <p>Loading assignments...</p>
+                        </div>
+                    ) : filteredAssignments.length === 0 ? (
+                        <Card className="border-0 shadow-lg p-12 text-center">
+                            <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">No Assignments Found</h3>
+                            <p className="text-gray-600">{searchQuery ? "Try a different search term" : "You have no assignments at this time."}</p>
+                        </Card>
+                    ) : (
+                        filteredAssignments.map((assignment, index) => (
+                            <motion.div
+                                key={assignment.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                            >
+                                <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+                                    <CardContent className="p-6">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div className="flex items-start gap-4 flex-1">
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${assignment.status === "graded" ? "bg-green-100" :
                                                     assignment.status === "submitted" ? "bg-blue-100" : "bg-orange-100"
-                                                }`}>
-                                                <FileText className={`h-6 w-6 ${assignment.status === "graded" ? "text-green-600" :
+                                                    }`}>
+                                                    <FileText className={`h-6 w-6 ${assignment.status === "graded" ? "text-green-600" :
                                                         assignment.status === "submitted" ? "text-blue-600" : "text-orange-600"
-                                                    }`} />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="text-lg font-bold text-gray-900 mb-1">{assignment.title}</h3>
-                                                <p className="text-sm text-gray-600 mb-2">{assignment.course}</p>
-                                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock className="h-4 w-4" />
-                                                        Due: {assignment.dueDate}
-                                                    </span>
-                                                    {assignment.status === "graded" && assignment.score && (
-                                                        <span className="flex items-center gap-1 text-green-600 font-semibold">
-                                                            <CheckCircle2 className="h-4 w-4" />
-                                                            Score: {assignment.score}%
+                                                        }`} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="text-lg font-bold text-gray-900 mb-1">{assignment.assignment_title}</h3>
+                                                    <p className="text-sm text-gray-600 mb-2">{assignment.course_name}</p>
+                                                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock className="h-4 w-4" />
+                                                            Due: {new Date(assignment.deadline).toLocaleDateString()}
                                                         </span>
-                                                    )}
+                                                        {assignment.status === "graded" && assignment.score !== null && (
+                                                            <span className="flex items-center gap-1 text-green-600 font-semibold">
+                                                                <CheckCircle2 className="h-4 w-4" />
+                                                                Score: {assignment.score}%
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <div className="flex flex-row md:flex-col items-center md:items-end gap-3">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(assignment.status)}`}>
+                                                    {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
+                                                </span>
+                                                {assignment.status === "pending" && (
+                                                    <Link href={`/ems/student/assignments/${assignment.id}`}>
+                                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                                            <Upload className="h-4 w-4 mr-2" />
+                                                            Submit
+                                                        </Button>
+                                                    </Link>
+                                                )}
+                                                {assignment.status !== "pending" && (
+                                                    <Link href={`/ems/student/assignments/${assignment.id}`}>
+                                                        <Button size="sm" variant="outline">
+                                                            View Details
+                                                        </Button>
+                                                    </Link>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex flex-row md:flex-col items-center md:items-end gap-3">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(assignment.status)}`}>
-                                                {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
-                                            </span>
-                                            {assignment.status === "pending" && (
-                                                <Button size="sm" onClick={handleUpload} className="bg-blue-600 hover:bg-blue-700">
-                                                    <Upload className="h-4 w-4 mr-2" />
-                                                    Submit
-                                                </Button>
-                                            )}
-                                            {assignment.status !== "pending" && (
-                                                <Button size="sm" variant="outline">
-                                                    View Details
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    ))}
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))
+                    )}
                 </div>
             </div>
 
