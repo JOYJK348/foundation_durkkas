@@ -8,14 +8,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceService } from '@/lib/services/AttendanceService';
-import { getServerSession } from 'next-auth';
+import { getUserIdFromToken } from '@/lib/jwt';
+import { getUserTenantScope } from '@/middleware/tenantFilter';
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user) {
+        const userId = await getUserIdFromToken(request);
+        if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const scope = await getUserTenantScope(userId);
+        const session = { user: { companyId: scope.companyId } };
 
         const body = await request.json();
         const { action } = body;
@@ -47,10 +51,13 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user) {
+        const userId = await getUserIdFromToken(request);
+        if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const scope = await getUserTenantScope(userId);
+        const session = { user: { companyId: scope.companyId } };
 
         const { searchParams } = new URL(request.url);
         const action = searchParams.get('action');
