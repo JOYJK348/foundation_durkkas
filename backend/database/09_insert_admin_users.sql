@@ -10,7 +10,7 @@ DECLARE
     v_platform_role_id BIGINT;
     v_company_role_id BIGINT;
     -- Bcrypt hash for "durkkas@2026" (generated with bcrypt rounds=10)
-    v_hashed_password TEXT := '$2a$10$rQJ5YZ5YZ5YZ5YZ5YZ5YZOKxGxGxGxGxGxGxGxGxGxGxGxGxGxGxG';
+    v_hashed_password TEXT := '$2a$10$VS71ar24fxQvfiEd9ps8FO2zaLytxqNdtbGX6PWxCjikllq3eHbM6';
 BEGIN
     -- Get Role IDs
     SELECT id INTO v_platform_role_id FROM app_auth.roles WHERE name = 'PLATFORM_ADMIN';

@@ -576,7 +576,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                             return (
                                 <Link
-                                    key={item.href}
+                                    key={`${item.id}-${item.href}`}
                                     href={item.href}
                                     className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group ${isActive
                                         ? "bg-white shadow-lg shadow-black/10"
