@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { getUserTenantScope, autoAssignCompany } from '@/middleware/tenantFilter';
-import { CourseService } from '@/lib/services/CourseService';
+import { ems } from '@/lib/supabase';
 import { courseMaterialSchema } from '@/lib/validations/ems';
 
 export async function POST(req: NextRequest) {
@@ -19,7 +19,12 @@ export async function POST(req: NextRequest) {
         // Simple upload tracking
         (validatedData as any).uploaded_by = userId;
 
-        const material = await CourseService.createMaterial(validatedData);
+        const { data: material, error } = await ems.courseMaterials()
+            .insert(validatedData)
+            .select()
+            .single();
+
+        if (error) throw error;
 
         return successResponse(material, 'Material added successfully', 201);
 
@@ -39,27 +44,24 @@ export async function GET(req: NextRequest) {
         const scope = await getUserTenantScope(userId);
         const { searchParams } = new URL(req.url);
 
-        const menuId = searchParams.get('menu_id');
         const courseId = searchParams.get('course_id');
 
-        let materials;
-        if (menuId) {
-            materials = await CourseService.getMaterialsByMenu(parseInt(menuId), scope.companyId!);
-        } else if (courseId) {
-            // Existing logic or custom fetch
-            const { ems } = require('@/lib/supabase');
-            const { data } = await ems.courseMaterials()
-                .select('*')
-                .eq('course_id', parseInt(courseId))
-                .eq('company_id', scope.companyId!)
-                .eq('is_active', true);
-            materials = data;
-        } else {
-            materials = await CourseService.getGlobalMaterials(scope.companyId!);
+        let query = ems.courseMaterials()
+            .select('*')
+            .eq('company_id', scope.companyId!)
+            .eq('is_active', true);
+
+        if (courseId) {
+            query = query.eq('course_id', parseInt(courseId));
         }
 
-        return successResponse(materials, 'Materials fetched successfully');
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return successResponse(data || [], 'Materials fetched successfully');
     } catch (error: any) {
+        console.error('Materials GET error:', error);
         return errorResponse(null, error.message || 'Failed to fetch materials', 500);
     }
 }

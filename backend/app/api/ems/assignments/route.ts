@@ -1,35 +1,39 @@
-/**
- * EMS API - Assignments
- * Route: /api/ems/assignments
- */
-
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
+import { getUserTenantScope, autoAssignCompany } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
-import { autoAssignCompany } from '@/middleware/tenantFilter';
-import { assignmentSchema } from '@/lib/validations/ems';
-import { AssessmentService } from '@/lib/services/AssessmentService';
+import { AssignmentService } from '@/lib/services/AssignmentService';
+import { ems } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const { searchParams } = new URL(req.url);
-        const courseId = searchParams.get('course_id');
+        const scope = await getUserTenantScope(userId);
 
-        const scope = await import('@/middleware/tenantFilter').then(m =>
-            m.getUserTenantScope(userId)
-        );
+        let courseIds: number[] | undefined = undefined;
+        if (scope.emsProfile?.profileType === 'tutor' && scope.emsProfile.profileId) {
+            // Get tutor's assigned courses
+            const { data: junctionMappings } = await ems.courseTutors()
+                .select('course_id')
+                .eq('tutor_id', scope.emsProfile.profileId)
+                .is('deleted_at', null);
 
-        const data = await AssessmentService.getAssignments(
-            scope.companyId!,
-            courseId ? parseInt(courseId) : undefined,
-            scope.emsProfile
-        );
+            const { data: legacyCourses } = await ems.courses()
+                .select('id')
+                .eq('tutor_id', scope.emsProfile.profileId)
+                .is('deleted_at', null);
 
-        return successResponse(data, `Assignments fetched successfully (${data?.length || 0} records)`);
+            courseIds = [
+                ...(junctionMappings?.map((m: any) => m.course_id) || []),
+                ...(legacyCourses?.map((c: any) => c.id) || [])
+            ];
+        }
 
+        const data = await AssignmentService.getAllAssignments(scope.companyId!, courseIds);
+
+        return successResponse(data, 'Assignments fetched successfully');
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to fetch assignments');
     }
@@ -43,16 +47,10 @@ export async function POST(req: NextRequest) {
         let data = await req.json();
         data = await autoAssignCompany(userId, data);
 
-        const validatedData = assignmentSchema.parse(data);
-
-        const assignment = await AssessmentService.createAssignment(validatedData);
+        const assignment = await AssignmentService.createAssignment(data);
 
         return successResponse(assignment, 'Assignment created successfully', 201);
-
     } catch (error: any) {
-        if (error.name === 'ZodError') {
-            return errorResponse(error.errors, 'Validation failed', 400);
-        }
         return errorResponse(null, error.message || 'Failed to create assignment');
     }
 }

@@ -863,8 +863,12 @@ CREATE TABLE ems.tutor_schedule (
 CREATE TABLE ems.attendance_sessions (
     id BIGSERIAL PRIMARY KEY,
     company_id BIGINT NOT NULL REFERENCES core.companies(id) ON DELETE CASCADE,
+    course_id BIGINT REFERENCES ems.courses(id) ON DELETE CASCADE,
     live_class_id BIGINT REFERENCES ems.live_classes(id) ON DELETE CASCADE,
     batch_id BIGINT REFERENCES ems.batches(id) ON DELETE CASCADE,
+    
+    session_date DATE DEFAULT CURRENT_DATE,
+    session_type VARCHAR(50) DEFAULT 'LECTURE', -- LECTURE, LAB, TUTORIAL, EXAM
     
     session_opened_by BIGINT, -- Link to app_auth.users or core.employees
     session_opened_at TIMESTAMPTZ DEFAULT NOW(),
@@ -884,9 +888,10 @@ CREATE TABLE ems.attendance_sessions (
 CREATE TABLE ems.attendance_records (
     id BIGSERIAL PRIMARY KEY,
     company_id BIGINT NOT NULL REFERENCES core.companies(id) ON DELETE CASCADE,
-    attendance_session_id BIGINT NOT NULL REFERENCES ems.attendance_sessions(id) ON DELETE CASCADE,
+    session_id BIGINT NOT NULL REFERENCES ems.attendance_sessions(id) ON DELETE CASCADE,
     
-    user_id BIGINT NOT NULL REFERENCES app_auth.users(id),
+    user_id BIGINT REFERENCES app_auth.users(id),
+    student_id BIGINT REFERENCES ems.students(id) ON DELETE CASCADE,
     user_type VARCHAR(50), -- STUDENT, TUTOR, STAFF
     
     check_in_time TIMESTAMPTZ DEFAULT NOW(),
@@ -896,7 +901,7 @@ CREATE TABLE ems.attendance_records (
     location_long DECIMAL(11, 8),
     ip_address INET,
     
-    attendance_status VARCHAR(50), -- PRESENT, LATE, EARLY_LEAVE, ABSENT
+    status VARCHAR(50), -- PRESENT, LATE, EARLY_LEAVE, ABSENT
     duration_minutes INTEGER,
     
     is_verified BOOLEAN DEFAULT FALSE,

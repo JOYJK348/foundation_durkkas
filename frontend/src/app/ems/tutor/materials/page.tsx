@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
+import { TutorTopNavbar } from "@/components/ems/dashboard/tutor-top-navbar";
 import { TutorBottomNav } from "@/components/ems/dashboard/tutor-bottom-nav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ export default function TutorMaterialsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
-            <TopNavbar />
+            <TutorTopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                 <div className="flex items-center justify-between mb-8">

@@ -31,12 +31,15 @@ interface Material {
 interface Lesson {
     id: number;
     lesson_name: string;
+    lesson_number: string;
+    is_locked: boolean;
     course_materials: Material[];
 }
 
 interface Module {
     id: number;
     module_name: string;
+    module_number: number;
     lessons: Lesson[];
 }
 
@@ -162,7 +165,7 @@ export default function StudentCourseDetailsPage() {
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-sm">
-                                                {expandedModules.includes(module.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                {module.module_number}
                                             </div>
                                             <h3 className="font-bold text-gray-800 text-lg">{module.module_name}</h3>
                                         </div>
@@ -180,33 +183,38 @@ export default function StudentCourseDetailsPage() {
                                             >
                                                 <div className="p-2 space-y-2">
                                                     {module.lessons?.map((lesson) => (
-                                                        <div key={lesson.id} className="p-4 bg-gray-50/50 rounded-xl hover:bg-gray-50 transition-colors">
+                                                        <div key={lesson.id} className={`p-4 rounded-xl transition-all ${lesson.is_locked ? 'bg-gray-100/30 grayscale-[50%]' : 'bg-gray-50/50 hover:bg-gray-50'}`}>
                                                             <div className="flex items-center justify-between mb-3">
                                                                 <div className="flex items-center gap-3">
-                                                                    <PlayCircle className="h-5 w-5 text-blue-600" />
-                                                                    <span className="font-semibold text-gray-800">{lesson.lesson_name}</span>
+                                                                    <span className="text-xs font-bold text-blue-400 w-8">{lesson.lesson_number}</span>
+                                                                    <PlayCircle className={`h-5 w-5 ${lesson.is_locked ? 'text-gray-400' : 'text-blue-600'}`} />
+                                                                    <span className={`font-semibold ${lesson.is_locked ? 'text-gray-400' : 'text-gray-800'}`}>{lesson.lesson_name}</span>
                                                                 </div>
-                                                                <CheckCircle className="h-4 w-4 text-gray-300" />
+                                                                {lesson.is_locked ? <Lock className="h-4 w-4 text-gray-400" /> : <CheckCircle className="h-4 w-4 text-gray-300" />}
                                                             </div>
 
-                                                            {/* Materials in Lesson */}
-                                                            <div className="pl-8 space-y-2 border-l-2 border-gray-100 mt-2">
-                                                                {lesson.course_materials?.map(mat => (
-                                                                    <div key={mat.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-50 shadow-sm hover:shadow-md transition-all cursor-pointer group">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <FileText className="h-4 w-4 text-blue-500" />
-                                                                            <span className="text-sm font-medium text-gray-700">{mat.material_name}</span>
+                                                            {!lesson.is_locked && (
+                                                                <div className="pl-8 space-y-2 border-l-2 border-gray-100 mt-2">
+                                                                    {lesson.course_materials?.map(mat => (
+                                                                        <div key={mat.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-50 shadow-sm hover:shadow-md transition-all cursor-pointer group">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <FileText className="h-4 w-4 text-blue-500" />
+                                                                                <span className="text-sm font-medium text-gray-700">{mat.material_name}</span>
+                                                                            </div>
+                                                                            <Button size="sm" variant="ghost" className="h-8 text-blue-600 font-bold text-[10px] uppercase tracking-tighter hover:bg-blue-50">
+                                                                                Download
+                                                                            </Button>
                                                                         </div>
-                                                                        <Button size="sm" variant="ghost" className="h-8 text-blue-600 font-bold text-[10px] uppercase tracking-tighter hover:bg-blue-50">
-                                                                            Download
-                                                                        </Button>
-                                                                    </div>
-                                                                ))}
+                                                                    ))}
 
-                                                                {(!lesson.course_materials || lesson.course_materials.length === 0) && (
-                                                                    <p className="text-[10px] text-gray-400 italic">No files attached to this lesson.</p>
-                                                                )}
-                                                            </div>
+                                                                    {(!lesson.course_materials || lesson.course_materials.length === 0) && (
+                                                                        <p className="text-[10px] text-gray-400 italic">No files attached to this lesson.</p>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {lesson.is_locked && (
+                                                                <p className="pl-11 text-[10px] text-gray-400 font-medium">✨ Enroll in the course to unlock this content</p>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>

@@ -19,6 +19,7 @@ import {
     Edit,
     Trash2,
     Eye,
+    CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -45,9 +46,24 @@ interface Course {
     course_code: string;
 }
 
+interface Student {
+    id: number;
+    first_name: string;
+    last_name: string;
+    student_code: string;
+}
+
+interface Batch {
+    id: number;
+    batch_name: string;
+    batch_code: string;
+}
+
 export default function QuizzesPage() {
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
+    const [batches, setBatches] = useState<Batch[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -59,12 +75,24 @@ export default function QuizzesPage() {
         duration_minutes: 60,
         max_attempts: 3,
         passing_marks: 40,
+        start_datetime: "",
+        end_datetime: "",
+        assignment_type: 'ALL', // ALL, BATCH, STUDENT
+        selected_batch_id: "",
+        selected_student_id: "",
     });
 
     useEffect(() => {
         fetchQuizzes();
         fetchCourses();
     }, []);
+
+    useEffect(() => {
+        if (formData.course_id) {
+            fetchBatches(formData.course_id);
+            fetchStudents(formData.course_id);
+        }
+    }, [formData.course_id]);
 
     const fetchQuizzes = async () => {
         try {
@@ -91,12 +119,45 @@ export default function QuizzesPage() {
         }
     };
 
+    const fetchBatches = async (courseId: string) => {
+        try {
+            const response = await api.get(`/ems/batches?course_id=${courseId}`);
+            if (response.data.success) {
+                setBatches(response.data.data || []);
+            }
+        } catch (error) {
+            console.error("Error fetching batches:", error);
+        }
+    };
+
+    const fetchStudents = async (courseId: string) => {
+        try {
+            const response = await api.get(`/ems/students?course_id=${courseId}`);
+            if (response.data.success) {
+                setStudents(response.data.data || []);
+            }
+        } catch (error) {
+            console.error("Error fetching students:", error);
+        }
+    };
+
     const handleCreateQuiz = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const assignments = [];
+            if (formData.assignment_type === 'BATCH' && formData.selected_batch_id) {
+                assignments.push({ batch_id: parseInt(formData.selected_batch_id) });
+            } else if (formData.assignment_type === 'STUDENT' && formData.selected_student_id) {
+                assignments.push({ student_id: parseInt(formData.selected_student_id) });
+            }
+
+            // Separate quiz data from assignment data
+            const { assignment_type, selected_batch_id, selected_student_id, ...quizData } = formData;
+
             const response = await api.post("/ems/quizzes", {
-                ...formData,
+                ...quizData,
                 course_id: parseInt(formData.course_id),
+                assignments: assignments.length > 0 ? assignments : undefined
             });
 
             if (response.data.success) {
@@ -110,6 +171,11 @@ export default function QuizzesPage() {
                     duration_minutes: 60,
                     max_attempts: 3,
                     passing_marks: 40,
+                    start_datetime: "",
+                    end_datetime: "",
+                    assignment_type: 'ALL',
+                    selected_batch_id: "",
+                    selected_student_id: "",
                 });
             }
         } catch (error) {
@@ -235,20 +301,28 @@ export default function QuizzesPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-2">
-                                            <Link href={`/ems/academic-manager/quizzes/builder?id=${quiz.id}`} className="flex-1">
+                                        <div className="grid grid-cols-2 gap-2 mt-4">
+                                            <Link href={`/ems/academic-manager/quizzes/builder?id=${quiz.id}`}>
                                                 <Button size="sm" variant="outline" className="w-full">
                                                     <Edit className="h-4 w-4 mr-1" />
-                                                    Build Quiz
+                                                    Build
+                                                </Button>
+                                            </Link>
+                                            <Link href={`/ems/academic-manager/quizzes/${quiz.id}/results`}>
+                                                <Button size="sm" variant="outline" className="w-full">
+                                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                                    Results
                                                 </Button>
                                             </Link>
                                             <Link href={`/ems/academic-manager/quizzes/view?id=${quiz.id}`}>
-                                                <Button size="sm" variant="outline" title="Review Quiz">
-                                                    <Eye className="h-4 w-4" />
+                                                <Button size="sm" variant="outline" className="w-full">
+                                                    <Eye className="h-4 w-4 mr-1" />
+                                                    Review
                                                 </Button>
                                             </Link>
-                                            <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" title="Delete Quiz">
-                                                <Trash2 className="h-4 w-4" />
+                                            <Button size="sm" variant="outline" className="w-full text-red-600 hover:text-red-700">
+                                                <Trash2 className="h-4 w-4 mr-1" />
+                                                Delete
                                             </Button>
                                         </div>
                                     </CardContent>
@@ -330,6 +404,69 @@ export default function QuizzesPage() {
                                     </select>
                                 </div>
 
+                                <div className="space-y-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
+                                    <div>
+                                        <Label>Assign To</Label>
+                                        <div className="flex gap-4 mt-2">
+                                            {['ALL', 'BATCH', 'STUDENT'].map((type) => (
+                                                <label key={type} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="assignment_type"
+                                                        value={type}
+                                                        checked={formData.assignment_type === type}
+                                                        onChange={(e) => setFormData({ ...formData, assignment_type: e.target.value })}
+                                                        className="text-purple-600 focus:ring-purple-500"
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700 capitalize">
+                                                        {type === 'ALL' ? 'All Students' : type.toLowerCase()}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {formData.assignment_type === 'BATCH' && (
+                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                                            <Label htmlFor="batch_id">Select Batch *</Label>
+                                            <select
+                                                id="batch_id"
+                                                required
+                                                className="w-full h-10 px-3 rounded-md border border-gray-300 mt-1"
+                                                value={formData.selected_batch_id}
+                                                onChange={(e) => setFormData({ ...formData, selected_batch_id: e.target.value })}
+                                            >
+                                                <option value="">Choose a batch...</option>
+                                                {batches.map((batch) => (
+                                                    <option key={batch.id} value={batch.id}>
+                                                        {batch.batch_name} ({batch.batch_code})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </motion.div>
+                                    )}
+
+                                    {formData.assignment_type === 'STUDENT' && (
+                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                                            <Label htmlFor="student_id">Select Student *</Label>
+                                            <select
+                                                id="student_id"
+                                                required
+                                                className="w-full h-10 px-3 rounded-md border border-gray-300 mt-1"
+                                                value={formData.selected_student_id}
+                                                onChange={(e) => setFormData({ ...formData, selected_student_id: e.target.value })}
+                                            >
+                                                <option value="">Choose a student...</option>
+                                                {students.map((student) => (
+                                                    <option key={student.id} value={student.id}>
+                                                        {student.first_name} {student.last_name} ({student.student_code})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </motion.div>
+                                    )}
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="total_marks">Total Marks *</Label>
@@ -377,6 +514,29 @@ export default function QuizzesPage() {
                                             value={formData.max_attempts}
                                             onChange={(e) => setFormData({ ...formData, max_attempts: parseInt(e.target.value) })}
                                         />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="start_datetime">Start Date & Time</Label>
+                                        <Input
+                                            id="start_datetime"
+                                            type="datetime-local"
+                                            value={formData.start_datetime}
+                                            onChange={(e) => setFormData({ ...formData, start_datetime: e.target.value })}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">When quiz becomes available</p>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="end_datetime">End Date & Time</Label>
+                                        <Input
+                                            id="end_datetime"
+                                            type="datetime-local"
+                                            value={formData.end_datetime}
+                                            onChange={(e) => setFormData({ ...formData, end_datetime: e.target.value })}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">When quiz closes</p>
                                     </div>
                                 </div>
 

@@ -165,9 +165,9 @@ export default function StudentsPage() {
         try {
             const response = await api.post("/ems/enrollments", {
                 ...enrollFormData,
-                student_id: parseInt(enrollFormData.student_id),
-                course_id: parseInt(enrollFormData.course_id),
-                batch_id: parseInt(enrollFormData.batch_id),
+                student_id: enrollFormData.student_id ? parseInt(enrollFormData.student_id) : null,
+                course_id: enrollFormData.course_id ? parseInt(enrollFormData.course_id) : null,
+                batch_id: enrollFormData.batch_id ? parseInt(enrollFormData.batch_id) : null,
             });
 
             if (response.data.success) {

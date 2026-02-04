@@ -11,13 +11,8 @@ import { TutorService } from '@/lib/services/TutorService';
 
 export async function GET(req: NextRequest) {
     try {
-        const userIdHeader = req.headers.get('x-user-id');
-        const userId = userIdHeader ? parseInt(userIdHeader) : null;
-
-        if (!userId) {
-            console.error('🚨 [Tutors API] No User ID found in headers');
-            return errorResponse(null, 'Unauthorized', 401);
-        }
+        const userId = await getUserIdFromToken(req);
+        if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         const scope = await getUserTenantScope(userId);
         if (!scope.companyId) return errorResponse(null, 'Company context required', 400);
@@ -32,9 +27,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const userIdHeader = req.headers.get('x-user-id');
-        const userId = userIdHeader ? parseInt(userIdHeader) : null;
-
+        const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         let data = await req.json();

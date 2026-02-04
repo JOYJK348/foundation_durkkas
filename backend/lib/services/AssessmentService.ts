@@ -32,16 +32,26 @@ export class AssessmentService {
 
         // Role-based filtering for tutors
         if (emsProfile?.profileType === 'tutor' && emsProfile.profileId) {
-            // Get tutor's course IDs
-            const { data: tutorCourses } = await ems.courses()
+            // Get tutor's course IDs (Multi-Tutor support)
+            const { data: junctionMappings } = await ems.courseTutors()
+                .select('course_id')
+                .eq('tutor_id', emsProfile.profileId)
+                .is('deleted_at', null);
+
+            const { data: legacyCourses } = await ems.courses()
                 .select('id')
                 .eq('tutor_id', emsProfile.profileId)
-                .eq('company_id', companyId);
+                .is('deleted_at', null);
 
-            const tutorCourseIds = tutorCourses?.map((c: any) => c.id) || [];
+            const tutorCourseIds = [
+                ...(junctionMappings?.map((m: any) => m.course_id) || []),
+                ...(legacyCourses?.map((c: any) => c.id) || [])
+            ];
 
-            if (tutorCourseIds.length > 0) {
-                query = query.in('course_id', tutorCourseIds);
+            const uniqueCourseIds = [...new Set(tutorCourseIds)];
+
+            if (uniqueCourseIds.length > 0) {
+                query = query.in('course_id', uniqueCourseIds);
             } else {
                 return []; // Tutor has no courses
             }
@@ -110,16 +120,26 @@ export class AssessmentService {
 
         // Role-based filtering for tutors
         if (emsProfile?.profileType === 'tutor' && emsProfile.profileId) {
-            // Get tutor's course IDs
-            const { data: tutorCourses } = await ems.courses()
+            // Get tutor's course IDs (Multi-Tutor support)
+            const { data: junctionMappings } = await ems.courseTutors()
+                .select('course_id')
+                .eq('tutor_id', emsProfile.profileId)
+                .is('deleted_at', null);
+
+            const { data: legacyCourses } = await ems.courses()
                 .select('id')
                 .eq('tutor_id', emsProfile.profileId)
-                .eq('company_id', companyId);
+                .is('deleted_at', null);
 
-            const tutorCourseIds = tutorCourses?.map((c: any) => c.id) || [];
+            const tutorCourseIds = [
+                ...(junctionMappings?.map((m: any) => m.course_id) || []),
+                ...(legacyCourses?.map((c: any) => c.id) || [])
+            ];
 
-            if (tutorCourseIds.length > 0) {
-                query = query.in('course_id', tutorCourseIds);
+            const uniqueCourseIds = [...new Set(tutorCourseIds)];
+
+            if (uniqueCourseIds.length > 0) {
+                query = query.in('course_id', uniqueCourseIds);
             } else {
                 return []; // Tutor has no courses
             }
@@ -146,6 +166,28 @@ export class AssessmentService {
     }
 
     static async getPendingAssignments(tutorId: number, companyId: number) {
+        // 1. Get IDs from new course_tutors table
+        const { data: junctionMappings } = await ems.courseTutors()
+            .select('course_id')
+            .eq('tutor_id', tutorId)
+            .is('deleted_at', null);
+
+        // 2. Get IDs from legacy courses table
+        const { data: legacyCourses } = await ems.courses()
+            .select('id')
+            .eq('tutor_id', tutorId)
+            .eq('company_id', companyId)
+            .is('deleted_at', null);
+
+        const assignedCourseIds = [
+            ...(junctionMappings?.map((m: any) => m.course_id) || []),
+            ...(legacyCourses?.map((c: any) => c.id) || [])
+        ];
+
+        const uniqueCourseIds = [...new Set(assignedCourseIds)];
+
+        if (uniqueCourseIds.length === 0) return [];
+
         // Optimized query for tutor dashboard
         const { data, error } = await ems.assignments()
             .select(`
@@ -158,7 +200,7 @@ export class AssessmentService {
                     submitted_at
                 )
             `)
-            .eq('tutor_id', tutorId)
+            .in('course_id', uniqueCourseIds)
             .eq('company_id', companyId)
             .eq('assignment_submissions.submission_status', 'SUBMITTED')
             .is('deleted_at', null);
@@ -196,10 +238,25 @@ export class AssessmentService {
 
         if (error) throw error;
 
-        // Filter by tutor_id (since we can't filter deeply in Supabase without inner joins on everything)
-        // Actually, assignment table has tutor_id too.
+        // Filter by assigned courses (Multi-Tutor support)
+        const { data: junctionMappings } = await ems.courseTutors()
+            .select('course_id')
+            .eq('tutor_id', tutorId)
+            .is('deleted_at', null);
+
+        const { data: legacyCourses } = await ems.courses()
+            .select('id')
+            .eq('tutor_id', tutorId)
+            .eq('company_id', companyId)
+            .is('deleted_at', null);
+
+        const assignedCourseIds = new Set([
+            ...(junctionMappings?.map((m: any) => m.course_id) || []),
+            ...(legacyCourses?.map((c: any) => c.id) || [])
+        ]);
+
         const filteredData = data?.filter((s: any) =>
-            s.assignments?.courses?.tutor_id === tutorId || s.assignments?.tutor_id === tutorId
+            assignedCourseIds.has(s.assignments?.course_id)
         );
 
         return filteredData || [];

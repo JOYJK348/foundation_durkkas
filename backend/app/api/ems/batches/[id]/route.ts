@@ -1,10 +1,6 @@
-/**
- * EMS API - Batch Details
- * Route: /api/ems/batches/[id]
- */
-
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
+import { getUserTenantScope } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { BatchService } from '@/lib/services/BatchService';
 
@@ -16,16 +12,23 @@ export async function GET(
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const data = await BatchService.getBatchDetails(parseInt(params.id));
+        const scope = await getUserTenantScope(userId);
+        const batchId = parseInt(params.id);
 
-        return successResponse(data, 'Batch details fetched successfully');
+        const batch = await BatchService.getBatchById(batchId, scope.companyId!);
+
+        if (!batch) {
+            return errorResponse(null, 'Batch not found', 404);
+        }
+
+        return successResponse(batch, 'Batch fetched successfully');
 
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Batch not found');
+        return errorResponse(null, error.message || 'Failed to fetch batch');
     }
 }
 
-export async function PATCH(
+export async function PUT(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
@@ -33,10 +36,22 @@ export async function PATCH(
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const body = await req.json();
-        const batch = await BatchService.updateBatch(parseInt(params.id), body);
+        const scope = await getUserTenantScope(userId);
+        const batchId = parseInt(params.id);
+        const data = await req.json();
 
-        return successResponse(batch, 'Batch updated successfully');
+        const updatedBatch = await BatchService.updateBatch(
+            batchId,
+            scope.companyId!,
+            data
+        );
+
+        if (!updatedBatch) {
+            return errorResponse(null, 'Batch not found or update failed', 404);
+        }
+
+        return successResponse(updatedBatch, 'Batch updated successfully');
+
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to update batch');
     }
@@ -50,9 +65,20 @@ export async function DELETE(
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        await BatchService.softDeleteBatch(parseInt(params.id), userId);
+        const scope = await getUserTenantScope(userId);
+        const batchId = parseInt(params.id);
 
-        return successResponse(null, 'Batch deleted successfully');
+        const deleted = await BatchService.deleteBatch(batchId, scope.companyId!, userId);
+
+        if (!deleted) {
+            return errorResponse(null, 'Batch not found or already deleted', 404);
+        }
+
+        return successResponse(
+            { id: batchId, deleted: true },
+            'Batch deleted successfully'
+        );
+
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to delete batch');
     }

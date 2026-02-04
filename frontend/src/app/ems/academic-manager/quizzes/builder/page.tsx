@@ -67,11 +67,26 @@ export default function QuizBuilderPage() {
     const fetchQuizDetails = async () => {
         try {
             setLoading(true);
-            const response = await api.get(`/ems/quizzes/${quizId}`);
-            if (response.data.success) {
-                setQuiz(response.data.data);
-                // Fetch existing questions if any
-                // setQuestions(response.data.data.questions || []);
+
+            // Fetch quiz details
+            const quizResponse = await api.get(`/ems/quizzes/${quizId}`);
+            if (quizResponse.data.success) {
+                setQuiz(quizResponse.data.data);
+            }
+
+            // Fetch questions separately
+            const questionsResponse = await api.get(`/ems/quizzes/${quizId}/questions`);
+            if (questionsResponse.data.success && questionsResponse.data.data) {
+                const fetchedQuestions = questionsResponse.data.data.map((q: any) => ({
+                    id: q.id,
+                    question_text: q.question_text,
+                    question_type: q.question_type,
+                    marks: q.marks,
+                    question_order: q.question_order,
+                    explanation: q.explanation || "",
+                    options: q.quiz_options || []
+                }));
+                setQuestions(fetchedQuestions);
             }
         } catch (error) {
             console.error("Error fetching quiz:", error);
@@ -334,8 +349,8 @@ export default function QuizBuilderPage() {
                                                             )
                                                         }
                                                         className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${option.is_correct
-                                                                ? "bg-green-500 border-green-500"
-                                                                : "border-gray-300 hover:border-green-400"
+                                                            ? "bg-green-500 border-green-500"
+                                                            : "border-gray-300 hover:border-green-400"
                                                             }`}
                                                     >
                                                         {option.is_correct && (

@@ -29,7 +29,32 @@ export class CourseService {
 
         if (emsProfile?.profileType === 'tutor' && emsProfile.profileId) {
             // TUTORS: Only see courses they are assigned to teach
-            query = query.eq('tutor_id', emsProfile.profileId);
+            // 1. Get IDs from new course_tutors junction table
+            const { data: junctionMappings } = await ems.courseTutors()
+                .select('course_id')
+                .eq('tutor_id', emsProfile.profileId)
+                .is('deleted_at', null);
+
+            // 2. Get IDs from legacy tutor_id column in courses table
+            const { data: legacyCourses } = await ems.courses()
+                .select('id')
+                .eq('tutor_id', emsProfile.profileId)
+                .eq('company_id', companyId)
+                .is('deleted_at', null);
+
+            const assignedCourseIds = [
+                ...(junctionMappings?.map((m: any) => m.course_id) || []),
+                ...(legacyCourses?.map((c: any) => c.id) || [])
+            ];
+
+            const uniqueCourseIds = [...new Set(assignedCourseIds)];
+
+            if (uniqueCourseIds.length > 0) {
+                query = query.in('id', uniqueCourseIds);
+            } else {
+                // Tutor is not assigned to any courses
+                return [];
+            }
         } else if (emsProfile?.profileType === 'student' && emsProfile.profileId) {
             // STUDENTS: Only see courses they are enrolled in
             // First, get enrolled course IDs
@@ -62,6 +87,7 @@ export class CourseService {
      */
     static async getCourseDetails(
         id: number,
+        companyId: number,
         emsProfile?: { profileType: 'tutor' | 'student' | 'manager' | null; profileId: number | null }
     ) {
         let query = ems.courses()
@@ -75,46 +101,94 @@ export class CourseService {
                     )
                 )
             `)
-            .eq('id', id);
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null);
 
-        // 🕵️ Visibility Filtering for Students
-        if (emsProfile?.profileType === 'student') {
-            // Note: PostGrest nested filtering is tricky. 
-            // We fetch and then filter in JS for reliability in complex nested structures,
-            // OR we use the !is_published.is(null) trick if supported.
-            // For now, let's fetch and filter to ensure 100% accuracy.
+        // 🕵️ Visibility Filtering for Tutors
+        if (emsProfile?.profileType === 'tutor' && emsProfile.profileId) {
+            const { data: junctionMapping } = await ems.courseTutors()
+                .select('id')
+                .eq('course_id', id)
+                .eq('tutor_id', emsProfile.profileId)
+                .is('deleted_at', null)
+                .single();
+
+            const { data: legacyCourse } = await ems.courses()
+                .select('id')
+                .eq('id', id)
+                .eq('tutor_id', emsProfile.profileId)
+                .single();
+
+            if (!junctionMapping && !legacyCourse) {
+                throw new Error('You are not assigned to this course');
+            }
         }
 
         const { data, error } = await query.single();
 
         if (error) throw error;
 
-        // 🛡️ Transform/Filter data if student (Deep Filtering)
-        if (emsProfile?.profileType === 'student' && data) {
-            data.course_modules = data.course_modules
-                ?.filter((m: any) => m.is_published && m.is_active)
-                ?.map((m: any) => ({
-                    ...m,
-                    lessons: m.lessons
-                        ?.filter((l: any) => l.is_published && l.is_active)
-                        ?.map((l: any) => ({
-                            ...l,
-                            course_materials: l.course_materials?.filter((mat: any) => mat.is_published && mat.is_active)
-                        }))
-                }))
-                ?.sort((a: any, b: any) => (a.module_order || 0) - (b.module_order || 0));
+        // 🕵️ Check Enrollment for Students
+        let isEnrolled = false;
+        if (emsProfile?.profileType === 'student' && emsProfile.profileId) {
+            const { data: enrollment } = await ems.enrollments()
+                .select('id')
+                .eq('student_id', emsProfile.profileId)
+                .eq('course_id', id)
+                .eq('enrollment_status', 'ACTIVE')
+                .maybeSingle();
+
+            isEnrolled = !!enrollment;
+        }
+
+        // 🛡️ Post-process: Professional Numbering and Visibility Filtering
+        if (data && data.course_modules) {
+            // Sort modules first
+            data.course_modules.sort((a: any, b: any) => (a.module_order || 0) - (b.module_order || 0));
+
+            data.course_modules = data.course_modules.map((module: any, mIdx: number) => {
+                const moduleNumber = mIdx + 1;
+
+                // Sort lessons within module
+                const lessons = (module.lessons || []).sort((a: any, b: any) => (a.lesson_order || 0) - (b.lesson_order || 0));
+
+                return {
+                    ...module,
+                    module_number: moduleNumber,
+                    lessons: lessons.map((lesson: any, lIdx: number) => {
+                        const lessonNumber = `${moduleNumber}.${lIdx + 1}`;
+                        const isLocked = emsProfile?.profileType === 'student' && lesson.visibility === 'ENROLLED' && !isEnrolled;
+
+                        return {
+                            ...lesson,
+                            lesson_number: lessonNumber,
+                            is_locked: isLocked,
+                            video_url: isLocked ? null : lesson.video_url,
+                            content_body: isLocked ? null : lesson.content_body
+                        };
+                    })
+                };
+            });
+
+            // If student, filter out PRIVATE modules/lessons
+            if (emsProfile?.profileType === 'student') {
+                data.course_modules = data.course_modules
+                    .filter((m: any) => m.visibility !== 'PRIVATE' && m.is_active)
+                    .map((m: any) => ({
+                        ...m,
+                        lessons: m.lessons.filter((l: any) => l.visibility !== 'PRIVATE' && l.is_active)
+                    }));
+            }
         }
 
         return data;
     }
 
-    /**
-     * Toggle visibility (publish/unpublish) for any content type
-     */
     static async updateContentVisibility(
         type: 'module' | 'lesson' | 'material',
         id: number,
-        isPublished: boolean,
+        visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED',
         companyId: number
     ) {
         let table;
@@ -123,7 +197,10 @@ export class CourseService {
         else table = ems.courseMaterials();
 
         const { data, error } = await table
-            .update({ is_published: isPublished } as any)
+            .update({
+                visibility,
+                is_published: visibility !== 'PRIVATE'
+            } as any)
             .eq('id', id)
             .eq('company_id', companyId)
             .select()
@@ -143,15 +220,71 @@ export class CourseService {
         return data as Course;
     }
 
-    static async updateCourse(id: number, courseData: Partial<Course>) {
+    static async getCourseById(
+        id: number,
+        companyId: number,
+        emsProfile?: { profileType: 'tutor' | 'student' | 'manager' | null; profileId: number | null }
+    ) {
+        // 🕵️ Visibility Filtering for Tutors
+        if (emsProfile?.profileType === 'tutor' && emsProfile.profileId) {
+            const { data: junctionMapping } = await ems.courseTutors()
+                .select('id')
+                .eq('course_id', id)
+                .eq('tutor_id', emsProfile.profileId)
+                .is('deleted_at', null)
+                .single();
+
+            const { data: legacyCourse } = await ems.courses()
+                .select('id')
+                .eq('id', id)
+                .eq('tutor_id', emsProfile.profileId)
+                .single();
+
+            if (!junctionMapping && !legacyCourse) {
+                return null; // Equivalent to course not found for this tutor
+            }
+        }
+
+        const { data, error } = await ems.courses()
+            .select('*')
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .single();
+
+        if (error) throw error;
+        return data as Course;
+    }
+
+    static async updateCourse(id: number, companyId: number, courseData: Partial<Course>) {
         const { data, error } = await ems.courses()
             .update(courseData)
             .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
             .select()
             .single();
 
         if (error) throw error;
         return data as Course;
+    }
+
+    static async deleteCourse(id: number, companyId: number, deletedBy: number, reason?: string) {
+        const { data, error } = await ems.courses()
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: deletedBy,
+                delete_reason: reason || 'Removed by admin',
+                is_active: false
+            } as any)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 
     static async softDeleteCourse(id: number, deletedBy: number, reason?: string) {

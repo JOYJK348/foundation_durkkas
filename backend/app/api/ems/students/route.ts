@@ -14,7 +14,13 @@ export async function GET(req: NextRequest) {
 
         const scope = await getUserTenantScope(userId);
 
-        const data = await StudentService.getAllStudents(scope.companyId!);
+        const { searchParams } = new URL(req.url);
+        const courseId = searchParams.get('course_id');
+
+        const data = await StudentService.getAllStudents(
+            scope.companyId!,
+            courseId ? parseInt(courseId) : undefined
+        );
 
         return successResponse(data, `Students fetched successfully (${data?.length || 0} records)`);
 
@@ -36,65 +42,22 @@ export async function POST(req: NextRequest) {
         // 2. Validate input using Zod
         const validatedData = studentSchema.parse(data);
 
-        // 3. User Account Creation Logic
-        // Generate username from student code (e.g., STU001 -> stu001)
-        const generatedUsername = validatedData.student_code.toLowerCase();
-        const generatedPassword = (data as any).password || 'Student@123'; // Use provided password or default
-
-        // check if user exists
-        let { data: existingUser } = await app_auth.users().select('id').eq('email', validatedData.email).single();
-        let newUserId = existingUser?.id;
-
-        if (!newUserId) {
-            // Create New User
-            const hashedPassword = await bcrypt.hash(generatedPassword, 10);
-            const displayName = `${validatedData.first_name} ${validatedData.last_name}`;
-
-            const { data: newUser, error: userError } = await app_auth.users().insert({
-                email: validatedData.email,
-                password_hash: hashedPassword,
-                first_name: validatedData.first_name,
-                last_name: validatedData.last_name,
-                display_name: displayName,
-                is_active: true,
-                is_verified: true
-            }).select().single();
-
-            if (userError) throw new Error(`User creation failed: ${userError.message}`);
-            newUserId = newUser.id;
-
-            // Assign STUDENT Role
-            // Find role ID for STUDENT
-            const { data: roleData } = await app_auth.roles().select('id').eq('name', 'STUDENT').single();
-            const roleId = roleData?.id || 6; // Fallback to 6 if not found
-
-            // Link Role
-            await app_auth.userRoles().insert({
-                user_id: newUserId,
-                role_id: roleId,
-                company_id: validatedData.company_id,
-                branch_id: validatedData.branch_id,
-                is_active: true
-            });
-        }
-
-        // 4. Insert into EMS Students table
-        const student = await StudentService.createStudent({
+        // 3. Create Student with Auth using Service
+        const student = await StudentService.createStudentWithAuth({
             ...validatedData,
-            user_id: newUserId
+            password: (data as any).password || 'Student@123'
         });
 
         return successResponse(
             {
                 ...student,
-                user_created: !existingUser,
                 login_credentials: {
                     email: validatedData.email,
-                    password: generatedPassword,
+                    password: (data as any).password || 'Student@123',
                     student_code: validatedData.student_code
                 }
             },
-            `Student admitted successfully! Login Email: ${validatedData.email} | Password: ${generatedPassword}`,
+            `Student admitted successfully! Login Email: ${validatedData.email} | Password: ${(data as any).password || 'Student@123'}`,
             201
         );
 

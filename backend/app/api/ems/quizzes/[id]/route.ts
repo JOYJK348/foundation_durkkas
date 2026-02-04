@@ -1,77 +1,66 @@
-/**
- * EMS API - Single Quiz
- * Route: /api/ems/quizzes/[id]
- */
-
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
-import { getUserIdFromToken } from '@/lib/jwt';
 import { getUserTenantScope } from '@/middleware/tenantFilter';
-import { ems } from '@/lib/supabase';
+import { getUserIdFromToken } from '@/lib/jwt';
+import { QuizService } from '@/lib/services/QuizService';
 
 export async function GET(
     req: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const { id } = await context.params;
-        const quizId = parseInt(id);
         const scope = await getUserTenantScope(userId);
+        const quizId = parseInt(params.id);
 
-        const { data, error } = await ems.quizzes()
-            .select(`
-                *,
-                courses:course_id (
-                    course_name,
-                    course_code
-                )
-            `)
-            .eq('id', quizId)
-            .eq('company_id', scope.companyId!)
-            .is('deleted_at', null)
-            .single();
+        const quiz = await QuizService.getQuizById(quizId, scope.companyId!);
 
-        if (error) throw error;
-
-        return successResponse(data, 'Quiz fetched successfully');
-
+        return successResponse(quiz, 'Quiz fetched successfully');
     } catch (error: any) {
-        console.error('[Quiz GET] Error:', error);
         return errorResponse(null, error.message || 'Failed to fetch quiz');
     }
 }
 
 export async function PUT(
     req: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const { id } = await context.params;
-        const quizId = parseInt(id);
         const scope = await getUserTenantScope(userId);
-        const updateData = await req.json();
+        const quizId = parseInt(params.id);
+        const data = await req.json();
 
-        const { data, error } = await ems.quizzes()
-            .update({
-                ...updateData,
-                updated_at: new Date().toISOString(),
-                updated_by: userId,
-            })
-            .eq('id', quizId)
-            .eq('company_id', scope.companyId!)
-            .select()
-            .single();
+        const updated = await QuizService.updateQuiz(quizId, scope.companyId!, data);
 
-        if (error) throw error;
+        return successResponse(updated, 'Quiz updated successfully');
+    } catch (error: any) {
+        return errorResponse(null, error.message || 'Failed to update quiz');
+    }
+}
 
-        return successResponse(data, 'Quiz updated successfully');
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const userId = await getUserIdFromToken(req);
+        if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
+        const scope = await getUserTenantScope(userId);
+        const quizId = parseInt(params.id);
+        const data = await req.json();
+
+        // Add updated_by field
+        data.updated_by = userId;
+
+        const updated = await QuizService.updateQuiz(quizId, scope.companyId!, data);
+
+        return successResponse(updated, 'Quiz updated successfully');
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to update quiz');
     }
@@ -79,28 +68,18 @@ export async function PUT(
 
 export async function DELETE(
     req: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const { id } = await context.params;
-        const quizId = parseInt(id);
         const scope = await getUserTenantScope(userId);
+        const quizId = parseInt(params.id);
 
-        const { error } = await ems.quizzes()
-            .update({
-                deleted_at: new Date().toISOString(),
-                deleted_by: userId,
-            })
-            .eq('id', quizId)
-            .eq('company_id', scope.companyId!);
+        await QuizService.deleteQuiz(quizId, scope.companyId!, userId);
 
-        if (error) throw error;
-
-        return successResponse(null, 'Quiz deleted successfully');
-
+        return successResponse({ id: quizId, deleted: true }, 'Quiz deleted successfully');
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to delete quiz');
     }
