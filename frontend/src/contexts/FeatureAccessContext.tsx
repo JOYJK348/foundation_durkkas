@@ -97,7 +97,10 @@ export function FeatureAccessProvider({ children }: { children: ReactNode }) {
     };
 
     useEffect(() => {
-        if (user) {
+        const Cookies = require('js-cookie');
+        const token = Cookies.get('access_token');
+
+        if (user && token) {
             loadFeatureAccess();
         } else {
             setState(prev => ({ ...prev, isLoading: false }));

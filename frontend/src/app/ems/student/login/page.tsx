@@ -66,6 +66,7 @@ export default function StudentLoginPage() {
                 setUser(mockUser as any);
                 Cookie.set("user_display_name", demoCredential.name);
                 Cookie.set("user_role", "STUDENT");
+                Cookie.set("x-company-id", "durkkas-foundation");
 
                 toast.success("Welcome back!", {
                     description: `Signed in as ${demoCredential.name}`
@@ -98,6 +99,12 @@ export default function StudentLoginPage() {
             });
 
             Cookie.set("access_token", tokens.accessToken, { expires: 1 });
+            if (primaryRole.company_id) {
+                Cookie.set("x-company-id", primaryRole.company_id.toString(), { expires: 1, path: '/' });
+            }
+            if (primaryRole.branch_id) {
+                Cookie.set("x-branch-id", primaryRole.branch_id.toString(), { expires: 1, path: '/' });
+            }
 
             toast.success("Login Successful");
             router.push("/ems/student/dashboard");

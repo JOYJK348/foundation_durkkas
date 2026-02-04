@@ -139,15 +139,31 @@ api.interceptors.response.use(
         if (error.response?.status === 401) {
             const errorCode = error.response?.data?.error?.code;
 
-            if (errorCode === 'SESSION_EXPIRED') {
-                console.warn('⛔ Session invalidated by newer login. Forcing logout...');
-                Cookies.remove('access_token', { path: '/' });
-                Cookies.remove('refresh_token', { path: '/' });
-                if (typeof window !== 'undefined') {
-                    window.location.href = '/?error=session_invalidated';
+            // Clear invalid session markers
+            Cookies.remove('access_token', { path: '/' });
+
+            if (typeof window !== 'undefined') {
+                const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+                const errorCode = error.response?.data?.error?.code;
+
+                // 🛑 AVOID REDIRECT LOOPS: Don't redirect if we're on a login page
+                const isStudentLogin = currentPath === '/ems/student/login';
+                const isMainLogin = currentPath === '/' || currentPath === '/login';
+
+                if (isStudentLogin || isMainLogin) {
+                    console.warn('⚠️ [API] 401 on login page - stopping redirect loop.');
+                    return Promise.reject(error);
                 }
-            } else {
-                console.warn('Unauthorized access - potential token expiry');
+
+                // Optional: Clear persisted store if token is invalid
+                localStorage.removeItem('durkkas-auth-storage');
+
+                const targetUrl = currentPath.startsWith('/ems/student')
+                    ? `/ems/student/login?error=${errorCode || 'unauthorized'}`
+                    : `/?error=${errorCode || 'unauthorized'}`;
+
+                console.log(`🚀 [API] 401 redirecting from ${currentPath} to ${targetUrl}`);
+                window.location.href = targetUrl;
             }
         }
         return Promise.reject(error);

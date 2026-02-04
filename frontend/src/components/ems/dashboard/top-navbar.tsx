@@ -164,14 +164,22 @@ export function TopNavbar() {
 
                                         {/* Logout */}
                                         <div className="border-t border-gray-200 py-1">
-                                            <Link
-                                                href="/ems/student/login"
-                                                onClick={() => setShowProfileMenu(false)}
-                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                            <button
+                                                onClick={() => {
+                                                    const Cookies = require('js-cookie');
+                                                    Cookies.remove('access_token', { path: '/' });
+                                                    Cookies.remove('user_display_name', { path: '/' });
+                                                    Cookies.remove('user_role', { path: '/' });
+                                                    Cookies.remove('x-company-id', { path: '/' });
+                                                    Cookies.remove('x-branch-id', { path: '/' });
+                                                    setShowProfileMenu(false);
+                                                    window.location.href = "/ems/student/login";
+                                                }}
+                                                className="flex items-center w-full gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                             >
                                                 <LogOut className="h-4 w-4" />
                                                 <span className="font-medium">Logout</span>
-                                            </Link>
+                                            </button>
                                         </div>
                                     </motion.div>
                                 )}

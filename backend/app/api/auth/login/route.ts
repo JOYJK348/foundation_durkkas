@@ -10,7 +10,7 @@ import { AuditService } from '@/lib/services/AuditService';
 import { GlobalSettings } from '@/lib/settings';
 
 const loginSchema = z.object({
-    email: z.string().email('Invalid email address'),
+    email: z.string().min(3, 'Username/Email is too short'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -19,12 +19,31 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const validatedData = loginSchema.parse(body);
-        const { email, password } = validatedData;
+        const { email: identifier, password } = validatedData;
 
         const ipAddress = AuditService.getIP(req);
         const userAgent = req.headers.get('user-agent') || 'unknown';
         const fingerprint = req.headers.get('x-device-fingerprint') || undefined;
         SecurityService = require('@/lib/services/SecurityService').SecurityService;
+
+        // 🛡️ [PHASE 1] IDENTITY RESOLUTION (Hybrid: Email or Student Code)
+        let targetEmail = identifier.toLowerCase();
+
+        // If it doesn't look like an email, it might be a Student Code
+        if (!targetEmail.includes('@')) {
+            console.log(`🔍 [AUTH] Attempting Student Code resolution for: ${targetEmail}`);
+            const { ems } = require('@/lib/supabase');
+            const { data: student } = await ems.students()
+                .select('email')
+                .eq('student_code', targetEmail.toUpperCase()) // Student codes are usually uppercase
+                .single();
+
+            if (student?.email) {
+                targetEmail = student.email.toLowerCase();
+                console.log(`✅ [AUTH] Resolved Student Code to email: ${targetEmail}`);
+            }
+        }
+
         // ⚡ STAGE 1: HYPER-PARALLEL DISPATCH (NO WATERFALL)
         // We fetch EVERYTHING we can in a single parallel burst
         const [userResolution, sessionTimeoutHrs, baseMaxConcurrent] = await Promise.all([
@@ -37,7 +56,7 @@ export async function POST(req: NextRequest) {
                         roles (level, name, display_name)
                     )
                 `)
-                .eq('email', email.toLowerCase())
+                .eq('email', targetEmail)
                 .single(),
             GlobalSettings.getSessionTimeoutHrs(),
             GlobalSettings.getFreshMaxConcurrentSessions()
