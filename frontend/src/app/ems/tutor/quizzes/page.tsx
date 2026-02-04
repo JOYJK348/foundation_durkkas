@@ -6,6 +6,7 @@ import { TutorBottomNav } from "@/components/ems/dashboard/tutor-bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
     BookOpen,
@@ -35,17 +36,35 @@ interface Quiz {
     pass_marks: number;
     duration_minutes: number;
     max_attempts?: number;
+    total_questions?: number;
     is_active: boolean;
     created_at: string;
     courses?: {
         course_name: string;
         course_code: string;
+        tutors?: Array<{
+            tutor_id: number;
+            employees?: { first_name: string, last_name?: string };
+        }>;
+        enrollments?: Array<{
+            student_id: number;
+            students: { first_name: string, last_name: string };
+        }>;
     };
+    quiz_assignments?: Array<{
+        batch_id?: number;
+        student_id?: number;
+        batches?: { id: number, batch_name: string };
+        students?: { id: number, first_name: string, last_name: string };
+    }>;
+    quiz_questions?: Array<{ id: number }>;
 }
 
 export default function TutorQuizzesPage() {
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [courses, setCourses] = useState<any[]>([]);
+    const [batches, setBatches] = useState<any[]>([]);
+    const [students, setStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showModal, setShowModal] = useState(false);
@@ -60,12 +79,44 @@ export default function TutorQuizzesPage() {
         duration_minutes: 60,
         max_attempts: 3,
         passing_marks: 40,
+        assignment_type: 'ALL',
+        selected_batch_id: "",
+        selected_student_id: "",
     });
 
     useEffect(() => {
         fetchQuizzes();
         fetchCourses();
     }, []);
+
+    useEffect(() => {
+        if (formData.course_id) {
+            fetchBatches(formData.course_id);
+            fetchStudents(formData.course_id);
+        }
+    }, [formData.course_id]);
+
+    const fetchBatches = async (courseId: string) => {
+        try {
+            const response = await api.get(`/ems/batches?course_id=${courseId}`);
+            if (response.data.success) {
+                setBatches(response.data.data || []);
+            }
+        } catch (error) {
+            console.error("Error fetching batches:", error);
+        }
+    };
+
+    const fetchStudents = async (courseId: string) => {
+        try {
+            const response = await api.get(`/ems/students?course_id=${courseId}`);
+            if (response.data.success) {
+                setStudents(response.data.data || []);
+            }
+        } catch (error) {
+            console.error("Error fetching students:", error);
+        }
+    };
 
     const fetchCourses = async () => {
         try {
@@ -112,9 +163,26 @@ export default function TutorQuizzesPage() {
         e.preventDefault();
         try {
             setIsSubmitting(true);
+            const assignments = [];
+            if (formData.assignment_type === 'BATCH' && formData.selected_batch_id) {
+                assignments.push({ batch_id: parseInt(formData.selected_batch_id) });
+            } else if (formData.assignment_type === 'STUDENT' && formData.selected_student_id) {
+                assignments.push({ student_id: parseInt(formData.selected_student_id) });
+            }
+
+            const { assignment_type, selected_batch_id, selected_student_id, ...quizData } = formData;
+
+            // Clean payload: converted empty strings to null for dates
             const payload = {
-                ...formData,
+                ...quizData,
                 course_id: parseInt(formData.course_id),
+                total_marks: parseInt(formData.total_marks.toString()),
+                duration_minutes: parseInt(formData.duration_minutes.toString()),
+                max_attempts: parseInt(formData.max_attempts.toString()),
+                passing_marks: parseInt(formData.passing_marks.toString()),
+                start_datetime: (formData as any).start_datetime || null,
+                end_datetime: (formData as any).end_datetime || null,
+                assignments: assignments
             };
 
             const response = editingQuiz
@@ -143,15 +211,33 @@ export default function TutorQuizzesPage() {
     };
 
     const openEditModal = (quiz: Quiz) => {
-        setEditingQuiz(quiz);
+        // Find existing assignment
+        let type = 'ALL';
+        let bId = "";
+        let sId = "";
+
+        if (quiz.quiz_assignments && quiz.quiz_assignments.length > 0) {
+            const asg = quiz.quiz_assignments[0];
+            if (asg.batch_id) {
+                type = 'BATCH';
+                bId = asg.batch_id.toString();
+            } else if (asg.student_id) {
+                type = 'STUDENT';
+                sId = asg.student_id.toString();
+            }
+        }
+
         setFormData({
             quiz_title: quiz.quiz_title,
-            quiz_description: quiz.quiz_description,
+            quiz_description: quiz.quiz_description || "",
             course_id: quiz.course_id.toString(),
             total_marks: quiz.total_marks,
             duration_minutes: quiz.duration_minutes,
             max_attempts: quiz.max_attempts || 3,
             passing_marks: quiz.pass_marks || 40,
+            assignment_type: type,
+            selected_batch_id: bId,
+            selected_student_id: sId,
         });
         setShowModal(true);
     };
@@ -165,6 +251,9 @@ export default function TutorQuizzesPage() {
             duration_minutes: 60,
             max_attempts: 3,
             passing_marks: 40,
+            assignment_type: 'ALL',
+            selected_batch_id: "",
+            selected_student_id: "",
         });
     };
 
@@ -276,17 +365,55 @@ export default function TutorQuizzesPage() {
 
                                         <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
                                             <div className="flex items-center gap-2">
-                                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                <div>
-                                                    <p className="text-gray-500 text-xs">Total Marks</p>
-                                                    <p className="font-semibold">{quiz.total_marks}</p>
-                                                </div>
+                                                <Target className="h-4 w-4 text-gray-400" />
+                                                <span className="text-gray-600 font-semibold">{quiz.total_marks} marks</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <Clock className="h-4 w-4 text-orange-500" />
-                                                <div>
-                                                    <p className="text-gray-500 text-xs">Duration</p>
-                                                    <p className="font-semibold">{quiz.duration_minutes}m</p>
+                                                <Clock className="h-4 w-4 text-gray-400" />
+                                                <span className="text-gray-600 font-semibold">{quiz.duration_minutes}m</span>
+                                            </div>
+                                            <div className="col-span-2 text-gray-600 text-xs">
+                                                {quiz.total_questions || quiz.quiz_questions?.length || 0} questions • {quiz.max_attempts} attempts
+                                            </div>
+                                        </div>
+
+                                        {/* Assignments Section */}
+                                        <div className="space-y-3 pt-3 border-t border-gray-100 mb-4">
+                                            <div>
+                                                <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Target Students</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {quiz.quiz_assignments && quiz.quiz_assignments.length > 0 ? (
+                                                        quiz.quiz_assignments.map((asg, idx) => (
+                                                            <span key={idx} className="bg-purple-50 text-purple-700 text-[10px] px-2 py-0.5 rounded border border-purple-100 font-medium">
+                                                                {asg.batches ? `Batch: ${asg.batches.batch_name}` :
+                                                                    asg.students ? `Student: ${asg.students.first_name} ${asg.students.last_name || ''}` :
+                                                                        'Assigned'}
+                                                            </span>
+                                                        ))
+                                                    ) : quiz.courses?.enrollments && quiz.courses.enrollments.length > 0 ? (
+                                                        quiz.courses.enrollments.map((enr, idx) => (
+                                                            <span key={idx} className="bg-green-50 text-green-700 text-[10px] px-2 py-0.5 rounded border border-green-100 font-medium">
+                                                                {enr.students?.first_name} {enr.students?.last_name || ''}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-gray-400 text-[10px] italic">No students enrolled</span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Assigned Tutors</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {quiz.courses?.tutors && quiz.courses.tutors.length > 0 ? (
+                                                        quiz.courses.tutors.map((t, idx) => (
+                                                            <span key={idx} className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded border border-blue-100 font-medium">
+                                                                {t.employees ? `${t.employees.first_name} ${t.employees.last_name || ''}` : 'Unnamed Tutor'}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-gray-400 text-[10px] italic">No tutors assigned yet</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -408,6 +535,69 @@ export default function TutorQuizzesPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+
+                                    <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                        <div>
+                                            <Label>Assign To</Label>
+                                            <div className="flex gap-4 mt-2">
+                                                {['ALL', 'BATCH', 'STUDENT'].map((type) => (
+                                                    <label key={type} className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="assignment_type"
+                                                            value={type}
+                                                            checked={formData.assignment_type === type}
+                                                            onChange={(e) => setFormData({ ...formData, assignment_type: e.target.value })}
+                                                            className="text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <span className="text-sm font-medium text-gray-700 capitalize">
+                                                            {type === 'ALL' ? 'All Students' : type.toLowerCase()}
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {formData.assignment_type === 'BATCH' && (
+                                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                                                <Label htmlFor="batch_id">Select Batch *</Label>
+                                                <select
+                                                    id="batch_id"
+                                                    required
+                                                    className="w-full h-10 px-3 rounded-md border border-gray-300 mt-1"
+                                                    value={formData.selected_batch_id}
+                                                    onChange={(e) => setFormData({ ...formData, selected_batch_id: e.target.value })}
+                                                >
+                                                    <option value="">Choose a batch...</option>
+                                                    {batches.map((batch) => (
+                                                        <option key={batch.id} value={batch.id}>
+                                                            {batch.batch_name} ({batch.batch_code})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </motion.div>
+                                        )}
+
+                                        {formData.assignment_type === 'STUDENT' && (
+                                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                                                <Label htmlFor="student_id">Select Student *</Label>
+                                                <select
+                                                    id="student_id"
+                                                    required
+                                                    className="w-full h-10 px-3 rounded-md border border-gray-300 mt-1"
+                                                    value={formData.selected_student_id}
+                                                    onChange={(e) => setFormData({ ...formData, selected_student_id: e.target.value })}
+                                                >
+                                                    <option value="">Choose a student...</option>
+                                                    {students.map((student) => (
+                                                        <option key={student.id} value={student.id}>
+                                                            {student.first_name} {student.last_name} ({student.student_code})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </motion.div>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">

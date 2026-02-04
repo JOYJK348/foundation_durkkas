@@ -21,7 +21,6 @@ export async function GET(
         const quizId = parseInt(id);
         const scope = await getUserTenantScope(userId);
 
-        // Fetch questions with options using standard ems helpers
         const { data: questions, error } = await ems.quizQuestions()
             .select(`
                 *,
@@ -38,9 +37,7 @@ export async function GET(
             .order('question_order', { ascending: true });
 
         if (error) throw error;
-
         return successResponse(questions, 'Questions fetched successfully');
-
     } catch (error: any) {
         console.error('[Quiz Questions GET] Error:', error);
         return errorResponse(null, error.message || 'Failed to fetch questions');
@@ -51,74 +48,61 @@ export async function POST(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+    const fs = require('fs');
+    const logFile = 'e:\\ERP\\CLONE\\foundation_durkkas\\backend\\SAVE_DEBUG_FINAL.txt';
     try {
         const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
-
         const { id } = await context.params;
         const quizId = parseInt(id);
         const scope = await getUserTenantScope(userId);
         const { questions } = await req.json();
 
+        fs.appendFileSync(logFile, `\n[${new Date().toISOString()}] HIT POST: Quiz ${quizId}, Company ${scope.companyId}, Questions ${questions?.length}\n`);
+
         if (!questions || !Array.isArray(questions)) {
+            fs.appendFileSync(logFile, `ERROR: Invalid payload\n`);
             return errorResponse(null, 'Invalid questions data', 400);
         }
 
-        // 1. Delete existing questions for this quiz
-        await ems.quizQuestions()
-            .delete()
-            .eq('quiz_id', quizId)
-            .eq('company_id', scope.companyId!);
+        // 1. Delete
+        await ems.quizQuestions().delete().eq('quiz_id', quizId).eq('company_id', scope.companyId!);
 
-        // 2. Insert new questions
-        for (const question of questions) {
-            const { data: insertedQuestion, error: questionError } = await ems.quizQuestions()
-                .insert({
-                    company_id: scope.companyId,
-                    quiz_id: quizId,
-                    question_text: question.question_text,
-                    question_type: question.question_type || 'MCQ',
-                    question_order: question.question_order,
-                    marks: question.marks || 1,
-                    explanation: question.explanation || null,
-                    is_active: true,
-                } as any)
-                .select()
-                .single();
+        // 2. Insert
+        for (const q of questions) {
+            const { data: question, error: qErr } = await ems.quizQuestions().insert({
+                quiz_id: quizId,
+                company_id: scope.companyId,
+                question_text: q.question_text,
+                marks: q.marks || 1,
+                question_type: q.question_type || 'MCQ',
+                question_order: q.question_order || 1
+            }).select().single();
 
-            if (questionError) throw questionError;
-            if (!insertedQuestion) throw new Error('Failed to insert question');
+            if (qErr) {
+                fs.appendFileSync(logFile, `Q ERR: ${qErr.message}\n`);
+                continue;
+            }
 
-            // 3. Insert options for this question
-            if (question.options && question.options.length > 0) {
-                const optionsToInsert = question.options.map((opt: any) => ({
-                    question_id: (insertedQuestion as any).id,
-                    option_text: opt.option_text,
-                    option_order: opt.option_order,
-                    is_correct: opt.is_correct || false,
+            if (q.options?.length > 0) {
+                const opts = q.options.map((o: any, idx: number) => ({
+                    question_id: question.id,
+                    option_text: o.option_text,
+                    is_correct: !!o.is_correct,
+                    option_order: o.option_order || (idx + 1)
                 }));
-
-                const { error: optionsError } = await ems.quizOptions()
-                    .insert(optionsToInsert as any);
-
-                if (optionsError) throw optionsError;
+                const { error: oErr } = await ems.quizOptions().insert(opts);
+                if (oErr) fs.appendFileSync(logFile, `OPT ERR for Q ${question.id}: ${oErr.message}\n`);
             }
         }
 
-        // 4. Update quiz total_questions count
-        await ems.quizzes()
-            .update({ total_questions: questions.length } as any)
-            .eq('id', quizId)
-            .eq('company_id', scope.companyId!);
+        // 3. Update count
+        await ems.quizzes().update({ total_questions: questions.length } as any).eq('id', quizId);
 
-        return successResponse(
-            { quiz_id: quizId, questions_count: questions.length },
-            'Quiz questions saved successfully',
-            201
-        );
+        fs.appendFileSync(logFile, `SUCCESS\n`);
+        return successResponse({ quiz_id: quizId }, 'Saved');
 
     } catch (error: any) {
-        console.error('[Quiz Questions POST] Error:', error);
-        return errorResponse(null, error.message || 'Failed to save questions');
+        fs.appendFileSync(logFile, `GLOBAL ERROR: ${error.message}\n`);
+        return errorResponse(null, error.message);
     }
 }

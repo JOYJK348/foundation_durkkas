@@ -8,6 +8,8 @@ import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { ems, app_auth } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
@@ -97,8 +99,27 @@ export async function GET(req: NextRequest) {
             })
         );
 
-        // 3. Get Upcoming Quizzes
-        const { data: quizzes } = await ems.quizzes()
+        // 3. Get Upcoming Quizzes (Assignment-Aware)
+        const enrolledCourseIds = (enrollments as any[])?.map((e: any) => e.course?.id) || [];
+        const enrolledBatchIds = (enrollments as any[])?.map((e: any) => e.batch?.id).filter(Boolean) || [];
+
+        // Fetch specifically assigned quiz IDs
+        let assignmentQuery = ems.quizAssignments()
+            .select('quiz_id, batch_id, student_id')
+            .eq('company_id', companyId);
+
+        if (enrolledBatchIds.length > 0) {
+            assignmentQuery = assignmentQuery.or(`batch_id.in.(${enrolledBatchIds.join(',')}),student_id.eq.${studentId}`);
+        } else {
+            assignmentQuery = assignmentQuery.eq('student_id', studentId);
+        }
+
+        const { data: assignmentsList } = await assignmentQuery;
+
+        const specificAssignedIds = assignmentsList?.map(a => a.quiz_id) || [];
+
+        // Fetch all quizzes for the courses
+        const { data: rawQuizzes } = await ems.quizzes()
             .select(`
                 id,
                 quiz_title,
@@ -112,15 +133,29 @@ export async function GET(req: NextRequest) {
                 course:courses (
                     id,
                     course_name
+                ),
+                quiz_assignments!quiz_id (
+                    id,
+                    batch_id,
+                    student_id
                 )
             `)
-            .in('course_id', (enrollments as any[])?.map((e: any) => e.course?.id) || [])
+            .in('course_id', enrolledCourseIds)
             .eq('company_id', companyId)
             .eq('is_active', true)
             .is('deleted_at', null)
-            .gte('end_datetime', new Date().toISOString())
-            .order('start_datetime', { ascending: true })
-            .limit(10) as any;
+            .order('start_datetime', { ascending: true }) as any;
+
+        const now = new Date();
+        const quizzes = (rawQuizzes as any[] || []).filter(quiz => {
+            const isSpecificallyAssigned = specificAssignedIds.includes(quiz.id);
+            const hasNoSpecificAssignments = !quiz.quiz_assignments || quiz.quiz_assignments.length === 0;
+
+            // Time check: If end_datetime exists, must be in future/now
+            const inTime = !quiz.end_datetime || new Date(quiz.end_datetime) >= now;
+
+            return inTime && (isSpecificallyAssigned || hasNoSpecificAssignments);
+        });
 
         // Get quiz attempt status
         const quizzesWithStatus = await Promise.all(

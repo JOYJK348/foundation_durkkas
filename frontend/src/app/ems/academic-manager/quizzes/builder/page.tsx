@@ -22,6 +22,8 @@ import {
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { toast } from "sonner";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface QuizOption {
     id?: number;
@@ -173,20 +175,30 @@ export default function QuizBuilderPage() {
     };
 
     const saveQuiz = async () => {
+        if (questions.length === 0) {
+            toast.error("Please add at least one question before saving.");
+            return;
+        }
+
         try {
             setSaving(true);
+            console.log(`Saving ${questions.length} questions for quiz ${quizId}`);
+
             // Save all questions
             const response = await api.post(`/ems/quizzes/${quizId}/questions`, {
                 questions,
             });
 
             if (response.data.success) {
-                alert("Quiz saved successfully!");
+                toast.success(`Quiz saved successfully with ${questions.length} questions!`);
                 router.push("/ems/academic-manager/quizzes");
+            } else {
+                toast.error(response.data.message || "Failed to save questions");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving quiz:", error);
-            alert("Failed to save quiz");
+            const errMsg = error.response?.data?.message || error.message || "Failed to save quiz";
+            toast.error(`Error: ${errMsg}`);
         } finally {
             setSaving(false);
         }

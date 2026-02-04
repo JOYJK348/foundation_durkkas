@@ -29,22 +29,33 @@ export async function GET(req: NextRequest) {
             return errorResponse(null, 'Student record not found', 404);
         }
 
-        // Get student enrolled course IDs
+        // Get student enrolled course and batch IDs
         const { data: enrollments } = await ems.enrollments()
-            .select('course_id')
+            .select('course_id, batch_id')
             .eq('student_id', student.id)
             .eq('company_id', scope.companyId!)
             .eq('enrollment_status', 'ACTIVE')
             .is('deleted_at', null) as any;
 
-        const courseIds = (enrollments as any[])?.map((e: any) => e.course_id) || [];
+        const enrolledCourseIds = (enrollments as any[])?.map((e: any) => e.course_id) || [];
+        const enrolledBatches = (enrollments as any[])?.map((e: any) => e.batch_id).filter(Boolean) || [];
 
-        if (courseIds.length === 0) {
-            return successResponse([], 'No quizzes found (no enrolled courses)');
+        if (enrolledCourseIds.length === 0) {
+            return successResponse([], 'You are not enrolled in any courses yet.');
         }
 
-        // Get quizzes for these courses
-        const { data: quizzes, error } = await ems.quizzes()
+        // 1. Get Quiz IDs assigned to this student, their batches, OR course-wide
+        // (Quizzes assigned to the course with no specific batch/student are also included)
+        const { data: assignments } = await ems.quizAssignments()
+            .select('quiz_id, batch_id, student_id')
+            .or(`batch_id.in.(${enrolledBatches.join(',')}),student_id.eq.${student.id}`)
+            .eq('company_id', scope.companyId!);
+
+        const specificAssignedIds = assignments?.map(a => a.quiz_id) || [];
+
+        // 2. Fetch all quizzes for the student's courses
+        // We will then filter them: either they are in specificAssignedIds OR they have NO entries in quiz_assignments
+        const { data: allQuizzes, error } = await ems.quizzes()
             .select(`
                 id,
                 quiz_title,
@@ -60,13 +71,33 @@ export async function GET(req: NextRequest) {
                 course:courses (
                     id,
                     course_name
+                ),
+                quiz_assignments!quiz_id (
+                    id,
+                    batch_id,
+                    student_id
                 )
             `)
-            .in('course_id', courseIds)
+            .in('course_id', enrolledCourseIds)
             .eq('company_id', scope.companyId!)
             .eq('is_active', true)
             .is('deleted_at', null)
             .order('start_datetime', { ascending: true }) as any;
+
+        if (error) throw error;
+
+        // 3. Filter quizzes:
+        // - Is specifically assigned to this student/batch
+        // - OR has NO specific assignments (means it's for everyone in the course)
+        const quizzes = (allQuizzes as any[] || []).filter(quiz => {
+            const isSpecificallyAssigned = specificAssignedIds.includes(quiz.id);
+            const hasNoSpecificAssignments = !quiz.quiz_assignments || quiz.quiz_assignments.length === 0;
+            return isSpecificallyAssigned || hasNoSpecificAssignments;
+        });
+
+        if (quizzes.length === 0) {
+            return successResponse([], 'No quizzes available for your courses yet.');
+        }
 
         if (error) throw error;
 

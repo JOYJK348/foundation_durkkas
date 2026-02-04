@@ -21,6 +21,7 @@ import {
     Award,
     CalendarClock,
     Megaphone,
+    Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ export function AcademicManagerTopNavbar() {
         { label: "Quizzes", href: "/ems/academic-manager/quizzes", icon: ClipboardCheck },
         { label: "Live Classes", href: "/ems/academic-manager/live-classes", icon: Video },
         { label: "Attendance", href: "/ems/academic-manager/attendance", icon: Calendar },
+        { label: "Materials", href: "/ems/academic-manager/materials", icon: Folder }, // Added
         { label: "Analytics", href: "/ems/academic-manager/analytics", icon: TrendingUp },
     ];
 

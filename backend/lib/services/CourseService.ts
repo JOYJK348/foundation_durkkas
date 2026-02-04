@@ -150,6 +150,10 @@ export class CourseService {
             data.course_modules = data.course_modules.map((module: any, mIdx: number) => {
                 const moduleNumber = mIdx + 1;
 
+                // COMPUTE VISIBILITY FOR MODULE
+                // Default to ENROLLED if active, PRIVATE if not. (Modules don't support PUBLIC yet)
+                module.visibility = module.is_active ? 'ENROLLED' : 'PRIVATE';
+
                 // Sort lessons within module
                 const lessons = (module.lessons || []).sort((a: any, b: any) => (a.lesson_order || 0) - (b.lesson_order || 0));
 
@@ -158,7 +162,21 @@ export class CourseService {
                     module_number: moduleNumber,
                     lessons: lessons.map((lesson: any, lIdx: number) => {
                         const lessonNumber = `${moduleNumber}.${lIdx + 1}`;
+
+                        // COMPUTE VISIBILITY FOR LESSON
+                        if (!lesson.is_active) lesson.visibility = 'PRIVATE';
+                        else if (lesson.is_preview) lesson.visibility = 'PUBLIC';
+                        else lesson.visibility = 'ENROLLED';
+
                         const isLocked = emsProfile?.profileType === 'student' && lesson.visibility === 'ENROLLED' && !isEnrolled;
+
+                        // Process materials visibility
+                        if (lesson.course_materials) {
+                            lesson.course_materials = lesson.course_materials.map((mat: any) => ({
+                                ...mat,
+                                visibility: mat.is_active ? 'ENROLLED' : 'PRIVATE' // Materials simplified to active/inactive
+                            }));
+                        }
 
                         return {
                             ...lesson,
@@ -174,10 +192,10 @@ export class CourseService {
             // If student, filter out PRIVATE modules/lessons
             if (emsProfile?.profileType === 'student') {
                 data.course_modules = data.course_modules
-                    .filter((m: any) => m.visibility !== 'PRIVATE' && m.is_active)
+                    .filter((m: any) => m.visibility !== 'PRIVATE') // Use computed visibility
                     .map((m: any) => ({
                         ...m,
-                        lessons: m.lessons.filter((l: any) => l.visibility !== 'PRIVATE' && l.is_active)
+                        lessons: m.lessons.filter((l: any) => l.visibility !== 'PRIVATE') // Use computed visibility
                     }));
             }
         }
@@ -192,22 +210,43 @@ export class CourseService {
         companyId: number
     ) {
         let table;
-        if (type === 'module') table = ems.courseModules();
-        else if (type === 'lesson') table = ems.lessons();
-        else table = ems.courseMaterials();
+        const updates: any = {};
+
+        if (type === 'module') {
+            table = ems.courseModules();
+            // Modules: PRIVATE -> is_active=false, Others -> is_active=true
+            updates.is_active = visibility !== 'PRIVATE';
+            // Modules don't support preview/public distinction in schema yet
+        }
+        else if (type === 'lesson') {
+            table = ems.lessons();
+            // Lessons: PRIVATE -> is_active=false
+            // ENROLLED -> is_active=true, is_preview=false
+            // PUBLIC -> is_active=true, is_preview=true
+            updates.is_active = visibility !== 'PRIVATE';
+            updates.is_preview = visibility === 'PUBLIC';
+        }
+        else {
+            table = ems.courseMaterials();
+            // Materials: PRIVATE -> is_active=false, Others -> is_active=true
+            updates.is_active = visibility !== 'PRIVATE';
+            // Note: course_materials in V2 schema doesn't have is_preview or is_published
+        }
 
         const { data, error } = await table
-            .update({
-                visibility,
-                is_published: visibility !== 'PRIVATE'
-            } as any)
+            .update(updates)
             .eq('id', id)
             .eq('company_id', companyId)
             .select()
             .single();
 
         if (error) throw error;
-        return data;
+
+        // Return with virtual visibility property for frontend compatibility
+        return {
+            ...data,
+            visibility // Pass back what was requested so UI updates correctly
+        };
     }
 
     static async createCourse(courseData: Partial<Course>) {
@@ -307,7 +346,13 @@ export class CourseService {
     // 2. MODULE & LESSON MANAGEMENT
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    static async createModule(moduleData: Partial<CourseModule>) {
+    static async createModule(moduleData: any) {
+        // Map visibility to is_active
+        if (moduleData.visibility) {
+            moduleData.is_active = moduleData.visibility !== 'PRIVATE';
+            delete moduleData.visibility;
+        }
+
         const { data, error } = await ems.courseModules()
             .insert(moduleData)
             .select()
@@ -317,7 +362,14 @@ export class CourseService {
         return data as CourseModule;
     }
 
-    static async createLesson(lessonData: Partial<Lesson>) {
+    static async createLesson(lessonData: any) {
+        // Map visibility
+        if (lessonData.visibility) {
+            lessonData.is_active = lessonData.visibility !== 'PRIVATE';
+            lessonData.is_preview = lessonData.visibility === 'PUBLIC';
+            delete lessonData.visibility;
+        }
+
         const { data, error } = await ems.lessons()
             .insert(lessonData)
             .select()
@@ -339,12 +391,20 @@ export class CourseService {
     }
 
     static async createMaterial(materialData: any) {
+        // Map visibility
+        if (materialData.visibility) {
+            materialData.is_active = materialData.visibility !== 'PRIVATE';
+            delete materialData.visibility;
+        }
+
+        // Ensure we don't send is_published if not in schema
+        delete materialData.is_published;
+
+        // Ensure defaults
+        if (materialData.is_active === undefined) materialData.is_active = true;
+
         const { data, error } = await ems.courseMaterials()
-            .insert({
-                ...materialData,
-                is_active: true,
-                is_published: materialData.is_published ?? false
-            })
+            .insert(materialData)
             .select()
             .single();
 

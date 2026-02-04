@@ -650,6 +650,28 @@ export interface Assignment {
     updated_at: string;
 }
 
+export interface QuizQuestion {
+    id: number;
+    company_id: number;
+    quiz_id: number;
+    question_text: string;
+    question_type: 'MCQ' | 'TRUE_FALSE' | 'ESSAY';
+    options?: any;
+    correct_answer?: string;
+    marks: number;
+    question_order: number;
+}
+
+export interface QuizAssignment {
+    id: number;
+    company_id: number;
+    quiz_id: number;
+    batch_id?: number;
+    student_id?: number;
+    assigned_by: number;
+    created_at: string;
+}
+
 export interface LiveClass {
     id: number;
     company_id: number;
@@ -807,6 +829,8 @@ export interface Database {
             attendance_sessions: TableDefinition<AttendanceSession>;
             attendance_records: TableDefinition<AttendanceRecord>;
             quiz_attempts: TableDefinition<QuizAttempt>;
+            quiz_questions: TableDefinition<QuizQuestion>;
+            quiz_assignments: TableDefinition<QuizAssignment>;
         };
     };
     finance: {

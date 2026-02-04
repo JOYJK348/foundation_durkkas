@@ -1,0 +1,10 @@
+[2026-02-04T08:45:15.172Z] SUBMIT ERROR: Could not find the 'submitted_at' column of 'quiz_attempts' in the schema cache
+Stack: undefined
+[2026-02-04T09:09:55.837Z] SUBMIT ERROR: Could not find the 'submitted_at' column of 'quiz_attempts' in the schema cache
+Stack: undefined
+[2026-02-04T09:10:11.512Z] SUBMIT ERROR: Could not find the 'submitted_at' column of 'quiz_attempts' in the schema cache
+Stack: undefined
+[2026-02-04T09:12:02.381Z] SUBMIT ERROR: Could not find the 'is_graded' column of 'quiz_attempts' in the schema cache
+Stack: undefined
+[2026-02-04T09:12:43.146Z] SUBMIT ERROR: Could not find the 'is_graded' column of 'quiz_attempts' in the schema cache
+Stack: undefined

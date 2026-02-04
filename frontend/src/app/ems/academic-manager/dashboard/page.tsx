@@ -16,6 +16,7 @@ import {
     ArrowRight,
     Building2,
     Loader2,
+    Folder,
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
@@ -143,6 +144,7 @@ export default function AcademicManagerDashboard() {
         { label: "Create Batch", icon: Calendar, href: "/ems/academic-manager/batches", color: "blue" },
         { label: "Assign Tutor", icon: GraduationCap, href: "/ems/academic-manager/tutors", color: "green" },
         { label: "Enroll Student", icon: Users, href: "/ems/academic-manager/students", color: "orange" },
+        { label: "Upload Material", icon: Folder, href: "/ems/academic-manager/materials", color: "pink" }, // Added
     ];
 
     return (

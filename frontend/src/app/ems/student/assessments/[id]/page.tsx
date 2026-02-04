@@ -396,7 +396,7 @@ export default function QuizTakePage() {
                                 <p className="text-base text-gray-900 mt-2">{question.question_text}</p>
                             </CardHeader>
                             <CardContent>
-                                {question.question_type === 'MULTIPLE_CHOICE' && (
+                                {(question.question_type === 'MULTIPLE_CHOICE' || question.question_type === 'MCQ') && (
                                     <div className="space-y-3">
                                         {question.options.map((option, optIndex) => (
                                             <label

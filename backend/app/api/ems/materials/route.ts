@@ -46,8 +46,17 @@ export async function GET(req: NextRequest) {
 
         const courseId = searchParams.get('course_id');
 
-        let query = ems.courseMaterials()
-            .select('*')
+        let query = (ems as any).supabase
+            .schema('ems')
+            .from('course_materials')
+            .select(`
+                *,
+                course:courses (
+                    id,
+                    course_name,
+                    course_code
+                )
+            `)
             .eq('company_id', scope.companyId!)
             .eq('is_active', true);
 
