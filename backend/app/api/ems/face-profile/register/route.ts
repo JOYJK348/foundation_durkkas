@@ -6,15 +6,6 @@ import { ems } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-// Explicitly allow larger payloads for face images
-export const config = {
-    api: {
-        bodyParser: {
-            sizeLimit: '10mb',
-        },
-    },
-};
-
 export async function POST(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);

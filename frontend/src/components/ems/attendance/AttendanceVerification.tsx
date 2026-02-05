@@ -6,8 +6,13 @@ import { Camera, MapPin, ShieldCheck, RefreshCw, AlertCircle, CheckCircle2, User
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { FaceRegistration } from "./FaceRegistration";
+import dynamic from "next/dynamic";
 import * as faceapi from "@vladmandic/face-api";
+
+const FaceRegistration = dynamic(
+    () => import("./FaceRegistration").then(mod => mod.FaceRegistration),
+    { ssr: false }
+);
 
 interface AttendanceVerificationProps {
     sessions: any[]; // Array of all active sessions
