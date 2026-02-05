@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import { MultiTutorModal } from "@/components/ems/multi-tutor-modal";
 import { DeleteCourseModal } from "@/components/ems/delete-course-modal";
+import { EnrollStudentModal } from "@/components/ems/enroll-student-modal";
 
 interface Course {
     id: number;
@@ -67,6 +68,7 @@ export default function CoursesPage() {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [showAssignTutorModal, setShowAssignTutorModal] = useState(false);
+    const [showEnrollModal, setShowEnrollModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -394,6 +396,19 @@ export default function CoursesPage() {
                                                 {course.tutor ? 'Manage Tutors' : 'Assign Tutors'}
                                             </Button>
 
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="w-full border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 hover:border-green-300 font-semibold"
+                                                onClick={() => {
+                                                    setSelectedCourse(course);
+                                                    setShowEnrollModal(true);
+                                                }}
+                                            >
+                                                <UserPlus className="h-4 w-4 mr-2" />
+                                                Manage Students
+                                            </Button>
+
                                             {/* Other Actions */}
                                             <div className="flex gap-2">
                                                 <Link href={`/ems/academic-manager/courses/${course.id}`} className="flex-1">
@@ -593,6 +608,22 @@ export default function CoursesPage() {
                 }}
                 courseId={selectedCourse?.id || 0}
                 courseName={selectedCourse?.course_name || ''}
+                onSuccess={() => {
+                    fetchCourses();
+                    fetchCourseMappings();
+                }}
+            />
+
+            {/* Enroll Student Modal */}
+            <EnrollStudentModal
+                isOpen={showEnrollModal && !!selectedCourse}
+                onClose={() => {
+                    setShowEnrollModal(false);
+                    setSelectedCourse(null);
+                }}
+                courseId={selectedCourse?.id || 0}
+                courseName={selectedCourse?.course_name || ''}
+                enrolledStudentIds={(selectedCourse?.students || []).map(s => s.id)}
                 onSuccess={() => {
                     fetchCourses();
                     fetchCourseMappings();

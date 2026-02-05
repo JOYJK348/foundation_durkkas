@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Mail, Eye, EyeOff, Building2, Server } from "lucide-react";
@@ -99,25 +99,38 @@ export default function LoginPage() {
     };
 
     const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        console.log("🚀 [Login] Submit triggered");
         setIsLoading(true);
         setError("");
 
         try {
+            console.log("📡 [Login] Sending request to:", api.defaults.baseURL + '/auth/login');
             // Use the centralized api instance instead of hardcoded fetch
             const response = await api.post('/auth/login', { email, password });
             const data = response.data;
+            console.log("📥 [Login] Response received:", data.success ? "Success" : "Failure");
+
+            if (!data.success) {
+                throw new Error(data.error?.message || "Login failed - check credentials");
+            }
 
             const { user, tokens } = data.data;
-            if (!user) throw new Error("Invalid response from server");
+            if (!user || !tokens) throw new Error("Invalid response from server - missing data");
 
-            const roles = user.roles || [];
-            // Roles are pre-sorted by level descending in the backend lib
-            const primaryRole = roles[0] || { name: "GUEST", level: 0 };
+            const roles = user.roles || user.user_roles || [];
+            // Handle different roles structures
+            const primaryRole = Array.isArray(roles) && roles.length > 0
+                ? (roles[0].roles || roles[0])
+                : { name: "GUEST", level: 0 };
 
-            // ========================================
-            // BLOCK STUDENT LOGIN FROM MAIN PAGE
-            // ========================================
+            console.log("👤 [Login] Authenticated as:", user.email, "Role:", primaryRole.name);
+
+            // Double check student restriction
             if (primaryRole.name === "STUDENT") {
                 setError("Students must login at /ems/student/login");
                 toast.error("Wrong Login Page", {
@@ -127,10 +140,16 @@ export default function LoginPage() {
                 return;
             }
 
-            completeLogin(user, tokens, primaryRole);
+            completeLogin(user, tokens, {
+                ...primaryRole,
+                company_id: roles[0]?.company_id,
+                branch_id: roles[0]?.branch_id
+            });
         } catch (err: any) {
-            setError(err.message || "An error occurred");
-            toast.error("Login Failed", { description: err.message });
+            console.error("❌ [Login] Error:", err.message, err.response?.data);
+            const errorMessage = err.response?.data?.error?.message || err.message || "An unexpected error occurred during login";
+            setError(errorMessage);
+            toast.error("Login Failed", { description: errorMessage });
         } finally {
             setIsLoading(false);
         }
@@ -157,7 +176,11 @@ export default function LoginPage() {
                         <p className="text-muted-foreground text-sm mt-1">Please enter your credentials to access your workspace.</p>
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-4">
+                    <form
+                        method="POST"
+                        onSubmit={handleLogin}
+                        className="space-y-4"
+                    >
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-primary/70 ml-1">WORK EMAIL</label>
                             <div className="relative group">

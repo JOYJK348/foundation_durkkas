@@ -19,6 +19,7 @@ import {
     Play,
     Loader2,
     Video,
+    Folder,
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
@@ -99,6 +100,7 @@ export default function StudentDashboard() {
 
     const quickActions = [
         { label: "My Courses", icon: BookOpen, href: "/ems/student/courses", color: "blue" },
+        { label: "My Materials", icon: Folder, href: "/ems/student/materials", color: "indigo" },
         { label: "Assignments", icon: FileText, href: "/ems/student/assignments", color: "green" },
         { label: "Assessments", icon: ClipboardCheck, href: "/ems/student/assessments", color: "purple" },
         { label: "Doubts", icon: MessageSquare, href: "/ems/student/doubts", color: "red" },

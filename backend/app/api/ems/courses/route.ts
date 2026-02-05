@@ -16,16 +16,20 @@ export async function GET(req: NextRequest) {
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         const scope = await getUserTenantScope(userId);
+        console.log(`🔍 [EMS Courses API] User: ${userId}, Company Scope: ${scope.companyId}, Role: ${scope.roleName}`);
 
-        // Pass EMS profile for role-based filtering
+        // Get courses using CourseService which now uses applyTenantFilter principles
         const data = await CourseService.getAllCourses(
             scope.companyId!,
             scope.emsProfile
         );
 
+        console.log(`✅ [EMS Courses API] Fetched ${data?.length || 0} courses for Company ${scope.companyId}`);
+
         return successResponse(data, `Courses fetched successfully (${data?.length || 0} records)`);
 
     } catch (error: any) {
+        console.error('❌ [EMS Courses API] Error:', error);
         return errorResponse(null, error.message || 'Failed to fetch courses');
     }
 }

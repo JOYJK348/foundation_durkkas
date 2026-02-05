@@ -18,10 +18,16 @@ export class CourseService {
         companyId: number,
         emsProfile?: { profileType: 'tutor' | 'student' | 'manager' | null; profileId: number | null }
     ) {
+        console.log(`📡 [CourseService] Fetching courses for Company: ${companyId}, Profile:`, emsProfile);
+
         let query = ems.courses()
             .select('*')
-            .eq('company_id', companyId)
             .is('deleted_at', null);
+
+        // Only filter by company if one is provided (Platform admins can see all if not scoped)
+        if (companyId) {
+            query = query.eq('company_id', companyId);
+        }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // ROLE-BASED FILTERING
@@ -76,7 +82,12 @@ export class CourseService {
 
         const { data, error } = await query.order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ [CourseService] Error fetching courses:', error);
+            throw error;
+        }
+
+        console.log(`✅ [CourseService] Found ${data?.length || 0} courses`);
         return data as Course[];
     }
 
