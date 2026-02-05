@@ -4,6 +4,7 @@ import { getUserTenantScope } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { courseSchema } from '@/lib/validations/ems';
 import { CourseService } from '@/lib/services/CourseService';
+import { ems } from '@/lib/supabase';
 
 export async function GET(
     req: NextRequest,
@@ -16,7 +17,7 @@ export async function GET(
         const scope = await getUserTenantScope(userId);
         const courseId = parseInt(params.id);
 
-        const course = await CourseService.getCourseDetails(
+        let course = await CourseService.getCourseDetails(
             courseId,
             scope.companyId!,
             scope.emsProfile
@@ -24,6 +25,38 @@ export async function GET(
 
         if (!course) {
             return errorResponse(null, 'Course not found', 404);
+        }
+
+        const { searchParams } = new URL(req.url);
+        const includeActiveSession = searchParams.get('include_active_session') === 'true';
+
+        if (includeActiveSession && scope.emsProfile?.profileType === 'student') {
+            // Find student's enrollment for this course to get batch_id
+            const { data: enrollment } = await ems.enrollments()
+                .select('batch_id')
+                .eq('student_id', scope.emsProfile.profileId!)
+                .eq('course_id', courseId)
+                .is('deleted_at', null)
+                .single() as any;
+
+            if (enrollment?.batch_id) {
+                const today = new Date().toISOString().split('T')[0];
+                const now = new Date().toISOString();
+
+                // Find active session for today and batch
+                const { data: session } = await ems.attendanceSessions()
+                    .select('*')
+                    .eq('batch_id', enrollment.batch_id)
+                    .eq('session_date', today)
+                    .in('status', ['OPEN', 'SCHEDULED']) as any;
+
+                // Handle both single object and array return if any
+                const activeSession = Array.isArray(session) ? session[0] : session;
+
+                if (activeSession) {
+                    (course as any).active_session = activeSession;
+                }
+            }
         }
 
         return successResponse(course, 'Course fetched successfully');

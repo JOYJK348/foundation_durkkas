@@ -20,11 +20,17 @@ import {
     Loader2,
     Video,
     Folder,
+    Camera,
+    ShieldCheck,
+    MapPin,
+    AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
+import { AttendanceVerification } from "@/components/ems/attendance/AttendanceVerification";
+import { AnimatePresence } from "framer-motion";
 
 interface DashboardData {
     student: {
@@ -44,11 +50,13 @@ interface DashboardData {
     pending_assignments: any[];
     upcoming_quizzes: any[];
     upcoming_live_classes: any[];
+    active_attendance_sessions: any[];
 }
 
 export default function StudentDashboard() {
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
     const { user } = useAuthStore();
 
     useEffect(() => {
@@ -113,6 +121,50 @@ export default function StudentDashboard() {
             <TopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                {/* Attendance Alerts - Unified Entry Point */}
+                {dashboardData.active_attendance_sessions?.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-8"
+                    >
+                        <Card className="border-0 shadow-2xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white relative group">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:scale-125 transition-transform">
+                                <ShieldCheck className="h-32 w-32" />
+                            </div>
+                            <CardContent className="p-0">
+                                <div className="p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-8 relative z-10">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-[2rem] flex items-center justify-center shadow-2xl shadow-black/20 border border-white/30">
+                                            <Camera className="h-10 w-10 text-white animate-pulse" />
+                                        </div>
+                                        <div>
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-400 text-[10px] font-black tracking-widest uppercase mb-3 rounded-full text-blue-900 shadow-sm">
+                                                <span className="w-2 h-2 bg-blue-900 rounded-full animate-ping" />
+                                                Live Now
+                                            </div>
+                                            <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase leading-none">
+                                                Attendance Open
+                                            </h2>
+                                            <p className="text-blue-100/90 text-sm font-bold mt-2 flex items-center gap-2">
+                                                <AlertCircle className="h-4 w-4 text-white" />
+                                                {dashboardData.active_attendance_sessions.length} sessions available for marking
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => setIsAttendanceModalOpen(true)}
+                                        className="bg-white text-blue-700 hover:bg-gray-100 h-16 px-10 rounded-3xl font-black text-xl shadow-2xl flex items-center gap-3 w-full sm:w-auto shrink-0 group-hover:scale-105 transition-all"
+                                    >
+                                        <ShieldCheck className="h-6 w-6" />
+                                        PUNCH NOW
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
+
                 {/* Welcome Section */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
@@ -345,6 +397,20 @@ export default function StudentDashboard() {
             </div>
 
             <BottomNav />
+
+            {/* Attendance Verification Modal */}
+            <AnimatePresence>
+                {isAttendanceModalOpen && (
+                    <AttendanceVerification
+                        sessions={dashboardData.active_attendance_sessions}
+                        onSuccess={() => {
+                            setIsAttendanceModalOpen(false);
+                            fetchDashboardData();
+                        }}
+                        onClose={() => setIsAttendanceModalOpen(false)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

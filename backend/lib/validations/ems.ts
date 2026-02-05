@@ -237,5 +237,13 @@ export const attendanceRecordSchema = z.object({
     check_in_time: z.string().optional().nullable(),
     check_out_time: z.string().optional().nullable(),
     remarks: z.string().optional().nullable(),
+
+    // Verification Fields
+    latitude: z.coerce.number().optional().nullable(),
+    longitude: z.coerce.number().optional().nullable(),
+    location_accuracy: z.coerce.number().optional().nullable(),
+    device_id: z.string().optional().nullable(),
+    ip_address: z.string().optional().nullable(),
+    verification_method: z.string().optional().nullable(), // MANUAL, FACE, QR, GEOFENCE
 });
 

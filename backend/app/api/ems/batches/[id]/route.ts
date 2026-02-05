@@ -14,15 +14,21 @@ export async function GET(
 
         const scope = await getUserTenantScope(userId);
         const batchId = parseInt(params.id);
+        const { searchParams } = new URL(req.url);
+        const details = searchParams.get('details') === 'true';
 
-        const batch = await BatchService.getBatchById(batchId, scope.companyId!);
+        let batch;
+        if (details) {
+            batch = await BatchService.getBatchDetails(batchId);
+        } else {
+            batch = await BatchService.getBatchById(batchId, scope.companyId!);
+        }
 
         if (!batch) {
             return errorResponse(null, 'Batch not found', 404);
         }
 
         return successResponse(batch, 'Batch fetched successfully');
-
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to fetch batch');
     }

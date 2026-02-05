@@ -199,7 +199,29 @@ export async function GET(req: NextRequest) {
             .order('start_time', { ascending: true })
             .limit(5) as any;
 
-        // 5. Calculate Overall Stats
+        // 5. Get Active Attendance Sessions for today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const batchIds = (enrollments as any[])?.map((e: any) => e.batch?.id).filter(Boolean) || [];
+
+        let activeSessions: any[] = [];
+        if (batchIds.length > 0) {
+            const { data: sessions } = await ems.attendanceSessions()
+                .select(`
+                    id,
+                    session_date,
+                    session_type,
+                    status,
+                    course:courses(id, course_name, course_code),
+                    batch:batches(id, batch_name)
+                `)
+                .in('batch_id', batchIds)
+                .eq('session_date', todayStr)
+                .in('status', ['OPEN', 'SCHEDULED']) as any;
+
+            activeSessions = sessions || [];
+        }
+
+        // 6. Calculate Overall Stats
         const stats = {
             total_courses: (enrollments as any[])?.length || 0,
             active_assignments: assignmentsWithStatus?.filter(a => a.status === 'NOT_SUBMITTED').length || 0,
@@ -219,7 +241,8 @@ export async function GET(req: NextRequest) {
             enrolled_courses: enrollments || [],
             pending_assignments: assignmentsWithStatus || [],
             upcoming_quizzes: quizzesWithStatus || [],
-            upcoming_live_classes: liveClasses || []
+            upcoming_live_classes: liveClasses || [],
+            active_attendance_sessions: activeSessions
         }, 'Student dashboard data fetched successfully');
 
     } catch (error: any) {

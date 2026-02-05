@@ -13,32 +13,61 @@ import {
     Clock,
     ChevronLeft,
     ChevronRight,
+    Loader2,
+    RefreshCw
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import api from "@/lib/api";
 
 export default function AttendancePage() {
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
+    const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+    const [stats, setStats] = useState({
+        total: 0,
+        present: 0,
+        absent: 0,
+        percentage: 0
+    });
 
-    const attendanceRecords = [
-        { date: "2024-12-20", status: "present", session: "Web Development - Module 3" },
-        { date: "2024-12-18", status: "present", session: "Data Science - Module 2" },
-        { date: "2024-12-15", status: "absent", session: "Web Development - Module 2" },
-        { date: "2024-12-13", status: "present", session: "Data Science - Module 1" },
-    ];
+    useEffect(() => {
+        setMounted(true);
+        fetchAttendance();
+    }, []);
 
-    const stats = {
-        total: 20,
-        present: 17,
-        absent: 3,
-        percentage: 85,
+    const fetchAttendance = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get("/ems/attendance?mode=student-history");
+            if (response.data.success) {
+                const data = response.data.data || [];
+                setAttendanceRecords(data);
+
+                const present = data.filter((r: any) => r.status === 'PRESENT').length;
+                const total = data.length || 0;
+                setStats({
+                    total,
+                    present,
+                    absent: total - present,
+                    percentage: total > 0 ? Math.round((present / total) * 100) : 0
+                });
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            toast.error("Failed to load attendance history");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleMarkAttendance = () => {
-        toast.success("Attendance Marked", {
-            description: "Your attendance has been recorded successfully",
-        });
-    };
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -56,18 +85,18 @@ export default function AttendancePage() {
 
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
                     <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-gray-900">Attendance</h1>
-                    <p className="text-gray-600">Track your class attendance</p>
+                    <p className="text-gray-600">Track your class attendance across all courses</p>
                 </motion.div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
                     <Card className="border-0 shadow-lg">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 mb-1">Total Classes</p>
+                                    <p className="text-sm text-gray-600 mb-1 font-medium text-[10px] uppercase tracking-wider">Total Classes</p>
                                     <p className="text-3xl font-bold">{stats.total}</p>
                                 </div>
-                                <Calendar className="h-8 w-8 text-blue-600" />
+                                <Calendar className="h-8 w-8 text-blue-100 fill-blue-50" />
                             </div>
                         </CardContent>
                     </Card>
@@ -75,10 +104,10 @@ export default function AttendancePage() {
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 mb-1">Present</p>
+                                    <p className="text-sm text-gray-600 mb-1 font-medium text-[10px] uppercase tracking-wider">Present</p>
                                     <p className="text-3xl font-bold text-green-600">{stats.present}</p>
                                 </div>
-                                <CheckCircle2 className="h-8 w-8 text-green-600" />
+                                <CheckCircle2 className="h-8 w-8 text-green-100 fill-green-50" />
                             </div>
                         </CardContent>
                     </Card>
@@ -86,10 +115,10 @@ export default function AttendancePage() {
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 mb-1">Absent</p>
-                                    <p className="text-3xl font-bold text-red-600">{stats.absent}</p>
+                                    <p className="text-sm text-gray-600 mb-1 font-medium text-[10px] uppercase tracking-wider">Absent / Partial</p>
+                                    <p className="text-3xl font-bold text-orange-600">{stats.absent}</p>
                                 </div>
-                                <XCircle className="h-8 w-8 text-red-600" />
+                                <XCircle className="h-8 w-8 text-orange-100 fill-orange-50" />
                             </div>
                         </CardContent>
                     </Card>
@@ -97,81 +126,97 @@ export default function AttendancePage() {
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 mb-1">Percentage</p>
+                                    <p className="text-sm text-gray-600 mb-1 font-medium text-[10px] uppercase tracking-wider">Attendance %</p>
                                     <p className="text-3xl font-bold text-blue-600">{stats.percentage}%</p>
                                 </div>
-                                <Clock className="h-8 w-8 text-blue-600" />
+                                <div className="p-3 bg-blue-50 rounded-2xl">
+                                    <Clock className="h-6 w-6 text-blue-600" />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                <Card className="border-0 shadow-lg mb-8">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold">Attendance Calendar</h2>
-                            <div className="flex items-center gap-2">
-                                <Button variant="outline" size="icon">
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <span className="font-semibold">
-                                    {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                                </span>
-                                <Button variant="outline" size="icon">
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-2xl font-bold">Recent Activity</h2>
+                            <Button variant="outline" size="sm" onClick={fetchAttendance} className="gap-2">
+                                <RefreshCw className="h-4 w-4" /> Refresh
+                            </Button>
                         </div>
-                        <div className="text-center text-gray-500 py-8">
-                            <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                            <p>Calendar view coming soon</p>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <div>
-                    <h2 className="text-2xl font-bold mb-4">Recent Attendance</h2>
-                    <div className="space-y-3">
-                        {attendanceRecords.map((record, index) => (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                            >
-                                <Card className="border-0 shadow-md hover:shadow-lg transition-all">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${record.status === "present" ? "bg-green-100" : "bg-red-100"
-                                                    }`}>
-                                                    {record.status === "present" ? (
-                                                        <CheckCircle2 className="h-6 w-6 text-green-600" />
-                                                    ) : (
-                                                        <XCircle className="h-6 w-6 text-red-600" />
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-semibold text-gray-900">{record.session}</h3>
-                                                    <p className="text-sm text-gray-600">{new Date(record.date).toLocaleDateString('en-US', {
-                                                        weekday: 'long',
-                                                        year: 'numeric',
-                                                        month: 'long',
-                                                        day: 'numeric'
-                                                    })}</p>
-                                                </div>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${record.status === "present"
-                                                    ? "bg-green-100 text-green-700"
-                                                    : "bg-red-100 text-red-700"
-                                                }`}>
-                                                {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                                            </span>
-                                        </div>
+                        <div className="space-y-3">
+                            {attendanceRecords.length === 0 ? (
+                                <Card className="border-0 shadow-md">
+                                    <CardContent className="p-12 text-center text-gray-500">
+                                        <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                                        <p>No attendance records found</p>
                                     </CardContent>
                                 </Card>
-                            </motion.div>
-                        ))}
+                            ) : (
+                                attendanceRecords.map((record, index) => (
+                                    <motion.div
+                                        key={record.id}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                    >
+                                        <Card className="border-0 shadow-md hover:shadow-lg transition-all">
+                                            <CardContent className="p-5">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${record.status === "PRESENT" ? "bg-green-50 text-green-600" : "bg-orange-50 text-orange-600"}`}>
+                                                            {record.status === "PRESENT" ? (
+                                                                <CheckCircle2 className="h-6 w-6" />
+                                                            ) : (
+                                                                <Clock className="h-6 w-6" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-bold text-gray-900">{record.session?.course?.course_name || 'Class Session'}</h3>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <p className="text-xs text-gray-500">{mounted ? new Date(record.session?.session_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</p>
+                                                                <span className="text-gray-300">•</span>
+                                                                <p className="text-xs text-gray-500">{record.session?.session_type}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-tighter ${record.status === "PRESENT" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                                                            {record.status}
+                                                        </span>
+                                                        <p className="text-[10px] text-gray-400 mt-2 font-medium">Verification: {record.verification_status}</p>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </motion.div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <Card className="border-0 shadow-lg bg-blue-600 text-white p-2">
+                            <CardContent className="p-6">
+                                <h3 className="text-lg font-bold mb-2">Smart Attendance</h3>
+                                <p className="text-blue-100 text-sm mb-6">Attendance is now verified using Face Recognition and GPS. Make sure you are within the campus zone during class hours.</p>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl">
+                                        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                                            <MapPin className="h-4 w-4" />
+                                        </div>
+                                        <span className="text-xs font-medium">Campus GPS Verified</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl">
+                                        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                                            <Camera className="h-4 w-4" />
+                                        </div>
+                                        <span className="text-xs font-medium">Face ID Recognition</span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             </div>
@@ -180,3 +225,6 @@ export default function AttendancePage() {
         </div>
     );
 }
+
+// Add MapPin and Camera to imports
+import { MapPin, Camera } from "lucide-react";

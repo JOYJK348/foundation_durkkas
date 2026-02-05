@@ -1,0 +1,80 @@
+[2026-02-05T13:07:51.221Z] Getting Batch Attendance Summary - Input: {
+  "companyId": 13,
+  "batchId": 9,
+  "sessionId": 1
+}
+[2026-02-05T13:07:52.344Z] Getting Batch Attendance Summary - Input: {
+  "companyId": 13,
+  "batchId": 9,
+  "sessionId": 1
+}
+[2026-02-05T13:08:13.020Z] POST Request Start - Mode: student-mark
+[2026-02-05T13:08:13.024Z] POST Payload: {"session_id":2,"verification_type":"OPENING","face_image_url":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAU...
+[2026-02-05T13:19:14.723Z] POST Request Start - Mode: student-mark
+[2026-02-05T13:19:14.725Z] POST Payload: {"session_id":2,"verification_type":"OPENING","face_image_url":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAU...
+[2026-02-05T13:19:17.294Z] Student not found for userId: 427
+[2026-02-05T13:19:33.474Z] Getting Batch Attendance Summary - Input: {
+  "companyId": 13,
+  "batchId": 9,
+  "sessionId": 1
+}
+[2026-02-05T13:20:41.774Z] Getting Batch Attendance Summary - Input: {
+  "companyId": 13,
+  "batchId": 9,
+  "sessionId": 1
+}
+[2026-02-05T13:20:43.207Z] Getting Batch Attendance Summary - Input: {
+  "companyId": 13,
+  "batchId": 9,
+  "sessionId": 1
+}
+[2026-02-05T13:21:24.779Z] Getting Batch Attendance Summary - Input: {
+  "companyId": 13,
+  "batchId": 9,
+  "sessionId": 1
+}
+[2026-02-05T13:21:26.112Z] Getting Batch Attendance Summary - Input: {
+  "companyId": 13,
+  "batchId": 9,
+  "sessionId": 1
+}
+[2026-02-05T13:39:57.897Z] POST Request Start - Mode: student-mark
+[2026-02-05T13:39:57.901Z] POST Payload: {"session_id":2,"verification_type":"OPENING","face_image_url":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAU...
+[2026-02-05T13:40:00.828Z] Location verification failed/missing: {
+  "code": "PGRST202",
+  "details": "Searched for the function public.verify_location with parameters p_company_id, p_latitude, p_longitude or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+  "hint": null,
+  "message": "Could not find the function public.verify_location(p_company_id, p_latitude, p_longitude) in the schema cache"
+}
+[2026-02-05T13:40:11.054Z] POST Request Start - Mode: student-mark
+[2026-02-05T13:40:11.058Z] POST Payload: {"session_id":2,"verification_type":"OPENING","face_image_url":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAU...
+[2026-02-05T13:40:13.935Z] Location verification failed/missing: {
+  "code": "PGRST202",
+  "details": "Searched for the function public.verify_location with parameters p_company_id, p_latitude, p_longitude or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+  "hint": null,
+  "message": "Could not find the function public.verify_location(p_company_id, p_latitude, p_longitude) in the schema cache"
+}
+[2026-02-05T15:15:42.116Z] POST Request Start - Mode: student-mark
+[2026-02-05T15:15:42.118Z] POST Payload: {"attendance_session_id":2,"captured_image":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAA...
+[2026-02-05T15:15:52.161Z] Location verification failed/missing: {
+  "code": "PGRST202",
+  "details": "Searched for the function public.verify_location with parameter p_company_id or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+  "hint": null,
+  "message": "Could not find the function public.verify_location(p_company_id) in the schema cache"
+}
+[2026-02-05T15:16:11.877Z] POST Request Start - Mode: student-mark
+[2026-02-05T15:16:11.878Z] POST Payload: {"attendance_session_id":2,"captured_image":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAA...
+[2026-02-05T15:16:13.934Z] Location verification failed/missing: {
+  "code": "PGRST202",
+  "details": "Searched for the function public.verify_location with parameter p_company_id or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+  "hint": null,
+  "message": "Could not find the function public.verify_location(p_company_id) in the schema cache"
+}
+[2026-02-05T15:26:38.984Z] POST Request Start - Mode: student-mark
+[2026-02-05T15:26:38.984Z] POST Payload: {"attendance_session_id":2,"captured_image":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAA...
+[2026-02-05T15:26:41.672Z] Location verification failed/missing: {
+  "code": "PGRST202",
+  "details": "Searched for the function public.verify_location with parameter p_company_id or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+  "hint": null,
+  "message": "Could not find the function public.verify_location(p_company_id) in the schema cache"
+}
