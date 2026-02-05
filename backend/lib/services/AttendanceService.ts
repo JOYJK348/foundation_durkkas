@@ -372,11 +372,11 @@ export class AttendanceService {
      * Verify location against institution whitelist
      */
     static async verifyLocation(companyId: number, latitude: number, longitude: number) {
-        const { data, error } = await ems.supabase.rpc('verify_location' as any, {
+        const { data, error } = await (ems.supabase.rpc as any)('verify_location', {
             p_company_id: companyId,
             p_latitude: latitude,
             p_longitude: longitude
-        } as any);
+        });
 
         if (error) throw error;
         return data as any || { is_valid: false, location_name: null, distance_meters: null };

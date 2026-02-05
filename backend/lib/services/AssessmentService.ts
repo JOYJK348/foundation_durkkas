@@ -272,7 +272,7 @@ export class AssessmentService {
         feedback: string,
         gradedBy: number
     ) {
-        const { data, error } = await ems.supabase
+        const { data, error } = await (ems.supabase
             .from('assignment_submissions')
             .update({
                 marks_obtained: marks,
@@ -280,7 +280,7 @@ export class AssessmentService {
                 graded_by: gradedBy,
                 graded_at: new Date().toISOString(),
                 submission_status: 'GRADED',
-            } as any)
+            } as any) as any)
             .eq('id', submissionId)
             .select()
             .single();

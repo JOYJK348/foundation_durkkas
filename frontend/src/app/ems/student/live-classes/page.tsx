@@ -18,7 +18,11 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import { format, differenceInSeconds, isWithinInterval, addMinutes, subMinutes } from "date-fns";
-import { AttendanceVerification } from "@/components/ems/attendance/AttendanceVerification";
+import dynamic from "next/dynamic";
+const AttendanceVerification = dynamic(
+    () => import("@/components/ems/attendance/AttendanceVerification").then(mod => mod.AttendanceVerification),
+    { ssr: false }
+);
 import { toast } from "sonner";
 
 interface LiveClass {
@@ -114,12 +118,16 @@ export default function StudentLiveClasses() {
                             ← Back to list
                         </Button>
                         <AttendanceVerification
-                            classId={activeVerification.id}
-                            type={activeVerification.type}
+                            sessions={[{
+                                id: activeVerification.id,
+                                course: { course_name: classes.find(c => c.id === activeVerification.id)?.class_title },
+                                verification_type: activeVerification.type
+                            }]}
                             onSuccess={() => {
                                 setActiveVerification(null);
                                 fetchStudentClasses();
                             }}
+                            onClose={() => setActiveVerification(null)}
                         />
                     </motion.div>
                 ) : (
@@ -180,8 +188,8 @@ export default function StudentLiveClasses() {
                                                                 <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest px-1">Entry Check-In</p>
                                                                 <Button
                                                                     className={`w-full h-14 rounded-2xl font-black transition-all ${info.isInCheckInWindow
-                                                                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl shadow-purple-200'
-                                                                            : 'bg-white text-gray-400 border-2 border-gray-100'
+                                                                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl shadow-purple-200'
+                                                                        : 'bg-white text-gray-400 border-2 border-gray-100'
                                                                         }`}
                                                                     disabled={!info.isInCheckInWindow}
                                                                     onClick={() => setActiveVerification({ id: c.id, type: 'IN' })}
@@ -196,8 +204,8 @@ export default function StudentLiveClasses() {
                                                                 <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest px-1">Exit Check-Out</p>
                                                                 <Button
                                                                     className={`w-full h-14 rounded-2xl font-black transition-all ${info.isInCheckOutWindow
-                                                                            ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-xl shadow-blue-200'
-                                                                            : 'bg-white text-gray-400 border-2 border-gray-100'
+                                                                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-xl shadow-blue-200'
+                                                                        : 'bg-white text-gray-400 border-2 border-gray-100'
                                                                         }`}
                                                                     disabled={!info.isInCheckOutWindow}
                                                                     onClick={() => setActiveVerification({ id: c.id, type: 'OUT' })}

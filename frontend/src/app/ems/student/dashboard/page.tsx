@@ -29,8 +29,13 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
-import { AttendanceVerification } from "@/components/ems/attendance/AttendanceVerification";
+import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
+
+const AttendanceVerification = dynamic(
+    () => import("@/components/ems/attendance/AttendanceVerification").then(mod => mod.AttendanceVerification),
+    { ssr: false }
+);
 
 interface DashboardData {
     student: {
