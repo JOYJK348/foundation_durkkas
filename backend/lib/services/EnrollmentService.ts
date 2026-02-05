@@ -11,23 +11,31 @@ export class EnrollmentService {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     static async enrollStudent(enrollmentData: Partial<StudentEnrollment>) {
+        console.log('🚀 [EnrollmentService] Enrolling student:', enrollmentData);
+
         // Check if already enrolled
         const { data: existing } = await ems.enrollments()
             .select('id')
             .eq('student_id', enrollmentData.student_id!)
             .eq('course_id', enrollmentData.course_id!)
             .is('deleted_at', null)
-            .single();
+            .maybeSingle();
 
         if (existing) {
+            console.warn('⚠️ [EnrollmentService] Student already enrolled:', enrollmentData.student_id);
             throw new Error('Student already enrolled in this course');
         }
 
         // Get course details for lesson count
-        const { data: course } = await ems.courses()
+        const { data: course, error: courseError } = await ems.courses()
             .select('total_lessons')
             .eq('id', enrollmentData.course_id!)
             .single();
+
+        if (courseError) {
+            console.error('❌ [EnrollmentService] Course not found:', enrollmentData.course_id);
+            throw new Error(`Course not found: ${courseError.message}`);
+        }
 
         const { data, error } = await ems.enrollments()
             .insert({
@@ -39,8 +47,76 @@ export class EnrollmentService {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ [EnrollmentService] Insert error:', error);
+            throw error;
+        }
+
+        console.log('✅ [EnrollmentService] Student enrolled successfully:', data.id);
         return data as StudentEnrollment;
+    }
+
+    static async getAllEnrollments(companyId: number) {
+        const { data, error } = await ems.enrollments()
+            .select(`
+                *,
+                students:student_id (id, student_code, first_name, last_name, email),
+                courses:course_id (id, course_name, course_code),
+                batches:batch_id (id, batch_name, batch_code)
+            `)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .order('enrollment_date', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    }
+
+    static async getEnrollmentById(id: number, companyId: number) {
+        const { data, error } = await ems.enrollments()
+            .select(`
+                *,
+                students:student_id (*),
+                courses:course_id (*),
+                batches:batch_id (*)
+            `)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    static async updateEnrollment(id: number, companyId: number, data: any) {
+        const { data: result, error } = await ems.enrollments()
+            .update(data)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return result;
+    }
+
+    static async deleteEnrollment(id: number, companyId: number, deletedBy: number) {
+        const { data, error } = await ems.enrollments()
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: deletedBy,
+                enrollment_status: 'CANCELLED'
+            } as any)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 
     static async getStudentEnrollments(studentId: number, companyId: number) {

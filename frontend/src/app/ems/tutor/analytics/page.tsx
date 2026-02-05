@@ -1,6 +1,6 @@
 "use client";
 
-import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
+import { TutorTopNavbar } from "@/components/ems/dashboard/tutor-top-navbar";
 import { TutorBottomNav } from "@/components/ems/dashboard/tutor-bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -23,7 +23,7 @@ export default function TutorAnalyticsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
-            <TopNavbar />
+            <TutorTopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                 <div className="mb-8">

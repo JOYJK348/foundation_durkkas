@@ -22,7 +22,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { supabase, app_auth } from '@/lib/supabase';
+import { supabase, app_auth, core, ems } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { AppError } from '@/lib/errorHandler';
 import { headers, cookies } from 'next/headers';
@@ -171,13 +171,37 @@ export async function getUserTenantScope(
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         try {
             if (selectedRole.role_name === 'TUTOR') {
-                // Find employee_id for this tutor
-                const { data: employee } = await supabase
-                    .from('employees')
-                    .select('id')
+                // 1. Try resolving by user_id first (Optimized)
+                let { data: employee } = await core.employees()
+                    .select('id, email, user_id')
                     .eq('user_id', userId)
                     .eq('company_id', selectedRole.company_id)
                     .single();
+
+                // 2. Fallback: Try resolving by email if user_id mapping is missing (Legacy/Manual imports)
+                if (!employee) {
+                    // Get user's email from auth context (passed as userId in this scope usually, 
+                    // but we need to fetch the email from app_auth.users)
+                    const { data: userData } = await app_auth.users()
+                        .select('email')
+                        .eq('id', userId)
+                        .single();
+
+                    if (userData?.email) {
+                        const { data: empByEmail } = await core.employees()
+                            .select('id, email, user_id')
+                            .eq('email', userData.email)
+                            .eq('company_id', selectedRole.company_id)
+                            .single();
+
+                        if (empByEmail) {
+                            employee = empByEmail;
+                            // ⚡ DYNAMIC MAPPING REPAIR: Update the employee record with the user_id for future calls
+                            logger.info('[TenantFilter] Dynamically linking TUTOR user_id', { userId, employeeId: empByEmail.id });
+                            core.employees().update({ user_id: userId }).eq('id', empByEmail.id).then();
+                        }
+                    }
+                }
 
                 if (employee) {
                     tenantScope.emsProfile = {
@@ -187,13 +211,35 @@ export async function getUserTenantScope(
                     logger.info('[TenantFilter] Resolved TUTOR profile', { userId, employeeId: (employee as any).id });
                 }
             } else if (selectedRole.role_name === 'STUDENT') {
-                // Find student_id for this student
-                const { ems } = require('@/lib/supabase');
-                const { data: student } = await ems.students()
-                    .select('id')
+                // 1. Try user_id
+                let { data: student } = await ems.students()
+                    .select('id, email, user_id')
                     .eq('user_id', userId)
                     .eq('company_id', selectedRole.company_id)
                     .single();
+
+                // 2. Fallback: Try email
+                if (!student) {
+                    const { data: userData } = await app_auth.users()
+                        .select('email')
+                        .eq('id', userId)
+                        .single();
+
+                    if (userData?.email) {
+                        const { data: studentByEmail } = await ems.students()
+                            .select('id, email, user_id')
+                            .eq('email', userData.email)
+                            .eq('company_id', selectedRole.company_id)
+                            .single();
+
+                        if (studentByEmail) {
+                            student = studentByEmail;
+                            // ⚡ DYNAMIC MAPPING REPAIR
+                            logger.info('[TenantFilter] Dynamically linking STUDENT user_id', { userId, studentId: studentByEmail.id });
+                            ems.students().update({ user_id: userId }).eq('id', studentByEmail.id).then();
+                        }
+                    }
+                }
 
                 if (student) {
                     tenantScope.emsProfile = {

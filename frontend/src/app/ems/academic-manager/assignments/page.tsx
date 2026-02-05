@@ -22,14 +22,15 @@ import {
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 interface Assignment {
     id: number;
     assignment_title: string;
     assignment_description: string;
     course_id: number;
-    total_marks: number;
-    due_date: string;
+    max_marks: number;
+    deadline: string;
     status: string;
     submission_count?: number;
     courses?: {
@@ -53,8 +54,8 @@ export default function AssignmentsPage() {
         assignment_title: "",
         assignment_description: "",
         course_id: "",
-        total_marks: 100,
-        due_date: "",
+        max_marks: 100,
+        deadline: "",
         instructions: "",
     });
 
@@ -88,6 +89,8 @@ export default function AssignmentsPage() {
         }
     };
 
+
+
     const handleCreateAssignment = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -97,19 +100,21 @@ export default function AssignmentsPage() {
             });
 
             if (response.data.success) {
+                toast.success("Assignment created successfully");
                 setShowCreateForm(false);
                 fetchAssignments();
                 setFormData({
                     assignment_title: "",
                     assignment_description: "",
                     course_id: "",
-                    total_marks: 100,
-                    due_date: "",
+                    max_marks: 100,
+                    deadline: "",
                     instructions: "",
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating assignment:", error);
+            toast.error(error.response?.data?.message || "Failed to create assignment");
         }
     };
 
@@ -215,13 +220,13 @@ export default function AssignmentsPage() {
                                                                 {assignment.courses?.course_name || 'No course'}
                                                             </p>
                                                         </div>
-                                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${isOverdue(assignment.due_date)
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${isOverdue(assignment.deadline)
                                                             ? 'bg-red-100 text-red-700'
                                                             : assignment.status === 'PUBLISHED'
                                                                 ? 'bg-green-100 text-green-700'
                                                                 : 'bg-yellow-100 text-yellow-700'
                                                             }`}>
-                                                            {isOverdue(assignment.due_date) ? 'Overdue' : assignment.status}
+                                                            {isOverdue(assignment.deadline) ? 'Overdue' : assignment.status}
                                                         </span>
                                                     </div>
 
@@ -233,7 +238,7 @@ export default function AssignmentsPage() {
                                                         <div className="flex items-center gap-2 text-gray-600">
                                                             <Calendar className="h-4 w-4 text-gray-400" />
                                                             <span>
-                                                                Due: {new Date(assignment.due_date).toLocaleDateString()}
+                                                                Due: {new Date(assignment.deadline).toLocaleDateString()}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-2 text-gray-600">
@@ -245,7 +250,7 @@ export default function AssignmentsPage() {
                                                         <div className="flex items-center gap-2 text-gray-600">
                                                             <AlertCircle className="h-4 w-4 text-gray-400" />
                                                             <span>
-                                                                {assignment.total_marks} marks
+                                                                {assignment.max_marks} marks
                                                             </span>
                                                         </div>
                                                     </div>
@@ -343,24 +348,24 @@ export default function AssignmentsPage() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="total_marks">Total Marks *</Label>
+                                        <Label htmlFor="max_marks">Total Marks *</Label>
                                         <Input
-                                            id="total_marks"
+                                            id="max_marks"
                                             type="number"
                                             min="1"
                                             required
-                                            value={formData.total_marks}
-                                            onChange={(e) => setFormData({ ...formData, total_marks: parseInt(e.target.value) })}
+                                            value={formData.max_marks}
+                                            onChange={(e) => setFormData({ ...formData, max_marks: parseInt(e.target.value) })}
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="due_date">Due Date *</Label>
+                                        <Label htmlFor="deadline">Due Date *</Label>
                                         <Input
-                                            id="due_date"
+                                            id="deadline"
                                             type="datetime-local"
                                             required
-                                            value={formData.due_date}
-                                            onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                                            value={formData.deadline}
+                                            onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                                         />
                                     </div>
                                 </div>

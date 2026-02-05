@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
+import { TutorTopNavbar } from "@/components/ems/dashboard/tutor-top-navbar";
 import { TutorBottomNav } from "@/components/ems/dashboard/tutor-bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,16 +29,18 @@ import { toast } from "sonner";
 
 interface Lesson {
     id: number;
-    lesson_title: string;
+    lesson_name: string;
+    lesson_number: string;
     lesson_type: string;
     duration_minutes: number;
-    is_published: boolean;
+    visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
 }
 
 interface Module {
     id: number;
     module_name: string;
-    is_published: boolean;
+    module_number: number;
+    visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
     lessons: Lesson[];
 }
 
@@ -83,13 +85,21 @@ export default function CourseManagementPage() {
         }
     };
 
-    const togglePublish = async (type: 'module' | 'lesson', id: number, currentStatus: boolean) => {
+    const togglePublish = async (type: 'module' | 'lesson', id: number, currentVisibility: string) => {
+        // Cycle visibility: PUBLIC -> ENROLLED -> PRIVATE -> PUBLIC
+        const cycle: Record<string, 'PUBLIC' | 'PRIVATE' | 'ENROLLED'> = {
+            'PUBLIC': 'ENROLLED',
+            'ENROLLED': 'PRIVATE',
+            'PRIVATE': 'PUBLIC'
+        };
+        const nextVisibility = cycle[currentVisibility] || 'PRIVATE';
+
         try {
             const response = await api.patch(`/ems/courses/content/${type}/${id}/visibility`, {
-                is_published: !currentStatus
+                visibility: nextVisibility
             });
             if (response.data.success) {
-                toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} ${!currentStatus ? 'published' : 'unpublished'}`);
+                toast.success(`Visibility updated to ${nextVisibility}`);
                 fetchCourseDetails(); // Refresh
             }
         } catch (error) {
@@ -100,7 +110,7 @@ export default function CourseManagementPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col">
-                <TopNavbar />
+                <TutorTopNavbar />
                 <div className="flex-1 flex items-center justify-center">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
                 </div>
@@ -112,7 +122,7 @@ export default function CourseManagementPage() {
     if (!course) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col text-center py-20">
-                <TopNavbar />
+                <TutorTopNavbar />
                 <AlertCircle className="h-20 w-20 text-red-300 mx-auto mb-4" />
                 <h1 className="text-2xl font-bold">Course Not Found</h1>
                 <Button onClick={() => router.back()} variant="ghost" className="mt-4 mx-auto">
@@ -126,7 +136,7 @@ export default function CourseManagementPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
-            <TopNavbar />
+            <TutorTopNavbar />
 
             {/* Sticky Course Header */}
             <div className="bg-white border-b sticky top-[64px] z-30 px-4 sm:px-6 lg:px-8 py-4">
@@ -186,7 +196,7 @@ export default function CourseManagementPage() {
                             exit={{ opacity: 0, y: -10 }}
                             className="space-y-6"
                         >
-                            {course.course_modules.length === 0 ? (
+                            {!course.course_modules || course.course_modules.length === 0 ? (
                                 <Card className="p-12 text-center border-dashed border-2 bg-gray-50/50">
                                     <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                                     <h3 className="text-lg font-bold">Your curriculum is empty</h3>
@@ -199,22 +209,27 @@ export default function CourseManagementPage() {
                                         <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-b">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                                                    {mIdx + 1}
+                                                    {module.module_number}
                                                 </div>
                                                 <div>
                                                     <h3 className="font-bold text-gray-900">{module.module_name}</h3>
-                                                    <p className="text-xs text-gray-500">{module.lessons.length} Lessons</p>
+                                                    <p className="text-xs text-gray-500">{module.lessons?.length || 0} Lessons</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className={module.is_published ? "text-green-600" : "text-orange-500"}
-                                                    onClick={() => togglePublish('module', module.id, module.is_published)}
+                                                    className={`h-8 gap-2 px-3 text-xs font-bold transition-all ${module.visibility === 'PUBLIC' ? 'text-blue-600 hover:bg-blue-50' :
+                                                            module.visibility === 'ENROLLED' ? 'text-green-600 hover:bg-green-50' :
+                                                                'text-gray-400 hover:bg-gray-50'
+                                                        }`}
+                                                    onClick={() => togglePublish('module', module.id, module.visibility)}
                                                 >
-                                                    {module.is_published ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
-                                                    {module.is_published ? 'Live' : 'Hidden'}
+                                                    {module.visibility === 'PUBLIC' ? <Eye className="h-4 w-4 mr-1" /> :
+                                                        module.visibility === 'ENROLLED' ? <CheckCircle2 className="h-4 w-4 mr-1" /> :
+                                                            <EyeOff className="h-4 w-4 mr-1" />}
+                                                    {module.visibility}
                                                 </Button>
                                                 <Button size="icon" variant="ghost" className="h-8 w-8">
                                                     <MoreVertical className="h-4 w-4" />
@@ -222,20 +237,25 @@ export default function CourseManagementPage() {
                                             </div>
                                         </div>
                                         <div className="divide-y">
-                                            {module.lessons.map((lesson, lIdx) => (
+                                            {module.lessons?.map((lesson, lIdx) => (
                                                 <div key={lesson.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors group">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-[10px] text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                                            {lIdx + 1}
+                                                        <div className="w-10 h-6 rounded bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-bold group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                                            {lesson.lesson_number}
                                                         </div>
                                                         <div>
                                                             <div className="flex items-center gap-2">
-                                                                <h4 className="text-sm font-semibold text-gray-800">{lesson.lesson_title}</h4>
-                                                                {!lesson.is_published && <span className="text-[8px] bg-orange-100 text-orange-600 px-1 rounded uppercase font-bold">Draft</span>}
+                                                                <h4 className="text-sm font-semibold text-gray-800">{lesson.lesson_name}</h4>
+                                                                <span className={`text-[8px] px-1 rounded uppercase font-bold ${lesson.visibility === 'PUBLIC' ? 'bg-blue-100 text-blue-600' :
+                                                                        lesson.visibility === 'ENROLLED' ? 'bg-green-100 text-green-600' :
+                                                                            'bg-orange-100 text-orange-600'
+                                                                    }`}>
+                                                                    {lesson.visibility}
+                                                                </span>
                                                             </div>
                                                             <div className="flex items-center gap-2 text-[10px] text-gray-500 uppercase font-bold tracking-wider mt-0.5">
                                                                 <Clock className="h-2 w-2" />
-                                                                {lesson.duration_minutes}m • {lesson.lesson_type}
+                                                                {lesson.duration_minutes || 0}m • {lesson.lesson_type}
                                                             </div>
                                                         </div>
                                                     </div>

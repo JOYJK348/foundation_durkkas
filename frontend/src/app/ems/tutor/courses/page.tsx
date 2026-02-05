@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
+import { TutorTopNavbar } from "@/components/ems/dashboard/tutor-top-navbar";
 import { TutorBottomNav } from "@/components/ems/dashboard/tutor-bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,7 @@ export default function TutorCoursesPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
-            <TopNavbar />
+            <TutorTopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                 {/* Header Section */}
@@ -170,16 +170,11 @@ export default function TutorCoursesPage() {
                                             </div>
                                         </div>
 
-                                        <div className="mt-auto space-y-2">
+                                        <div className="mt-auto">
                                             <Link href={`/ems/tutor/courses/${course.id}`}>
                                                 <Button className="w-full bg-blue-600 hover:bg-blue-700">
                                                     <Eye className="h-4 w-4 mr-2" />
-                                                    View Content
-                                                </Button>
-                                            </Link>
-                                            <Link href={`/ems/tutor/courses/${course.id}/edit`}>
-                                                <Button variant="outline" className="w-full">
-                                                    Edit Curriculum
+                                                    Manage Course
                                                 </Button>
                                             </Link>
                                         </div>

@@ -20,7 +20,7 @@ export async function PATCH(
         const scope = await getUserTenantScope(userId);
         if (scope.roleLevel < 1) return errorResponse(null, 'Forbidden', 403);
 
-        const { is_published } = await req.json();
+        const { visibility } = await req.json();
 
         const contentType = params.type as 'module' | 'lesson' | 'material';
         const contentId = parseInt(params.id);
@@ -28,11 +28,11 @@ export async function PATCH(
         const result = await CourseService.updateContentVisibility(
             contentType,
             contentId,
-            is_published,
+            visibility,
             scope.companyId!
         );
 
-        return successResponse(result, `Content ${is_published ? 'published' : 'unpublished'} successfully`);
+        return successResponse(result, `Content visibility updated to ${visibility} successfully`);
 
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to update visibility');

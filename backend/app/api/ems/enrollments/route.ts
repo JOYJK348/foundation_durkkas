@@ -4,58 +4,45 @@
  */
 
 import { NextRequest } from 'next/server';
-import { successResponse, errorResponse } from '@/lib/errorHandler';
+import { successResponse, asyncHandler } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
-import { applyTenantFilter, autoAssignCompany } from '@/middleware/tenantFilter';
+import { autoAssignCompany } from '@/middleware/tenantFilter';
 import { enrollmentSchema } from '@/lib/validations/ems';
 import { EnrollmentService } from '@/lib/services/EnrollmentService';
 
-export async function GET(req: NextRequest) {
-    try {
-        const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+export const GET = asyncHandler(async (req: NextRequest) => {
+    const userId = await getUserIdFromToken(req);
+    if (!userId) throw new Error('Unauthorized');
 
-        const { searchParams } = new URL(req.url);
-        const studentId = searchParams.get('student_id');
+    const { searchParams } = new URL(req.url);
+    const studentId = searchParams.get('student_id');
 
-        if (!studentId) {
-            return errorResponse(null, 'student_id is required', 400);
-        }
-
-        const scope = await import('@/middleware/tenantFilter').then(m =>
-            m.getUserTenantScope(userId)
-        );
-
-        const data = await EnrollmentService.getStudentEnrollments(
-            parseInt(studentId),
-            scope.companyId!
-        );
-
-        return successResponse(data, 'Enrollments fetched successfully');
-
-    } catch (error: any) {
-        return errorResponse(null, error.message || 'Failed to fetch enrollments');
+    if (!studentId) {
+        throw new Error('student_id is required');
     }
-}
 
-export async function POST(req: NextRequest) {
-    try {
-        const userId = await getUserIdFromToken(req);
-        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+    const scope = await import('@/middleware/tenantFilter').then(m =>
+        m.getUserTenantScope(userId)
+    );
 
-        let data = await req.json();
-        data = await autoAssignCompany(userId, data);
+    const data = await EnrollmentService.getStudentEnrollments(
+        parseInt(studentId),
+        scope.companyId!
+    );
 
-        const validatedData = enrollmentSchema.parse(data);
+    return successResponse(data, 'Enrollments fetched successfully');
+});
 
-        const enrollment = await EnrollmentService.enrollStudent(validatedData);
+export const POST = asyncHandler(async (req: NextRequest) => {
+    const userId = await getUserIdFromToken(req);
+    if (!userId) throw new Error('Unauthorized');
 
-        return successResponse(enrollment, 'Student enrolled successfully', 201);
+    let data = await req.json();
+    data = await autoAssignCompany(userId, data);
 
-    } catch (error: any) {
-        if (error.name === 'ZodError') {
-            return errorResponse(error.errors, 'Validation failed', 400);
-        }
-        return errorResponse(null, error.message || 'Failed to enroll student');
-    }
-}
+    const validatedData = enrollmentSchema.parse(data);
+
+    const enrollment = await EnrollmentService.enrollStudent(validatedData);
+
+    return successResponse(enrollment, 'Student enrolled successfully', 201);
+});

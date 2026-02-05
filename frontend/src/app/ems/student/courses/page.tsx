@@ -28,6 +28,11 @@ interface Course {
     duration?: string;
     thumbnail_url?: string;
     progress?: number;
+    batch?: {
+        id: number;
+        batch_name: string;
+        batch_code: string;
+    };
 }
 
 export default function CoursesPage() {
@@ -43,9 +48,24 @@ export default function CoursesPage() {
     const fetchCourses = async () => {
         try {
             setLoading(true);
-            const response = await api.get("/ems/courses");
+            const response = await api.get("/ems/students/my-courses");
             if (response.data.success) {
-                setCourses(response.data.data || []);
+                // Map enrollment data to Course interface
+                const mappedCourses = (response.data.data || []).map((enrollment: any) => ({
+                    id: enrollment.course.id,
+                    course_name: enrollment.course.course_name,
+                    course_code: enrollment.course.course_code,
+                    course_description: enrollment.course.course_description,
+                    thumbnail_url: enrollment.course.thumbnail_url,
+                    duration: enrollment.course.duration_hours ? `${enrollment.course.duration_hours}h` : 'N/A',
+                    progress: enrollment.completion_percentage,
+                    batch: enrollment.batch ? {
+                        id: enrollment.batch.id,
+                        batch_name: enrollment.batch.batch_name,
+                        batch_code: enrollment.batch.batch_code,
+                    } : null,
+                }));
+                setCourses(mappedCourses);
             }
         } catch (error) {
             console.error("Error fetching courses:", error);
@@ -136,7 +156,14 @@ export default function CoursesPage() {
                                         </div>
                                         <div className="absolute bottom-4 left-4 right-4">
                                             <h3 className="text-white font-bold text-lg line-clamp-1">{course.course_name}</h3>
-                                            <p className="text-blue-100 text-xs">{course.course_code}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-blue-100 text-xs">{course.course_code}</p>
+                                                {course.batch && (
+                                                    <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-white font-bold border border-white/20">
+                                                        Batch: {course.batch.batch_name}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <CardContent className="p-6">

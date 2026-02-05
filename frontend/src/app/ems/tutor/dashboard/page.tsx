@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
+import { TutorTopNavbar } from "@/components/ems/dashboard/tutor-top-navbar";
 import { TutorBottomNav } from "@/components/ems/dashboard/tutor-bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
     CheckCircle2,
     BookText,
     Layers,
+    Target,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -29,10 +30,14 @@ export default function TutorDashboard() {
         upcomingClasses: 0,
         pendingGrading: 0,
         totalCourses: 0,
+        totalQuizzes: 0,
+        totalAssignments: 0,
         resourceLibrary: 0
     });
     const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
     const [assignedCourses, setAssignedCourses] = useState<any[]>([]);
+    const [recentResults, setRecentResults] = useState<any[]>([]);
+    const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -42,9 +47,10 @@ export default function TutorDashboard() {
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
-            const [dashRes, materialsRes] = await Promise.all([
+            const [dashRes, materialsRes, recentRes] = await Promise.all([
                 api.get("/ems/tutor/dashboard"),
-                api.get("/ems/materials")
+                api.get("/ems/materials"),
+                api.get("/ems/quizzes/recent-attempts")
             ]);
 
             if (dashRes.data.success) {
@@ -55,8 +61,12 @@ export default function TutorDashboard() {
                     upcomingClasses: data.upcoming_classes?.length || 0,
                     pendingGrading: data.pending_grading_count || 0,
                     totalCourses: data.total_courses || 0,
+                    totalQuizzes: data.total_quizzes || 0,
+                    totalAssignments: data.total_assignments || 0,
                     resourceLibrary: materialsRes.data.data?.length || 0,
                 });
+                setRecentQuizzes(data.recent_quizzes || []);
+                setRecentResults(recentRes.data.data || []);
             }
         } catch (error) {
             console.error("Error fetching dashboard:", error);
@@ -69,7 +79,9 @@ export default function TutorDashboard() {
         { label: "My Courses", value: stats.totalCourses.toString(), icon: BookOpen, color: "blue", href: "/ems/tutor/courses" },
         { label: "Pending Grading", value: stats.pendingGrading.toString(), icon: FileText, color: "green", href: "/ems/tutor/grading" },
         { label: "Live Classes", value: stats.upcomingClasses.toString(), icon: Video, color: "purple", href: "/ems/tutor/live-classes" },
-        { label: "Resource Library", value: stats.resourceLibrary.toString(), icon: Layers, color: "orange", href: "/ems/tutor/materials" },
+        { label: "Assignments", value: stats.totalAssignments.toString(), icon: FileText, color: "orange", href: "/ems/tutor/assignments" },
+        { label: "Quizzes", value: stats.totalQuizzes.toString(), icon: BookOpen, color: "red", href: "/ems/tutor/quizzes" },
+        { label: "Resource Library", value: stats.resourceLibrary.toString(), icon: Layers, color: "cyan", href: "/ems/tutor/materials" },
     ];
 
     const quickActions = [
@@ -83,7 +95,7 @@ export default function TutorDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
-            <TopNavbar />
+            <TutorTopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                 {/* Welcome Section */}
@@ -99,7 +111,7 @@ export default function TutorDashboard() {
                 </motion.div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
                     {statCards.map((stat, index) => (
                         <motion.div
                             key={index}
@@ -115,8 +127,14 @@ export default function TutorDashboard() {
                                                 <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
                                                 <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
                                             </div>
-                                            <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <stat.icon className="h-6 w-6 text-blue-600" />
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${stat.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                                                stat.color === 'green' ? 'bg-green-50 text-green-600' :
+                                                    stat.color === 'purple' ? 'bg-purple-50 text-purple-600' :
+                                                        stat.color === 'orange' ? 'bg-orange-50 text-orange-600' :
+                                                            stat.color === 'red' ? 'bg-red-50 text-red-600' :
+                                                                'bg-cyan-50 text-cyan-600'
+                                                }`}>
+                                                <stat.icon className="h-6 w-6" />
                                             </div>
                                         </div>
                                     </CardContent>
@@ -206,11 +224,85 @@ export default function TutorDashboard() {
                             </div>
                         </motion.div>
 
-                        {/* Recent Activity */}
+                        {/* Recent Student Performances Section */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 }}
+                        >
+                            <div className="flex items-center justify-between mb-4 mt-8">
+                                <h2 className="text-2xl font-bold text-gray-900">Recent Student Performances</h2>
+                                <Link href="/ems/tutor/quizzes">
+                                    <Button variant="ghost" className="text-blue-600 hover:text-blue-700">
+                                        View All
+                                        <ArrowRight className="h-4 w-4 ml-2" />
+                                    </Button>
+                                </Link>
+                            </div>
+
+                            <Card className="border-0 shadow-lg overflow-hidden">
+                                <CardContent className="p-0">
+                                    {loading ? (
+                                        <div className="p-12 text-center text-gray-400">Loading student marks...</div>
+                                    ) : recentResults.length === 0 ? (
+                                        <div className="p-12 text-center text-gray-500 italic">No recent quiz attempts found.</div>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead className="bg-gray-50 border-b border-gray-100">
+                                                    <tr>
+                                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Student</th>
+                                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Quiz</th>
+                                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Score</th>
+                                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100">
+                                                    {recentResults.map((result: any) => (
+                                                        <tr key={result.id} className="hover:bg-gray-50/50 transition-colors">
+                                                            <td className="px-6 py-4">
+                                                                <p className="font-bold text-gray-900 leading-none">
+                                                                    {result.students.first_name} {result.students.last_name}
+                                                                </p>
+                                                                <p className="text-[10px] text-gray-500 mt-1">{result.students.student_code}</p>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <p className="text-sm text-gray-700 line-clamp-1">{result.quizzes.quiz_title}</p>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-bold text-gray-900">{result.marks_obtained}</span>
+                                                                    <span className="text-xs text-gray-400">/ {result.total_marks}</span>
+                                                                </div>
+                                                                <div className="w-full h-1 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                                                                    <div
+                                                                        className={`h-full rounded-full ${result.is_passed ? 'bg-green-500' : 'bg-red-500'}`}
+                                                                        style={{ width: `${result.percentage}%` }}
+                                                                    />
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                {result.is_passed ? (
+                                                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold uppercase">Pass</span>
+                                                                ) : (
+                                                                    <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold uppercase">Fail</span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+
+                        {/* Recent Activity */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
                         >
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-2xl font-bold text-gray-900">Recent Activity</h2>
@@ -291,11 +383,85 @@ export default function TutorDashboard() {
                             </div>
                         </motion.div>
 
-                        {/* Quick Actions */}
+                        {/* Recent Quizzes Section */}
                         <motion.div
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.6 }}
+                        >
+                            <div className="flex items-center justify-between mb-4 mt-8">
+                                <h2 className="text-xl font-bold text-gray-900">New/Recent Quizzes</h2>
+                                <Link href="/ems/tutor/quizzes">
+                                    <Button variant="ghost" size="sm" className="text-blue-600">View All</Button>
+                                </Link>
+                            </div>
+
+                            <div className="space-y-4">
+                                {recentQuizzes.length === 0 ? (
+                                    <Card className="border-0 shadow-md">
+                                        <CardContent className="p-8 text-center text-gray-500 italic">
+                                            No recent quizzes found.
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    recentQuizzes.map((quiz) => {
+                                        const createdDate = new Date(quiz.created_at);
+                                        const formattedDate = createdDate.toLocaleDateString('en-IN', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric'
+                                        });
+                                        const formattedTime = createdDate.toLocaleTimeString('en-IN', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            hour12: true
+                                        });
+
+                                        return (
+                                            <Card key={quiz.id} className="border-0 shadow-sm hover:shadow-md transition-all border-l-4 border-l-blue-500">
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div>
+                                                                    <h3 className="font-bold text-gray-900 line-clamp-1">{quiz.quiz_title}</h3>
+                                                                    <p className="text-xs text-blue-600 font-semibold">{quiz.courses?.course_name}</p>
+                                                                </div>
+                                                                <Link href={`/ems/tutor/quizzes/view?id=${quiz.id}`}>
+                                                                    <Button size="sm" variant="ghost" className="h-8 px-3 text-blue-600 hover:bg-blue-50">
+                                                                        <ArrowRight className="h-4 w-4" />
+                                                                    </Button>
+                                                                </Link>
+                                                            </div>
+                                                            <div className="flex items-center gap-4 text-xs text-gray-600">
+                                                                <div className="flex items-center gap-1">
+                                                                    <Target className="h-3 w-3" />
+                                                                    <span>{quiz.total_marks} Marks</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <Clock className="h-3 w-3" />
+                                                                    <span>{quiz.duration_minutes} Min</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                                                                <Calendar className="h-3 w-3" />
+                                                                <span>Created: {formattedDate} at {formattedTime}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </motion.div>
+
+                        {/* Quick Actions */}
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.7 }}
                         >
                             <h2 className="text-xl font-bold mb-4 text-gray-900">Quick Tools</h2>
                             <div className="grid grid-cols-2 gap-3">

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
     Bell,
     User,
@@ -10,19 +10,23 @@ import {
     BookOpen,
     LogOut,
     FileText,
-    Video,
     CheckSquare,
+    Users,
+    TrendingUp,
+    Calendar,
     LayoutDashboard,
-    BarChart3,
+    Video,
     Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export function TutorTopNavbar() {
     const pathname = usePathname();
-    const router = useRouter();
+    const { user } = useAuthStore();
     const [showSearch, setShowSearch] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -32,9 +36,9 @@ export function TutorTopNavbar() {
         { label: "My Courses", href: "/ems/tutor/courses", icon: BookOpen },
         { label: "Assignments", href: "/ems/tutor/assignments", icon: FileText },
         { label: "Live Classes", href: "/ems/tutor/live-classes", icon: Video },
-        { label: "Materials", href: "/ems/tutor/materials", icon: Upload },
         { label: "Grading", href: "/ems/tutor/grading", icon: CheckSquare },
-        { label: "Analytics", href: "/ems/tutor/analytics", icon: BarChart3 },
+        { label: "Students", href: "/ems/tutor/students", icon: Users },
+        { label: "Attendance", href: "/ems/tutor/attendance", icon: Calendar },
     ];
 
     useEffect(() => {
@@ -54,12 +58,12 @@ export function TutorTopNavbar() {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
                     <Link href="/ems/tutor/dashboard" className="flex items-center gap-2 group">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
                             <BookOpen className="h-5 w-5 text-white" />
                         </div>
                         <div className="hidden sm:block">
-                            <span className="text-lg font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
-                                DURKKAS EMS
+                            <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent uppercase tracking-tight">
+                                Tutor Portal
                             </span>
                         </div>
                     </Link>
@@ -70,8 +74,8 @@ export function TutorTopNavbar() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input
                                 type="search"
-                                placeholder="Search courses, assignments..."
-                                className="w-full h-9 pl-9 text-sm border-gray-300 focus:border-green-600 focus:ring-green-600"
+                                placeholder="Search courses, students, sessions..."
+                                className="w-full h-9 pl-9 text-sm border-gray-300 focus:border-blue-600 focus:ring-blue-600"
                             />
                         </div>
                     </div>
@@ -96,7 +100,7 @@ export function TutorTopNavbar() {
                                 className="h-9 w-9 relative"
                             >
                                 <Bell className="h-5 w-5 text-gray-600" />
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border-2 border-white"></span>
                             </Button>
                         </Link>
 
@@ -108,7 +112,7 @@ export function TutorTopNavbar() {
                                 className="h-9 w-9"
                                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                             >
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center shadow-sm">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-sm">
                                     <User className="h-4 w-4 text-white" />
                                 </div>
                             </Button>
@@ -122,15 +126,19 @@ export function TutorTopNavbar() {
                                         className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
                                     >
                                         {/* User Info */}
-                                        <div className="px-4 py-3 border-b border-gray-200">
-                                            <p className="text-sm font-semibold text-gray-900">Tutor</p>
-                                            <p className="text-xs text-gray-500 truncate">tutor@aipl.com</p>
+                                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/50">
+                                            <p className="text-sm font-semibold text-gray-900 line-clamp-1">{user?.display_name || "Tutor"}</p>
+                                            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                            <div className="mt-1 flex items-center gap-1.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Faculty Portal</span>
+                                            </div>
                                         </div>
 
                                         {/* Quick Actions */}
                                         <div className="py-2">
                                             <div className="px-3 py-1.5">
-                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Actions</p>
+                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Navigation</p>
                                             </div>
                                             {quickActions.map((action) => {
                                                 const Icon = action.icon;
@@ -139,16 +147,16 @@ export function TutorTopNavbar() {
                                                         key={action.href}
                                                         href={action.href}
                                                         onClick={() => setShowProfileMenu(false)}
-                                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors group"
+                                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors group"
                                                     >
-                                                        <Icon className="h-4 w-4 text-gray-400 group-hover:text-green-600" />
+                                                        <Icon className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
                                                         <span className="font-medium">{action.label}</span>
                                                     </Link>
                                                 );
                                             })}
                                         </div>
 
-                                        {/* Profile Link */}
+                                        {/* Settings Link */}
                                         <div className="border-t border-gray-200 py-1">
                                             <Link
                                                 href="/ems/tutor/profile"
@@ -162,16 +170,17 @@ export function TutorTopNavbar() {
 
                                         {/* Logout */}
                                         <div className="border-t border-gray-200 py-1">
-                                            <button
+                                            <Link
+                                                href="/login"
                                                 onClick={() => {
                                                     setShowProfileMenu(false);
-                                                    router.push("/login");
+                                                    // Trigger logout logic if needed
                                                 }}
-                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                             >
                                                 <LogOut className="h-4 w-4" />
                                                 <span className="font-medium">Logout</span>
-                                            </button>
+                                            </Link>
                                         </div>
                                     </motion.div>
                                 )}
@@ -194,7 +203,7 @@ export function TutorTopNavbar() {
                                 <Search className="absolute left-3 top-6 h-4 w-4 text-gray-400" />
                                 <Input
                                     type="search"
-                                    placeholder="Search courses, assignments..."
+                                    placeholder="Search courses, students..."
                                     className="w-full h-9 pl-9 text-sm"
                                 />
                             </div>

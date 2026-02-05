@@ -1,0 +1,26 @@
+{
+  "priya": [
+    {
+      "id": 225,
+      "email": "priya.chen@durkkas.in"
+    },
+    {
+      "id": 428,
+      "email": "priya.sharma@durkkas.com"
+    }
+  ],
+  "rajesh": [
+    {
+      "id": 224,
+      "email": "rajesh.chen@durkkas.in"
+    },
+    {
+      "id": 254,
+      "email": "rajesh.sharma@student.dipl.edu"
+    },
+    {
+      "id": 427,
+      "email": "rajesh.kumar@durkkas.com"
+    }
+  ]
+}

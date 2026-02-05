@@ -20,9 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export function TopNavbar() {
     const pathname = usePathname();
+    const { user } = useAuthStore();
     const [showSearch, setShowSearch] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -123,8 +125,8 @@ export function TopNavbar() {
                                     >
                                         {/* User Info */}
                                         <div className="px-4 py-3 border-b border-gray-200">
-                                            <p className="text-sm font-semibold text-gray-900">Student</p>
-                                            <p className="text-xs text-gray-500 truncate">student@durkkas.com</p>
+                                            <p className="text-sm font-semibold text-gray-900 line-clamp-1">{user?.display_name || "Student"}</p>
+                                            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                         </div>
 
                                         {/* Quick Actions */}

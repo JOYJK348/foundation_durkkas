@@ -42,21 +42,23 @@ interface Material {
     id: number;
     material_name: string;
     material_type: string;
-    is_published: boolean;
+    visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
     file_url: string;
 }
 
 interface Lesson {
     id: number;
     lesson_name: string;
-    is_published: boolean;
+    lesson_number: string;
+    visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
     course_materials: Material[];
 }
 
 interface Module {
     id: number;
     module_name: string;
-    is_published: boolean;
+    module_number: number;
+    visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
     lessons: Lesson[];
 }
 
@@ -91,9 +93,9 @@ export default function CourseDetailsPage() {
 
     // Forms
     const [formData, setFormData] = useState({
-        module: { name: "", description: "" },
-        lesson: { name: "", description: "", type: "VIDEO" },
-        material: { name: "", type: "DOCUMENT", url: "" }
+        module: { name: "", description: "", visibility: "ENROLLED" as const },
+        lesson: { name: "", description: "", type: "VIDEO", visibility: "ENROLLED" as const },
+        material: { name: "", type: "DOCUMENT", url: "", visibility: "ENROLLED" as const }
     });
 
     const [submitting, setSubmitting] = useState(false);
@@ -136,7 +138,7 @@ export default function CourseDetailsPage() {
                 course_id: parseInt(params.id as string),
                 module_name: formData.module.name,
                 module_description: formData.module.description,
-                is_published: false
+                visibility: formData.module.visibility
             });
 
             if (response.data.success) {
@@ -151,7 +153,7 @@ export default function CourseDetailsPage() {
                     selectedModuleId: newModuleId,
                     moduleTitle: formData.module.name
                 }));
-                setFormData(prev => ({ ...prev, module: { name: "", description: "" } }));
+                setFormData(prev => ({ ...prev, module: { name: "", description: "", visibility: "ENROLLED" } }));
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to create module");
@@ -172,7 +174,7 @@ export default function CourseDetailsPage() {
                 lesson_name: formData.lesson.name,
                 lesson_description: formData.lesson.description,
                 lesson_type: formData.lesson.type,
-                is_published: false
+                visibility: formData.lesson.visibility
             });
 
             if (response.data.success) {
@@ -187,7 +189,7 @@ export default function CourseDetailsPage() {
                     selectedLessonId: newLessonId,
                     lessonTitle: formData.lesson.name
                 }));
-                setFormData(prev => ({ ...prev, lesson: { name: "", description: "", type: "VIDEO" } }));
+                setFormData(prev => ({ ...prev, lesson: { name: "", description: "", type: "VIDEO", visibility: "ENROLLED" } }));
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to add lesson");
@@ -208,7 +210,7 @@ export default function CourseDetailsPage() {
                 material_name: formData.material.name,
                 material_type: formData.material.type,
                 file_url: formData.material.url,
-                is_published: false
+                visibility: formData.material.visibility
             });
 
             if (response.data.success) {
@@ -216,7 +218,7 @@ export default function CourseDetailsPage() {
                 await fetchCourseDetails();
 
                 // Allow adding more materials or finish
-                setFormData(prev => ({ ...prev, material: { name: "", type: "DOCUMENT", url: "" } }));
+                setFormData(prev => ({ ...prev, material: { name: "", type: "DOCUMENT", url: "", visibility: "ENROLLED" } }));
                 toast.info("You can add another material or close the window.", { duration: 5000 });
             }
         } catch (error: any) {
@@ -227,16 +229,25 @@ export default function CourseDetailsPage() {
         }
     };
 
-    const handleToggleVisibility = async (type: 'module' | 'lesson' | 'material', id: number, currentStatus: boolean) => {
+    const handleToggleVisibility = async (type: 'module' | 'lesson' | 'material', id: number, currentVisibility: string) => {
         const toggleKey = `${type}-${id}`;
+
+        // Cycle visibility: PUBLIC -> ENROLLED -> PRIVATE -> PUBLIC
+        const cycle: Record<string, 'PUBLIC' | 'PRIVATE' | 'ENROLLED'> = {
+            'PUBLIC': 'ENROLLED',
+            'ENROLLED': 'PRIVATE',
+            'PRIVATE': 'PUBLIC'
+        };
+        const nextVisibility = cycle[currentVisibility] || 'PRIVATE';
+
         try {
             setToggling(toggleKey);
             const response = await api.patch(`/ems/courses/content/${type}/${id}/visibility`, {
-                is_published: !currentStatus
+                visibility: nextVisibility
             });
 
             if (response.data.success) {
-                toast.success(`Content ${!currentStatus ? 'Published' : 'Unpublished'}`);
+                toast.success(`Visibility updated to ${nextVisibility}`);
                 await fetchCourseDetails();
             }
         } catch (error) {
@@ -335,22 +346,27 @@ export default function CourseDetailsPage() {
                                                     }
                                                     <span className="font-bold text-gray-800 flex items-center gap-2">
                                                         {module.module_name}
-                                                        {!module.is_published && <Lock className="h-3.5 w-3.5 text-gray-400" />}
+                                                        {module.visibility === 'PRIVATE' && <Lock className="h-3.5 w-3.5 text-gray-400" />}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
-                                                        className={`h-8 gap-2 px-3 text-xs font-bold ${module.is_published ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}
-                                                        onClick={() => handleToggleVisibility('module', module.id, module.is_published)}
+                                                        className={`h-8 gap-2 px-3 text-xs font-bold transition-all ${module.visibility === 'PUBLIC' ? 'text-blue-600 hover:bg-blue-50' :
+                                                            module.visibility === 'ENROLLED' ? 'text-green-600 hover:bg-green-50' :
+                                                                'text-gray-400 hover:bg-gray-50'
+                                                            }`}
+                                                        onClick={() => handleToggleVisibility('module', module.id, module.visibility)}
                                                         disabled={toggling === `module-${module.id}`}
                                                     >
                                                         {toggling === `module-${module.id}` ?
                                                             <Loader2 className="h-3 w-3 animate-spin" /> :
-                                                            module.is_published ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />
+                                                            module.visibility === 'PUBLIC' ? <Eye className="h-3 w-3" /> :
+                                                                module.visibility === 'ENROLLED' ? <Unlock className="h-3 w-3" /> :
+                                                                    <Lock className="h-3 w-3" />
                                                         }
-                                                        {module.is_published ? 'Published' : 'Draft'}
+                                                        {module.visibility}
                                                     </Button>
                                                 </div>
                                             </div>
@@ -372,19 +388,23 @@ export default function CourseDetailsPage() {
                                                                         onClick={() => setExpandedLessons(prev => prev.includes(lesson.id) ? prev.filter(id => id !== lesson.id) : [...prev, lesson.id])}
                                                                     >
                                                                         <div className="flex items-center gap-3">
-                                                                            <PlayCircle className={`h-4 w-4 ${lesson.is_published ? 'text-purple-500' : 'text-gray-300'}`} />
+                                                                            <span className="text-xs font-bold text-purple-400 w-8">{lesson.lesson_number}</span>
+                                                                            <PlayCircle className={`h-4 w-4 ${lesson.visibility !== 'PRIVATE' ? 'text-purple-500' : 'text-gray-300'}`} />
                                                                             <span className="text-sm font-medium text-gray-700">{lesson.lesson_name}</span>
                                                                         </div>
                                                                         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                                                                             <Button
                                                                                 size="sm"
                                                                                 variant="ghost"
-                                                                                className={`h-7 px-2 text-[10px] uppercase font-bold tracking-wider ${lesson.is_published ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                                                                                onClick={() => handleToggleVisibility('lesson', lesson.id, lesson.is_published)}
+                                                                                className={`h-7 px-2 text-[10px] uppercase font-bold tracking-wider ${lesson.visibility === 'PUBLIC' ? 'text-blue-600 hover:bg-blue-50' :
+                                                                                    lesson.visibility === 'ENROLLED' ? 'text-green-600 hover:bg-green-50' :
+                                                                                        'text-gray-400 hover:bg-gray-100'
+                                                                                    }`}
+                                                                                onClick={() => handleToggleVisibility('lesson', lesson.id, lesson.visibility)}
                                                                                 disabled={toggling === `lesson-${lesson.id}`}
                                                                             >
-                                                                                {lesson.is_published ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
-                                                                                {lesson.is_published ? 'Visible' : 'Hidden'}
+                                                                                {lesson.visibility === 'PRIVATE' ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                                                                                {lesson.visibility}
                                                                             </Button>
                                                                         </div>
                                                                     </div>
@@ -407,10 +427,10 @@ export default function CourseDetailsPage() {
                                                                                             </div>
                                                                                             <Button
                                                                                                 variant="ghost"
-                                                                                                className={`h-6 px-1 transition-opacity ${mat.is_published ? 'text-green-500' : 'text-gray-300'}`}
-                                                                                                onClick={() => handleToggleVisibility('material', mat.id, mat.is_published)}
+                                                                                                className={`h-6 px-1 transition-opacity ${mat.visibility === 'PUBLIC' ? 'text-blue-500' : mat.visibility === 'ENROLLED' ? 'text-green-500' : 'text-gray-300'}`}
+                                                                                                onClick={() => handleToggleVisibility('material', mat.id, mat.visibility)}
                                                                                             >
-                                                                                                {mat.is_published ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                                                                                {mat.visibility === 'PRIVATE' ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                                                                                             </Button>
                                                                                         </div>
                                                                                     ))}
@@ -507,6 +527,18 @@ export default function CourseDetailsPage() {
                                         className="bg-gray-50 border-gray-100 focus:bg-white"
                                     />
                                 </div>
+                                <div className="space-y-2">
+                                    <Label className="text-gray-700 font-bold">Initial Visibility</Label>
+                                    <select
+                                        className="w-full h-11 px-3 rounded-md border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
+                                        value={formData.module.visibility}
+                                        onChange={e => setFormData({ ...formData, module: { ...formData.module, visibility: e.target.value as any } })}
+                                    >
+                                        <option value="PRIVATE">Private (Draft)</option>
+                                        <option value="ENROLLED">Enrolled Only (Paid)</option>
+                                        <option value="PUBLIC">Public (Free Preview)</option>
+                                    </select>
+                                </div>
                                 <Button className="w-full h-11 bg-purple-600 hover:bg-purple-700 font-bold text-white shadow-lg shadow-purple-100" onClick={handleCreateModule} disabled={submitting}>
                                     {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                                     Create Module & Next
@@ -546,6 +578,18 @@ export default function CourseDetailsPage() {
                                         </div>
                                     </div>
                                 </div>
+                                <div className="space-y-2">
+                                    <Label className="text-gray-700 font-bold">Visibility</Label>
+                                    <select
+                                        className="w-full h-11 px-3 rounded-md border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
+                                        value={formData.lesson.visibility}
+                                        onChange={e => setFormData({ ...formData, lesson: { ...formData.lesson, visibility: e.target.value as any } })}
+                                    >
+                                        <option value="PRIVATE">Private (Draft)</option>
+                                        <option value="ENROLLED">Enrolled Only (Paid)</option>
+                                        <option value="PUBLIC">Public (Free Preview)</option>
+                                    </select>
+                                </div>
                                 <div className="flex gap-3 pt-2">
                                     <Button variant="ghost" className="flex-1 h-11 text-gray-400 font-bold" onClick={() => setCreatorConfig(prev => ({ ...prev, isOpen: false }))}>
                                         Done
@@ -578,6 +622,18 @@ export default function CourseDetailsPage() {
                                         placeholder="https://..."
                                         className="h-11 bg-gray-50 border-gray-100 focus:bg-white"
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-gray-700 font-bold">Visibility</Label>
+                                    <select
+                                        className="w-full h-11 px-3 rounded-md border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
+                                        value={formData.material.visibility}
+                                        onChange={e => setFormData({ ...formData, material: { ...formData.material, visibility: e.target.value as any } })}
+                                    >
+                                        <option value="PRIVATE">Private (Draft)</option>
+                                        <option value="ENROLLED">Enrolled Only (Paid)</option>
+                                        <option value="PUBLIC">Public (Free Preview)</option>
+                                    </select>
                                 </div>
                                 <div className="flex gap-3 pt-2">
                                     <Button variant="outline" className="flex-1 h-11 border-purple-200 text-purple-600 font-bold" onClick={() => setCreatorConfig(prev => ({ ...prev, isOpen: false }))}>

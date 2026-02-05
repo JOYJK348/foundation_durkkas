@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "course_name": "Full Stack Development Bootcamp"
+  },
+  {
+    "id": 16,
+    "course_name": "Full Stack Web Development Bootcamp"
+  },
+  {
+    "id": 17,
+    "course_name": "Data Science & Machine Learning"
+  },
+  {
+    "id": 18,
+    "course_name": "Digital Marketing Masterclass"
+  },
+  {
+    "id": 2,
+    "course_name": "Data Science & AI Mastery"
+  },
+  {
+    "id": 3,
+    "course_name": "Professional UI/UX Designnn"
+  }
+]

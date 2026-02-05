@@ -28,23 +28,32 @@ export class TutorService {
         if (empError) throw empError;
         if (!employees || employees.length === 0) return [];
 
-        // 2. Fetch course counts for these tutors from EMS schema
+        // 2. Fetch course IDs from both sources
         const tutorIds = employees.map((e: any) => e.id);
-        const { data: courseCounts, error: countError } = await ems.courses()
-            .select('tutor_id')
+
+        // Legacy Column
+        const { data: legacyCourses } = await ems.courses()
+            .select('tutor_id, id')
             .in('tutor_id', tutorIds)
-            .eq('company_id', companyId);
+            .eq('company_id', companyId)
+            .is('deleted_at', null);
 
-        if (countError) {
-            console.error('⚠️ [TutorService] Error fetching course counts:', countError);
-        }
+        // New Junction Table
+        const { data: junctionMappings } = await ems.courseTutors()
+            .select('tutor_id, course_id')
+            .in('tutor_id', tutorIds)
+            .is('deleted_at', null);
 
-        // 3. Merge counts with employees
+        // 3. Merge and Count Unique Courses
         const tutorsWithCount = employees.map((t: any) => {
-            const count = courseCounts?.filter((c: any) => c.tutor_id === t.id).length || 0;
+            const courseIds = new Set([
+                ...(legacyCourses?.filter((c: any) => c.tutor_id === t.id).map((c: any) => c.id) || []),
+                ...(junctionMappings?.filter((m: any) => m.tutor_id === t.id).map((m: any) => m.course_id) || [])
+            ]);
+
             return {
                 ...t,
-                courses_assigned: count
+                courses_assigned: courseIds.size
             };
         });
 
@@ -86,6 +95,15 @@ export class TutorService {
 
         if (existingUser) {
             userId = existingUser.id;
+            // Optionally update password if provided and user exists
+            if (tutorData.password) {
+                const salt = await bcrypt.genSalt(10);
+                const hashedPassword = await bcrypt.hash(tutorData.password, salt);
+                await app_auth.users().update({
+                    password_hash: hashedPassword,
+                    updated_at: new Date().toISOString()
+                }).eq('id', userId);
+            }
         } else {
             // 2. Create User Account
             const salt = await bcrypt.genSalt(10);
@@ -109,22 +127,25 @@ export class TutorService {
                 throw new Error(`Auth Account Error: ${userError.message}`);
             }
             userId = newUser.id;
+        }
 
-            // 3. Assign TUTOR Role
-            const { data: roleData } = await app_auth.roles()
-                .select('id')
-                .eq('name', 'TUTOR')
-                .single();
+        // 3. Assign/Ensure TUTOR Role exists for this company
+        const { data: roleData } = await app_auth.roles()
+            .select('id')
+            .eq('name', 'TUTOR')
+            .single();
 
-            if (roleData) {
-                await app_auth.userRoles().insert({
-                    user_id: userId,
-                    role_id: roleData.id,
-                    company_id: tutorData.company_id,
-                    branch_id: tutorData.branch_id || null,
-                    is_active: true
-                });
-            }
+        if (roleData) {
+            // Use upsert to ensure role exists for this user in this company
+            await app_auth.userRoles().upsert({
+                user_id: userId,
+                role_id: roleData.id,
+                company_id: tutorData.company_id,
+                branch_id: tutorData.branch_id || null,
+                is_active: true
+            }, {
+                onConflict: 'user_id,role_id,company_id,branch_id'
+            });
         }
 
         // 4. Create Employee Record (Professional Record)

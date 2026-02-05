@@ -18,10 +18,13 @@ import {
     Eye,
     ArrowLeft,
     X,
+    UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { MultiTutorModal } from "@/components/ems/multi-tutor-modal";
+import { DeleteCourseModal } from "@/components/ems/delete-course-modal";
 
 interface Course {
     id: number;
@@ -35,13 +38,38 @@ interface Course {
     status: string;
     total_lessons: number;
     enrollment_capacity: number;
+    tutor?: {
+        id: number;
+        name: string;
+        email: string;
+    } | null;
+    tutors?: Array<{
+        id: number;
+        name: string;
+        email: string;
+        employeeCode?: string;
+        isPrimary?: boolean;
+        role?: string;
+    }>;
+    students?: Array<{
+        id: number;
+        name: string;
+        email: string;
+        studentCode: string;
+    }>;
+    studentCount?: number;
 }
 
 export default function CoursesPage() {
     const [courses, setCourses] = useState<Course[]>([]);
+    const [courseMappings, setCourseMappings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [showAssignTutorModal, setShowAssignTutorModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [formData, setFormData] = useState({
         course_code: "",
         course_name: "",
@@ -55,6 +83,7 @@ export default function CoursesPage() {
 
     useEffect(() => {
         fetchCourses();
+        fetchCourseMappings();
     }, []);
 
     useEffect(() => {
@@ -75,14 +104,53 @@ export default function CoursesPage() {
         }
     };
 
+    const fetchCourseMappings = async () => {
+        try {
+            const response = await api.get('/ems/dashboard/course-mapping');
+            if (response.data.success) {
+                const mappings = response.data.data || [];
+                setCourseMappings(mappings);
+
+                // Merge mapping data with courses
+                setCourses(prevCourses =>
+                    prevCourses.map(course => {
+                        const mapping = mappings.find((m: any) => m.courseId === course.id);
+                        if (mapping) {
+                            return {
+                                ...course,
+                                tutor: mapping.tutor,
+                                tutors: mapping.tutors,
+                                students: mapping.students,
+                                studentCount: mapping.studentCount
+                            };
+                        }
+                        return course;
+                    })
+                );
+            }
+        } catch (error) {
+            console.error('Error fetching course mappings:', error);
+        }
+    };
+
     const handleCreateCourse = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await api.post("/ems/courses", formData);
+            let response;
+
+            if (selectedCourse) {
+                // Update existing course
+                response = await api.put(`/ems/courses/${selectedCourse.id}`, formData);
+            } else {
+                // Create new course
+                response = await api.post("/ems/courses", formData);
+            }
 
             if (response.data.success) {
                 setShowCreateForm(false);
+                setSelectedCourse(null);
                 fetchCourses();
+                fetchCourseMappings();
                 // Reset form
                 setFormData({
                     course_code: "",
@@ -94,10 +162,33 @@ export default function CoursesPage() {
                     price: 0,
                     enrollment_capacity: 30,
                 });
+                alert(selectedCourse ? 'Course updated successfully!' : 'Course created successfully!');
             }
-        } catch (error) {
-            console.error("Error creating course:", error);
+        } catch (error: any) {
+            console.error("Error saving course:", error);
+            alert(error.response?.data?.message || 'Failed to save course');
         }
+    };
+
+    const handleEditCourse = (course: Course) => {
+        // Set the form data with course details
+        setFormData({
+            course_code: course.course_code,
+            course_name: course.course_name,
+            course_description: course.course_description || "",
+            course_category: course.course_category,
+            course_level: course.course_level,
+            duration_hours: course.duration_hours,
+            price: course.price,
+            enrollment_capacity: course.enrollment_capacity,
+        });
+        setSelectedCourse(course);
+        setShowCreateForm(true); // Reuse create form for editing
+    };
+
+    const handleDeleteCourse = (course: Course) => {
+        setCourseToDelete(course);
+        setShowDeleteModal(true);
     };
 
     const filteredCourses = courses.filter((course) =>
@@ -242,19 +333,95 @@ export default function CoursesPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-2">
-                                            <Link href={`/ems/academic-manager/courses/${course.id}`} className="flex-1">
-                                                <Button size="sm" variant="outline" className="w-full">
-                                                    <Eye className="h-4 w-4 mr-1" />
-                                                    View
+                                        {/* Tutor & Student Info */}
+                                        <div className="mb-4 space-y-2">
+                                            {/* Tutors */}
+                                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                                                <div className="flex items-center gap-1 mb-2">
+                                                    <span className="text-blue-700 font-bold">👨‍🏫 Tutors:</span>
+                                                    <span className="text-blue-600 font-bold ml-1">{course.tutors?.length || 0}</span>
+                                                </div>
+
+                                                {course.tutors && course.tutors.length > 0 ? (
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {course.tutors.map((tutor) => (
+                                                            <div key={tutor.id} className="flex items-center justify-between group">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${tutor.isPrimary ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' : 'bg-blue-100 text-blue-700'
+                                                                        }`}>
+                                                                        {tutor.name.charAt(0)}
+                                                                    </div>
+                                                                    <span className={`font-semibold ${tutor.isPrimary ? 'text-blue-900' : 'text-gray-700'}`}>
+                                                                        {tutor.name}
+                                                                        {tutor.isPrimary && <span className="ml-1 text-yellow-600" title="Primary Tutor">⭐</span>}
+                                                                    </span>
+                                                                </div>
+                                                                {tutor.role && (
+                                                                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                                                                        {tutor.role}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-500 italic">No tutors assigned</span>
+                                                )}
+                                            </div>
+
+                                            {/* Students */}
+                                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                                                <span className="text-green-700 font-bold">👥 Students:</span>
+                                                <span className="text-green-900 font-bold text-base">{course.studentCount || 0}</span>
+                                                {course.studentCount && course.studentCount > 0 ? (
+                                                    <span className="text-green-800 font-medium ml-auto">enrolled</span>
+                                                ) : (
+                                                    <span className="text-gray-500 italic font-medium ml-auto">None</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Button
+                                                size="sm"
+                                                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                                                onClick={() => {
+                                                    setSelectedCourse(course);
+                                                    setShowAssignTutorModal(true);
+                                                }}
+                                            >
+                                                <UserPlus className="h-4 w-4 mr-2" />
+                                                {course.tutor ? 'Manage Tutors' : 'Assign Tutors'}
+                                            </Button>
+
+                                            {/* Other Actions */}
+                                            <div className="flex gap-2">
+                                                <Link href={`/ems/academic-manager/courses/${course.id}`} className="flex-1">
+                                                    <Button size="sm" variant="outline" className="w-full">
+                                                        <Eye className="h-4 w-4 mr-1" />
+                                                        View
+                                                    </Button>
+                                                </Link>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleEditCourse(course)}
+                                                    className="hover:bg-blue-50 hover:border-blue-500"
+                                                >
+                                                    <Edit className="h-4 w-4" />
                                                 </Button>
-                                            </Link>
-                                            <Button size="sm" variant="outline">
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-500"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteCourse(course);
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -416,6 +583,36 @@ export default function CoursesPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Multi-Tutor Assignment Modal */}
+            <MultiTutorModal
+                isOpen={showAssignTutorModal && !!selectedCourse}
+                onClose={() => {
+                    setShowAssignTutorModal(false);
+                    setSelectedCourse(null);
+                }}
+                courseId={selectedCourse?.id || 0}
+                courseName={selectedCourse?.course_name || ''}
+                onSuccess={() => {
+                    fetchCourses();
+                    fetchCourseMappings();
+                }}
+            />
+
+            {/* Delete Course Modal */}
+            <DeleteCourseModal
+                isOpen={showDeleteModal && !!courseToDelete}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setCourseToDelete(null);
+                }}
+                courseId={courseToDelete?.id || 0}
+                courseName={courseToDelete?.course_name || ''}
+                onSuccess={() => {
+                    fetchCourses();
+                    fetchCourseMappings();
+                }}
+            />
 
             <AcademicManagerBottomNav />
         </div>

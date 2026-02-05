@@ -20,10 +20,16 @@ import {
     Trash2,
     Eye,
     BookOpen,
+    CheckCircle2,
+    Copy,
+    ShieldCheck,
+    Key,
+    Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 interface Student {
     id: number;
@@ -56,6 +62,8 @@ export default function StudentsPage() {
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showEnrollForm, setShowEnrollForm] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [generatedCredentials, setGeneratedCredentials] = useState<any>(null);
     const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -67,6 +75,7 @@ export default function StudentsPage() {
         phone: "",
         date_of_birth: "",
         gender: "MALE",
+        password: "Student@123", // Default password
     });
 
     const [enrollFormData, setEnrollFormData] = useState({
@@ -123,7 +132,16 @@ export default function StudentsPage() {
             const response = await api.post("/ems/students", studentFormData);
 
             if (response.data.success) {
+                const credentials = response.data.data.login_credentials;
+                const studentName = `${response.data.data.first_name} ${response.data.data.last_name}`;
+
+                setGeneratedCredentials({
+                    ...credentials,
+                    name: studentName
+                });
+
                 setShowCreateForm(false);
+                setShowSuccessModal(true);
                 fetchStudents();
                 // Reset form
                 setStudentFormData({
@@ -134,6 +152,7 @@ export default function StudentsPage() {
                     phone: "",
                     date_of_birth: "",
                     gender: "MALE",
+                    password: "Student@123",
                 });
             }
         } catch (error) {
@@ -146,9 +165,9 @@ export default function StudentsPage() {
         try {
             const response = await api.post("/ems/enrollments", {
                 ...enrollFormData,
-                student_id: parseInt(enrollFormData.student_id),
-                course_id: parseInt(enrollFormData.course_id),
-                batch_id: parseInt(enrollFormData.batch_id),
+                student_id: enrollFormData.student_id ? parseInt(enrollFormData.student_id) : null,
+                course_id: enrollFormData.course_id ? parseInt(enrollFormData.course_id) : null,
+                batch_id: enrollFormData.batch_id ? parseInt(enrollFormData.batch_id) : null,
             });
 
             if (response.data.success) {
@@ -417,14 +436,28 @@ export default function StudentsPage() {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="date_of_birth">Date of Birth</Label>
-                                    <Input
-                                        id="date_of_birth"
-                                        type="date"
-                                        value={studentFormData.date_of_birth}
-                                        onChange={(e) => setStudentFormData({ ...studentFormData, date_of_birth: e.target.value })}
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="date_of_birth">Date of Birth</Label>
+                                        <Input
+                                            id="date_of_birth"
+                                            type="date"
+                                            value={studentFormData.date_of_birth}
+                                            onChange={(e) => setStudentFormData({ ...studentFormData, date_of_birth: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="password">Login Password *</Label>
+                                        <Input
+                                            id="password"
+                                            type="text"
+                                            required
+                                            placeholder="Set a password for student"
+                                            value={studentFormData.password}
+                                            onChange={(e) => setStudentFormData({ ...studentFormData, password: e.target.value })}
+                                        />
+                                        <p className="text-[10px] text-gray-500 mt-1">Default: Student@123</p>
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 pt-4">
@@ -551,6 +584,123 @@ export default function StudentsPage() {
                                     </Button>
                                 </div>
                             </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Login Credentials Success Modal */}
+            <AnimatePresence>
+                {showSuccessModal && generatedCredentials && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden"
+                        >
+                            {/* Header with Success Animation */}
+                            <div className="bg-gradient-to-br from-green-500 to-emerald-600 px-6 py-8 text-center text-white relative">
+                                <div className="absolute top-4 right-4">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-white hover:bg-white/20 rounded-full h-8 w-8"
+                                        onClick={() => setShowSuccessModal(false)}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full mb-4 backdrop-blur-md">
+                                    <ShieldCheck className="h-10 w-10 text-white" />
+                                </div>
+                                <h2 className="text-2xl font-bold mb-1">Admission Successful!</h2>
+                                <p className="text-green-50/80 text-sm">Student account has been created</p>
+                            </div>
+
+                            {/* Credentials Body */}
+                            <div className="p-8 font-sans">
+                                <div className="space-y-6 text-left">
+                                    <div>
+                                        <Label className="text-[10px] uppercase tracking-wider text-gray-400 font-bold block mb-1">Student Name</Label>
+                                        <p className="text-lg font-extrabold text-gray-900 leading-none">{generatedCredentials.name}</p>
+                                    </div>
+
+                                    <div className="p-5 bg-gray-50 rounded-[24px] border border-gray-100 space-y-5">
+                                        <div className="flex items-center justify-between group">
+                                            <div>
+                                                <Label className="text-[10px] uppercase text-gray-400 font-bold block mb-1">Login Username</Label>
+                                                <p className="font-mono font-bold text-gray-800 text-sm">{generatedCredentials.student_code}</p>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                type="button"
+                                                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(generatedCredentials.student_code);
+                                                    toast.success("Username copied!");
+                                                }}
+                                            >
+                                                <Copy className="h-4 w-4 text-gray-400" />
+                                            </Button>
+                                        </div>
+
+                                        <div className="flex items-center justify-between group">
+                                            <div>
+                                                <Label className="text-[10px] uppercase text-gray-400 font-bold block mb-1">Initial Password</Label>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <Lock className="h-3 w-3 text-orange-500" />
+                                                    <p className="font-mono font-bold text-gray-800">{generatedCredentials.password}</p>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                type="button"
+                                                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(generatedCredentials.password);
+                                                    toast.success("Password copied!");
+                                                }}
+                                            >
+                                                <Copy className="h-4 w-4 text-gray-400" />
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-2xl text-blue-700 text-[11px] leading-relaxed">
+                                            <Key className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                                            <p>Account secured and ready. share the "Welcome Kit" below with the student for their first login.</p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-7 rounded-2xl font-bold mt-2 shadow-lg shadow-purple-200 h-auto"
+                                            onClick={() => {
+                                                const kit = `🎓 STUDENT WELCOME KIT\n\nFull Name: ${generatedCredentials.name}\nUsername: ${generatedCredentials.student_code}\nPassword: ${generatedCredentials.password}\nPortal: ${window.location.origin}/login\n\nWelcome to the ecosystem! Please change your password after logging in.`;
+                                                navigator.clipboard.writeText(kit);
+                                                toast.success("Welcome Kit copied to clipboard!");
+                                            }}
+                                        >
+                                            Copy Welcome Kit
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="w-full py-4 text-gray-500 font-bold h-auto hover:bg-gray-50"
+                                            onClick={() => setShowSuccessModal(false)}
+                                        >
+                                            Close
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

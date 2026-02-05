@@ -19,9 +19,13 @@ export async function GET(req: NextRequest) {
             m.getUserTenantScope(userId)
         );
 
+        const { searchParams } = new URL(req.url);
+        const courseId = searchParams.get('course_id');
+
         const data = await BatchService.getAllBatches(
             scope.companyId!,
-            scope.branchId || undefined
+            scope.branchId || undefined,
+            courseId ? parseInt(courseId) : undefined
         );
 
         return successResponse(data, `Batches fetched successfully (${data?.length || 0} records)`);

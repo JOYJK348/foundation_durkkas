@@ -9,6 +9,7 @@ import { getUserIdFromToken } from '@/lib/jwt';
 import { autoAssignCompany, getUserTenantScope } from '@/middleware/tenantFilter';
 import { attendanceSessionSchema, attendanceRecordSchema } from '@/lib/validations/ems';
 import { AttendanceService } from '@/lib/services/AttendanceService';
+import { ems } from '@/lib/supabase';
 import { z } from 'zod';
 
 export async function GET(req: NextRequest) {
@@ -19,21 +20,70 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const batchId = searchParams.get('batch_id');
         const studentId = searchParams.get('student_id');
+        const sessionId = searchParams.get('session_id');
+        const mode = searchParams.get('mode');
+        const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
+        if (mode === 'schedule') {
+            const scope = await getUserTenantScope(userId);
+            const schedule = await AttendanceService.getDailySchedule(scope.companyId!, date);
+            return successResponse(schedule, 'Daily schedule fetched successfully');
+        }
+
+        // Case 1: Fetch details for a specific session (e.g. for marking attendance)
+        if (sessionId) {
+            const scope = await getUserTenantScope(userId);
+            // If batchId is provided, used it. Otherwise, we might need to fetch it from session.
+            // For now, let's require batchId as well or just try with company scope if service allows.
+            if (batchId) {
+                const data = await AttendanceService.getBatchAttendanceSummary(scope.companyId!, parseInt(batchId), parseInt(sessionId));
+                return successResponse(data, 'Session attendance summary fetched successfully');
+            } else {
+                return errorResponse(null, 'Batch ID is required along with Session ID', 400);
+            }
+        }
+
+        // Case 2: Fetch report for a batch over a date range
         if (batchId) {
             const startDate = searchParams.get('start_date') || new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
             const endDate = searchParams.get('end_date') || new Date().toISOString().split('T')[0];
 
+            // Ensure this method exists in Service
+            // Note: getBatchAttendanceReport might not exist yet, I will add it.
+            // Using a temporary direct query or placeholder if it doesn't exist?
+            // Since I am about to add it, this is fine.
             const data = await AttendanceService.getBatchAttendanceReport(parseInt(batchId), startDate, endDate);
             return successResponse(data, 'Batch attendance report fetched successfully');
         }
 
-        if (studentId) {
-            const data = await AttendanceService.getStudentAttendance(parseInt(studentId));
+        // Case 3: Fetch history for a specific student
+        if (studentId || mode === 'student-history') {
+            const scope = await getUserTenantScope(userId);
+
+            let finalStudentId = studentId ? parseInt(studentId) : null;
+
+            // If mode is student-history, we derive studentId from userId
+            if (mode === 'student-history') {
+                const { data: student } = await ems.students()
+                    .select('id')
+                    .eq('user_id', userId)
+                    .single() as any;
+                if (!student) return errorResponse(null, 'Student record not found', 404);
+                finalStudentId = student.id;
+            }
+
+            if (!finalStudentId) return errorResponse(null, 'Student ID is required', 400);
+
+            const courseId = searchParams.get('course_id');
+            const data = await AttendanceService.getStudentAttendance(
+                scope.companyId!,
+                finalStudentId,
+                courseId ? parseInt(courseId) : undefined
+            );
             return successResponse(data, 'Student attendance history fetched successfully');
         }
 
-        return errorResponse(null, 'Either batch_id or student_id is required', 400);
+        return errorResponse(null, 'Required parameters missing', 400);
 
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to fetch attendance');
@@ -46,14 +96,47 @@ export async function POST(req: NextRequest) {
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         const { searchParams } = new URL(req.url);
-        const mode = searchParams.get('mode') || 'session'; // session or record
+        const mode = searchParams.get('mode') || 'session'; // session, record, student-mark
 
         let data = await req.json();
+
+        if (mode === 'student-mark') {
+            const scope = await getUserTenantScope(userId);
+            const { data: student } = await ems.students()
+                .select('id')
+                .eq('user_id', userId)
+                .single() as any;
+            if (!student) return errorResponse(null, 'Student record not found', 404);
+
+            const result = await AttendanceService.submitFaceVerification({
+                sessionId: data.session_id,
+                studentId: student.id,
+                verificationType: data.verification_type, // OPENING or CLOSING
+                faceImageUrl: data.face_image_url,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                locationAccuracy: data.location_accuracy,
+                deviceInfo: data.device_info,
+                ipAddress: req.headers.get('x-forwarded-for') || '0.0.0.0',
+                userAgent: req.headers.get('user-agent') || ''
+            }, scope.companyId!);
+
+            return successResponse(result, 'Attendance verification submitted');
+        }
+
         data = await autoAssignCompany(userId, data);
 
         if (mode === 'session') {
             const validatedData = attendanceSessionSchema.parse(data);
-            const session = await AttendanceService.createSession(validatedData);
+            const session = await AttendanceService.createSession({
+                companyId: validatedData.company_id,
+                courseId: validatedData.course_id,
+                batchId: validatedData.batch_id!,
+                sessionDate: validatedData.session_date,
+                sessionType: validatedData.session_type,
+                startTime: validatedData.start_time || '09:00',
+                endTime: validatedData.end_time || '10:00'
+            });
             return successResponse(session, 'Attendance session created successfully', 201);
         } else {
             const bulkSchema = z.array(attendanceRecordSchema);

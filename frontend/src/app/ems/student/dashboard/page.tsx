@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
 import { BottomNav } from "@/components/ems/dashboard/bottom-nav";
@@ -16,15 +17,84 @@ import {
     Clock,
     ArrowRight,
     Play,
+    Loader2,
+    Video,
 } from "lucide-react";
 import Link from "next/link";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import { useAuthStore } from "@/store/useAuthStore";
+
+interface DashboardData {
+    student: {
+        id: number;
+        name: string;
+        email: string;
+        student_code: string;
+    };
+    stats: {
+        total_courses: number;
+        active_assignments: number;
+        pending_quizzes: number;
+        average_progress: number;
+        upcoming_classes: number;
+    };
+    enrolled_courses: any[];
+    pending_assignments: any[];
+    upcoming_quizzes: any[];
+    upcoming_live_classes: any[];
+}
 
 export default function StudentDashboard() {
+    const [loading, setLoading] = useState(true);
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const { user } = useAuthStore();
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get("/ems/students/dashboard");
+            if (response.data.success) {
+                setDashboardData(response.data.data);
+            }
+        } catch (error: any) {
+            console.error("Error fetching dashboard:", error);
+            toast.error(error.response?.data?.message || "Failed to load dashboard");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600">Loading your dashboard...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!dashboardData) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-gray-600">No data available</p>
+                </div>
+            </div>
+        );
+    }
+
     const stats = [
-        { label: "Courses", value: "3", icon: BookOpen, color: "blue", href: "/ems/student/courses" },
-        { label: "Assignments", value: "5", icon: FileText, color: "green", href: "/ems/student/assignments" },
-        { label: "Assessments", value: "2", icon: ClipboardCheck, color: "purple", href: "/ems/student/assessments" },
-        { label: "Progress", value: "68%", icon: TrendingUp, color: "orange", href: "/ems/student/progress" },
+        { label: "Courses", value: dashboardData.stats.total_courses, icon: BookOpen, color: "blue", href: "/ems/student/courses" },
+        { label: "Assignments", value: dashboardData.stats.active_assignments, icon: FileText, color: "green", href: "/ems/student/assignments" },
+        { label: "Quizzes", value: dashboardData.stats.pending_quizzes, icon: ClipboardCheck, color: "purple", href: "/ems/student/assessments" },
+        { label: "Progress", value: `${Math.round(dashboardData.stats.average_progress)}%`, icon: TrendingUp, color: "orange", href: "/ems/student/progress" },
     ];
 
     const quickActions = [
@@ -34,28 +104,6 @@ export default function StudentDashboard() {
         { label: "Doubts", icon: MessageSquare, href: "/ems/student/doubts", color: "red" },
         { label: "Progress", icon: TrendingUp, href: "/ems/student/progress", color: "orange" },
         { label: "Attendance", icon: Calendar, href: "/ems/student/attendance", color: "pink" },
-    ];
-
-    const recentCourses = [
-        {
-            id: 1,
-            title: "Web Development - Full Stack",
-            progress: 68,
-            nextLesson: "React Hooks - useState",
-            image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop",
-        },
-        {
-            id: 2,
-            title: "Data Science Basics",
-            progress: 45,
-            nextLesson: "Pandas Fundamentals",
-            image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop",
-        },
-    ];
-
-    const upcomingAssignments = [
-        { id: 1, title: "React Component Assignment", dueDate: "Dec 22, 2024", status: "pending" },
-        { id: 2, title: "API Integration Project", dueDate: "Dec 25, 2024", status: "pending" },
     ];
 
     return (
@@ -70,9 +118,9 @@ export default function StudentDashboard() {
                     className="mb-8"
                 >
                     <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                        Welcome Back, Student!
+                        Welcome Back, {dashboardData.student.name}!
                     </h1>
-                    <p className="text-gray-600">Continue your learning journey</p>
+                    <p className="text-gray-600">Continue your learning journey • {dashboardData.student.student_code}</p>
                 </motion.div>
 
                 {/* Stats Grid */}
@@ -111,40 +159,66 @@ export default function StudentDashboard() {
                     className="mb-8"
                 >
                     <h2 className="text-2xl font-bold mb-4 text-gray-900">Continue Learning</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {recentCourses.map((course, index) => (
-                            <Card key={course.id} className="border-0 shadow-lg hover:shadow-xl transition-all overflow-hidden group">
-                                <div className="relative h-48 overflow-hidden">
-                                    <img
-                                        src={course.image}
-                                        alt={course.title}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                    <div className="absolute bottom-4 left-4 right-4">
-                                        <h3 className="text-white font-bold text-lg mb-1">{course.title}</h3>
-                                        <p className="text-white/90 text-sm">{course.nextLesson}</p>
+                    {dashboardData.enrolled_courses.length === 0 ? (
+                        <Card className="border-0 shadow-lg">
+                            <CardContent className="p-12 text-center">
+                                <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">No Courses Enrolled</h3>
+                                <p className="text-gray-600">Contact your administrator to enroll in courses</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {dashboardData.enrolled_courses.slice(0, 4).map((enrollment: any, index: number) => (
+                                <Card key={enrollment.id} className="border-0 shadow-lg hover:shadow-xl transition-all overflow-hidden group">
+                                    <div className="relative h-48 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
+                                        {enrollment.course.thumbnail_url ? (
+                                            <img
+                                                src={enrollment.course.thumbnail_url}
+                                                alt={enrollment.course.course_name}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <BookOpen className="h-20 w-20 text-white/30" />
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                        <div className="absolute bottom-4 left-4 right-4">
+                                            <h3 className="text-white font-bold text-lg mb-1">{enrollment.course.course_name}</h3>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-white/90 text-xs px-2 py-0.5 bg-white/10 backdrop-blur-md rounded-full border border-white/20">{enrollment.course.course_level}</p>
+                                                {enrollment.batch && (
+                                                    <p className="text-blue-200 text-xs font-bold">#{enrollment.batch.batch_name}</p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <CardContent className="p-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm text-gray-600">Progress</span>
-                                        <span className="text-sm font-bold text-blue-600">{course.progress}%</span>
-                                    </div>
-                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
-                                        <div
-                                            className="h-full bg-blue-600 rounded-full"
-                                            style={{ width: `${course.progress}%` }}
-                                        ></div>
-                                    </div>
-                                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                                        <Play className="h-4 w-4 mr-2" />
-                                        Continue Learning
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm text-gray-600">Progress</span>
+                                            <span className="text-sm font-bold text-blue-600">{Math.round(enrollment.completion_percentage || 0)}%</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
+                                            <div
+                                                className="h-full bg-blue-600 rounded-full"
+                                                style={{ width: `${enrollment.completion_percentage || 0}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                                            <span>{enrollment.lessons_completed || 0} / {enrollment.total_lessons || 0} lessons</span>
+                                        </div>
+                                        <Link href={`/ems/student/courses/${enrollment.course.id}`}>
+                                            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                                                <Play className="h-4 w-4 mr-2" />
+                                                Continue Learning
+                                            </Button>
+                                        </Link>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Quick Actions */}
@@ -176,6 +250,7 @@ export default function StudentDashboard() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
+                    className="mb-8"
                 >
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-2xl font-bold text-gray-900">Upcoming Assignments</h2>
@@ -186,32 +261,85 @@ export default function StudentDashboard() {
                             </Button>
                         </Link>
                     </div>
-                    <div className="space-y-3">
-                        {upcomingAssignments.map((assignment) => (
-                            <Card key={assignment.id} className="border-0 shadow-md hover:shadow-lg transition-all">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                                                <FileText className="h-5 w-5 text-green-600" />
+                    {dashboardData.pending_assignments.length === 0 ? (
+                        <Card className="border-0 shadow-md">
+                            <CardContent className="p-8 text-center">
+                                <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                                <p className="text-gray-600">No pending assignments</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {dashboardData.pending_assignments.slice(0, 5).map((assignment: any) => (
+                                <Card key={assignment.id} className="border-0 shadow-md hover:shadow-lg transition-all">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 flex-1">
+                                                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                                                    <FileText className="h-5 w-5 text-green-600" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-gray-900">{assignment.assignment_title}</h3>
+                                                    <p className="text-sm text-gray-600">{assignment.course.course_name}</p>
+                                                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                                                        <Clock className="h-3 w-3" />
+                                                        Due: {new Date(assignment.deadline).toLocaleDateString()}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="font-semibold text-gray-900">{assignment.title}</h3>
-                                                <p className="text-sm text-gray-600 flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" />
-                                                    Due: {assignment.dueDate}
-                                                </p>
-                                            </div>
+                                            <Link href={`/ems/student/assignments/${assignment.id}`}>
+                                                <Button size="sm" variant="outline">
+                                                    {assignment.status === 'SUBMITTED' ? 'View' : 'Submit'}
+                                                </Button>
+                                            </Link>
                                         </div>
-                                        <Button size="sm" variant="outline">
-                                            View
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </motion.div>
+
+                {/* Upcoming Live Classes */}
+                {dashboardData.upcoming_live_classes.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                    >
+                        <h2 className="text-2xl font-bold mb-4 text-gray-900">Upcoming Live Classes</h2>
+                        <div className="space-y-3">
+                            {dashboardData.upcoming_live_classes.map((liveClass: any) => (
+                                <Card key={liveClass.id} className="border-0 shadow-md hover:shadow-lg transition-all">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 flex-1">
+                                                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                                                    <Video className="h-5 w-5 text-purple-600" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-gray-900">{liveClass.class_title}</h3>
+                                                    <p className="text-sm text-gray-600">{liveClass.course.course_name}</p>
+                                                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        {new Date(liveClass.scheduled_date).toLocaleDateString()} at {liveClass.start_time}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {liveClass.meeting_link && (
+                                                <a href={liveClass.meeting_link} target="_blank" rel="noopener noreferrer">
+                                                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                                                        Join Class
+                                                    </Button>
+                                                </a>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
             </div>
 
             <BottomNav />

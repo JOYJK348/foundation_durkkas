@@ -349,7 +349,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const getDashboardHref = () => {
         if (userLevel === 5) return "/platform/dashboard";
         if (userLevel === 4) return "/workspace/dashboard";
-        return "/branch-admin/dashboard";
+        return "/ems/academic-manager/dashboard";
     };
 
     const getEmployeesHref = () => {
@@ -359,61 +359,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const getAttendanceHref = () => {
         if (userLevel === 5) return "/platform/reports/attendance";
         if (userLevel === 4) return "/hrms/workspace/attendance";
-        return "/branch-admin/attendance";
+        return "/ems/academic-manager/attendance";
     };
 
     const getLeavesHref = () => {
         if (userLevel === 5) return "/platform/reports/leaves";
         if (userLevel === 4) return "/hrms/workspace/leaves";
-        return "/branch-admin/leaves";
+        return "/ems/academic-manager/leaves";
     };
 
     const getReportsHref = () => {
         if (userLevel === 5) return "/platform/reports";
         if (userLevel === 4) return "/workspace/reports";
-        return "/branch-admin/reports";
+        return "/ems/academic-manager/reports";
     };
 
     const getNotificationsHref = () => {
         if (userLevel === 5) return "/platform/notifications";
         if (userLevel === 4) return "/workspace/notifications";
-        return "/branch-admin/notifications";
+        return "/ems/academic-manager/notifications";
     };
 
     const getLmsDashboardHref = () => {
-        if (userLevel === 4) return "/ems/academic-manager/dashboard";
-        return "/branch-admin/dashboard";
+        if (userLevel === 4) return "/workspace/lms";
+        return "/ems/academic-manager/dashboard";
     };
 
     const getProfileHref = () => {
         if (userLevel === 5) return "/platform/profile";
         if (userLevel === 4) return "/workspace/profile";
-        return "/branch-admin/profile";
+        return "/ems/academic-manager/profile";
     };
 
     const getLmsCoursesHref = () => {
-        if (userLevel === 4) return "/ems/academic-manager/courses";
-        return "/ems/admin/courses"; // Fallback for specialized routing if any
+        if (userLevel === 4) return "/workspace/lms/courses";
+        return "/ems/academic-manager/courses";
     };
 
     const getLmsClassesHref = () => {
-        if (userLevel === 4) return "/ems/academic-manager/live-classes";
-        return "/ems/admin/classes";
+        if (userLevel === 4) return "/workspace/lms/live-classes";
+        return "/ems/academic-manager/live-classes";
     };
 
     const getLmsAssessmentsHref = () => {
-        if (userLevel === 4) return "/ems/academic-manager/quizzes";
-        return "/ems/admin/assessments";
+        if (userLevel === 4) return "/workspace/lms/assessments";
+        return "/ems/academic-manager/assessments";
     };
 
     const getLmsStudentsHref = () => {
-        if (userLevel === 4) return "/ems/academic-manager/students";
-        return "/ems/admin/students";
+        if (userLevel === 4) return "/workspace/lms/students";
+        return "/ems/academic-manager/students";
     };
 
     const getLmsBatchesHref = () => {
-        if (userLevel === 4) return "/ems/academic-manager/batches";
-        return "/ems/admin/batches";
+        if (userLevel === 4) return "/workspace/lms/batches";
+        return "/ems/academic-manager/batches";
     };
 
     // 🚀 NEW: Dynamic Subscription-Driven Filter Logic
@@ -508,9 +508,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const branchSlug = branchCode || `branch-${user?.branch_id || 'default'}`;
             const branchPrefix = `/b/${branchSlug}`;
 
-            if (href.startsWith('/branch-admin')) {
-                href = href.replace('/branch-admin', branchPrefix);
-            } else if (href.startsWith('/workspace')) {
+            if (href.startsWith('/workspace')) {
                 href = href.replace('/workspace', workspacePrefix);
             } else if (href.startsWith('/hrms/workspace')) {
                 href = href.replace('/hrms/workspace', `${branchPrefix}/hrms`);

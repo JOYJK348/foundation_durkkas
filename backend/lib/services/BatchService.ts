@@ -6,7 +6,7 @@ import { Batch } from '@/types/database';
  * Optimized for enrollment capacity tracking
  */
 export class BatchService {
-    static async getAllBatches(companyId: number, branchId?: number) {
+    static async getAllBatches(companyId: number, branchId?: number, courseId?: number) {
         let query = ems.batches()
             .select(`
                 *,
@@ -22,6 +22,10 @@ export class BatchService {
 
         if (branchId) {
             query = query.eq('branch_id', branchId);
+        }
+
+        if (courseId) {
+            query = query.eq('course_id', courseId);
         }
 
         const { data, error } = await query;
@@ -42,15 +46,48 @@ export class BatchService {
         return data as Batch;
     }
 
-    static async updateBatch(id: number, batchData: Partial<Batch>) {
+    static async getBatchById(id: number, companyId: number) {
+        const { data, error } = await ems.batches()
+            .select('*, courses:course_id(*)')
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .single();
+
+        if (error) throw error;
+        return data as Batch;
+    }
+
+    static async updateBatch(id: number, companyId: number, batchData: Partial<Batch>) {
         const { data, error } = await ems.batches()
             .update(batchData)
             .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
             .select()
             .single();
 
         if (error) throw error;
         return data as Batch;
+    }
+
+    static async deleteBatch(id: number, companyId: number, deletedBy: number, reason?: string) {
+        const { data, error } = await ems.batches()
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: deletedBy,
+                delete_reason: reason || 'Removed by admin',
+                is_active: false,
+                status: 'DELETED'
+            } as any)
+            .eq('id', id)
+            .eq('company_id', companyId)
+            .is('deleted_at', null)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 
     static async softDeleteBatch(id: number, deletedBy: number, reason?: string) {

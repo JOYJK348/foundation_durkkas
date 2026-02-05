@@ -1,35 +1,39 @@
-/**
- * EMS API - Quizzes
- * Route: /api/ems/quizzes
- */
-
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
+import { getUserTenantScope, autoAssignCompany } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
-import { autoAssignCompany } from '@/middleware/tenantFilter';
-import { quizSchema } from '@/lib/validations/ems';
-import { AssessmentService } from '@/lib/services/AssessmentService';
+import { QuizService } from '@/lib/services/QuizService';
+import { ems } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const { searchParams } = new URL(req.url);
-        const courseId = searchParams.get('course_id');
+        const scope = await getUserTenantScope(userId);
 
-        const scope = await import('@/middleware/tenantFilter').then(m =>
-            m.getUserTenantScope(userId)
-        );
+        let courseIds: number[] | undefined = undefined;
+        if (scope.emsProfile?.profileType === 'tutor' && scope.emsProfile.profileId) {
+            // Get tutor's assigned courses
+            const { data: junctionMappings } = await ems.courseTutors()
+                .select('course_id')
+                .eq('tutor_id', scope.emsProfile.profileId)
+                .is('deleted_at', null);
 
-        const data = await AssessmentService.getQuizzes(
-            scope.companyId!,
-            courseId ? parseInt(courseId) : undefined,
-            scope.emsProfile
-        );
+            const { data: legacyCourses } = await ems.courses()
+                .select('id')
+                .eq('tutor_id', scope.emsProfile.profileId)
+                .is('deleted_at', null);
 
-        return successResponse(data, `Quizzes fetched successfully (${data?.length || 0} records)`);
+            courseIds = [
+                ...(junctionMappings?.map((m: any) => m.course_id) || []),
+                ...(legacyCourses?.map((c: any) => c.id) || [])
+            ];
+        }
 
+        const data = await QuizService.getAllQuizzes(scope.companyId!, courseIds);
+
+        return successResponse(data, 'Quizzes fetched successfully');
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to fetch quizzes');
     }
@@ -41,18 +45,35 @@ export async function POST(req: NextRequest) {
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         let data = await req.json();
+        console.log('[Quiz POST] Received data:', JSON.stringify(data, null, 2));
+
         data = await autoAssignCompany(userId, data);
 
-        const validatedData = quizSchema.parse(data);
+        // Add audit fields
+        data.created_by = userId;
+        data.updated_by = userId;
 
-        const quiz = await AssessmentService.createQuiz(validatedData);
+        console.log('[Quiz POST] After autoAssignCompany:', JSON.stringify(data, null, 2));
+
+        const quiz = await QuizService.createQuiz(data);
 
         return successResponse(quiz, 'Quiz created successfully', 201);
-
     } catch (error: any) {
-        if (error.name === 'ZodError') {
-            return errorResponse(error.errors, 'Validation failed', 400);
-        }
-        return errorResponse(null, error.message || 'Failed to create quiz');
+        console.error('[Quiz POST] Error:', error);
+        console.error('[Quiz POST] Error message:', error.message);
+        console.error('[Quiz POST] Error stack:', error.stack);
+
+
+        // Return more detailed error for debugging
+        return errorResponse(
+            error.code || 'QUIZ_CREATE_ERROR',
+            error.message || 'Failed to create quiz',
+            500,
+            {
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            }
+        );
     }
 }
