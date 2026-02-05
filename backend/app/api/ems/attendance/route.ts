@@ -11,6 +11,10 @@ import { attendanceSessionSchema, attendanceRecordSchema } from '@/lib/validatio
 import { AttendanceService } from '@/lib/services/AttendanceService';
 import { ems } from '@/lib/supabase';
 import { z } from 'zod';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const LOG_FILE = path.join(process.cwd(), 'attendance_debug.log');
 
 export async function GET(req: NextRequest) {
     try {
@@ -104,18 +108,17 @@ export async function POST(req: NextRequest) {
 
         // LOG TO FILE START
         try {
-            const fs = require('fs');
-            fs.appendFileSync('C:\\Users\\DESK\\Desktop\\DURKKAS Foundation\\CLONE\\foundation_durkkas\\attendance_debug.log', `[${new Date().toISOString()}] POST Request Start - Mode: ${mode}\n`);
+            fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] POST Request Start - Mode: ${mode}\n`);
         } catch (e) { }
 
         let data: any;
         try {
             data = await req.json();
-            const fs = require('fs');
-            fs.appendFileSync('C:\\Users\\DESK\\Desktop\\DURKKAS Foundation\\CLONE\\foundation_durkkas\\attendance_debug.log', `[${new Date().toISOString()}] POST Payload: ${JSON.stringify(data).substring(0, 500)}...\n`);
+            fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] POST Payload: ${JSON.stringify(data).substring(0, 500)}...\n`);
         } catch (jsonErr: any) {
-            const fs = require('fs');
-            fs.appendFileSync('C:\\Users\\DESK\\Desktop\\DURKKAS Foundation\\CLONE\\foundation_durkkas\\attendance_debug.log', `[${new Date().toISOString()}] JSON Parse Error: ${jsonErr.message}\n`);
+            try {
+                fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] JSON Parse Error: ${jsonErr.message}\n`);
+            } catch (e) { }
             return errorResponse(null, 'Invalid JSON payload', 400);
         }
 
@@ -123,17 +126,29 @@ export async function POST(req: NextRequest) {
 
         if (mode === 'student-mark') {
             const scope = await getUserTenantScope(userId);
-            const { data: student } = await ems.students()
+            const { data: student, error: studentError } = await ems.students()
                 .select('id')
                 .eq('user_id', userId)
                 .single() as any;
-            if (!student) return errorResponse(null, 'Student record not found', 404);
+
+            if (studentError) {
+                fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] Student Fetch Error for ${userId}: ${JSON.stringify(studentError)}\n`);
+                if (studentError.code === 'PGRST116') {
+                    return errorResponse(null, 'Student record not found (User is not linked to a student profile)', 404);
+                }
+                return errorResponse(null, 'Database connection failed: ' + studentError.message, 500);
+            }
+
+            if (!student) {
+                return errorResponse(null, 'Student record not found', 404);
+            }
 
             const result = await AttendanceService.submitFaceVerification({
                 sessionId: data.session_id,
                 studentId: student.id,
                 verificationType: data.verification_type, // OPENING or CLOSING
                 faceImageUrl: data.face_image_url,
+                faceDescriptor: data.face_descriptor, // 128D vector for server-side verification
                 latitude: data.latitude,
                 longitude: data.longitude,
                 locationAccuracy: data.location_accuracy,

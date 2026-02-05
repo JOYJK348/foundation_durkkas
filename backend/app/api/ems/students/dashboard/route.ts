@@ -216,7 +216,7 @@ export async function GET(req: NextRequest) {
                 `)
                 .in('batch_id', batchIds)
                 .eq('session_date', todayStr)
-                .eq('status', 'OPEN') as any;
+                .in('status', ['OPEN', 'SCHEDULED']) as any;
 
             activeSessions = sessions || [];
         }

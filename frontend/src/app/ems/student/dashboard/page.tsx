@@ -56,7 +56,7 @@ interface DashboardData {
 export default function StudentDashboard() {
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-    const [activeAttendanceSession, setActiveAttendanceSession] = useState<any | null>(null);
+    const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
     const { user } = useAuthStore();
 
     useEffect(() => {
@@ -121,35 +121,43 @@ export default function StudentDashboard() {
             <TopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-                {/* Attendance Alert If Any */}
+                {/* Attendance Alerts - Unified Entry Point */}
                 {dashboardData.active_attendance_sessions?.length > 0 && (
                     <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         className="mb-8"
                     >
-                        <Card className="border-0 shadow-xl overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+                        <Card className="border-0 shadow-2xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white relative group">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:scale-125 transition-transform">
+                                <ShieldCheck className="h-32 w-32" />
+                            </div>
                             <CardContent className="p-0">
-                                <div className="p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+                                <div className="p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-8 relative z-10">
                                     <div className="flex items-center gap-6">
-                                        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-black/10">
-                                            <ShieldCheck className="h-8 w-8 text-white" />
+                                        <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-[2rem] flex items-center justify-center shadow-2xl shadow-black/20 border border-white/30">
+                                            <Camera className="h-10 w-10 text-white animate-pulse" />
                                         </div>
                                         <div>
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 rounded-full text-[10px] font-bold tracking-widest uppercase mb-2 border border-white/10">
-                                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                                                Attendance Open
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-400 text-[10px] font-black tracking-widest uppercase mb-3 rounded-full text-blue-900 shadow-sm">
+                                                <span className="w-2 h-2 bg-blue-900 rounded-full animate-ping" />
+                                                Live Now
                                             </div>
-                                            <h2 className="text-xl sm:text-2xl font-bold italic">Mark Your Attendance!</h2>
-                                            <p className="text-blue-100/80 text-sm mt-1">Session active for <span className="text-white font-bold">{dashboardData.active_attendance_sessions[0].course?.course_name}</span></p>
+                                            <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase leading-none">
+                                                Attendance Open
+                                            </h2>
+                                            <p className="text-blue-100/90 text-sm font-bold mt-2 flex items-center gap-2">
+                                                <AlertCircle className="h-4 w-4 text-white" />
+                                                {dashboardData.active_attendance_sessions.length} sessions available for marking
+                                            </p>
                                         </div>
                                     </div>
                                     <Button
-                                        onClick={() => setActiveAttendanceSession(dashboardData.active_attendance_sessions[0])}
-                                        className="bg-white text-blue-700 hover:bg-gray-100 h-14 px-8 rounded-2xl font-bold text-lg shadow-lg flex items-center gap-3 w-full sm:w-auto"
+                                        onClick={() => setIsAttendanceModalOpen(true)}
+                                        className="bg-white text-blue-700 hover:bg-gray-100 h-16 px-10 rounded-3xl font-black text-xl shadow-2xl flex items-center gap-3 w-full sm:w-auto shrink-0 group-hover:scale-105 transition-all"
                                     >
-                                        <Camera className="h-5 w-5" />
-                                        Verify Presence
+                                        <ShieldCheck className="h-6 w-6" />
+                                        PUNCH NOW
                                     </Button>
                                 </div>
                             </CardContent>
@@ -392,16 +400,14 @@ export default function StudentDashboard() {
 
             {/* Attendance Verification Modal */}
             <AnimatePresence>
-                {activeAttendanceSession && (
+                {isAttendanceModalOpen && (
                     <AttendanceVerification
-                        sessionId={activeAttendanceSession.id}
-                        verificationType="OPENING" // Default for now, can be dynamic
-                        courseName={activeAttendanceSession.course?.course_name}
+                        sessions={dashboardData.active_attendance_sessions}
                         onSuccess={() => {
-                            setActiveAttendanceSession(null);
+                            setIsAttendanceModalOpen(false);
                             fetchDashboardData();
                         }}
-                        onClose={() => setActiveAttendanceSession(null)}
+                        onClose={() => setIsAttendanceModalOpen(false)}
                     />
                 )}
             </AnimatePresence>

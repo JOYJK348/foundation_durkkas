@@ -7,12 +7,16 @@ import { ems, core } from '@/lib/supabase';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const LOG_FILE = 'C:\\Users\\DESK\\Desktop\\DURKKAS Foundation\\CLONE\\foundation_durkkas\\attendance_debug.log';
+const LOG_FILE = path.join(process.cwd(), 'attendance_debug.log');
 
 function logToFile(msg: string, data?: any) {
-    const timestamp = new Date().toISOString();
-    const logMsg = `[${timestamp}] ${msg} ${data ? JSON.stringify(data, null, 2) : ''}\n`;
-    fs.appendFileSync(LOG_FILE, logMsg);
+    try {
+        const timestamp = new Date().toISOString();
+        const logMsg = `[${timestamp}] ${msg} ${data ? JSON.stringify(data, null, 2) : ''}\n`;
+        fs.appendFileSync(LOG_FILE, logMsg);
+    } catch (e) {
+        console.error('Logging failed:', e);
+    }
 }
 
 export interface FaceVerificationData {
@@ -20,6 +24,7 @@ export interface FaceVerificationData {
     studentId: number;
     verificationType: 'OPENING' | 'CLOSING';
     faceImageUrl: string;
+    faceDescriptor?: number[]; // 128D vector for secure face verification
     latitude: number;
     longitude: number;
     locationAccuracy: number;

@@ -48,11 +48,13 @@ export async function GET(
                     .select('*')
                     .eq('batch_id', enrollment.batch_id)
                     .eq('session_date', today)
-                    .eq('status', 'OPEN')
-                    .single() as any;
+                    .in('status', ['OPEN', 'SCHEDULED']) as any;
 
-                if (session) {
-                    (course as any).active_session = session;
+                // Handle both single object and array return if any
+                const activeSession = Array.isArray(session) ? session[0] : session;
+
+                if (activeSession) {
+                    (course as any).active_session = activeSession;
                 }
             }
         }
