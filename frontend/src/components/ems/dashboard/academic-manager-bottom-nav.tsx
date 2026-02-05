@@ -10,6 +10,7 @@ import {
     GraduationCap,
     FileText,
     TrendingUp,
+    Folder,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ const navItems = [
     { href: "/ems/academic-manager/students", icon: Users, label: "Students" },
     { href: "/ems/academic-manager/courses", icon: BookOpen, label: "Courses" },
     { href: "/ems/academic-manager/batches", icon: GraduationCap, label: "Batches" },
+    { href: "/ems/academic-manager/materials", icon: Folder, label: "Materials" }, // Added
     { href: "/ems/academic-manager/assignments", icon: FileText, label: "Tasks" },
     { href: "/ems/academic-manager/analytics", icon: TrendingUp, label: "Analytics" },
 ];

@@ -93,12 +93,20 @@ export const lessonSchema = z.object({
 export const courseMaterialSchema = z.object({
     company_id: z.coerce.number(),
     course_id: z.coerce.number().optional().nullable(),
+    batch_id: z.coerce.number().optional().nullable(),
     menu_id: z.coerce.number().optional().nullable(),
     lesson_id: z.coerce.number().optional().nullable(),
     material_name: z.string().min(1, 'Material name is required'),
+    material_description: z.string().optional().nullable(),
     material_type: z.string().default('DOCUMENT'),
-    file_url: z.string().url('Invalid file URL'),
-    is_published: z.boolean().default(false),
+    file_url: z.string().optional().nullable(),
+    delivery_method: z.enum(['FILE', 'CONTENT']).default('FILE'),
+    content_json: z.any().optional().nullable(),
+    file_size_mb: z.coerce.number().optional().nullable(),
+    handbook_type: z.enum(['TUTOR_HANDBOOK', 'STUDENT_HANDBOOK', 'GENERAL_RESOURCE']).default('STUDENT_HANDBOOK'),
+    target_audience: z.enum(['TUTORS', 'STUDENTS', 'BOTH']).default('STUDENTS'),
+    is_active: z.boolean().default(true),
+    is_downloadable: z.boolean().default(true),
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -229,5 +237,13 @@ export const attendanceRecordSchema = z.object({
     check_in_time: z.string().optional().nullable(),
     check_out_time: z.string().optional().nullable(),
     remarks: z.string().optional().nullable(),
+
+    // Verification Fields
+    latitude: z.coerce.number().optional().nullable(),
+    longitude: z.coerce.number().optional().nullable(),
+    location_accuracy: z.coerce.number().optional().nullable(),
+    device_id: z.string().optional().nullable(),
+    ip_address: z.string().optional().nullable(),
+    verification_method: z.string().optional().nullable(), // MANUAL, FACE, QR, GEOFENCE
 });
 

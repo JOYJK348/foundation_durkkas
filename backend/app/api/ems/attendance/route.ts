@@ -33,13 +33,15 @@ export async function GET(req: NextRequest) {
         // Case 1: Fetch details for a specific session (e.g. for marking attendance)
         if (sessionId) {
             const scope = await getUserTenantScope(userId);
-            // If batchId is provided, used it. Otherwise, we might need to fetch it from session.
-            // For now, let's require batchId as well or just try with company scope if service allows.
+
+            // If batchId is provided, get the detailed summary (students list)
             if (batchId) {
                 const data = await AttendanceService.getBatchAttendanceSummary(scope.companyId!, parseInt(batchId), parseInt(sessionId));
                 return successResponse(data, 'Session attendance summary fetched successfully');
             } else {
-                return errorResponse(null, 'Batch ID is required along with Session ID', 400);
+                // Just get session details
+                const data = await AttendanceService.getSessionById(scope.companyId!, parseInt(sessionId));
+                return successResponse(data, 'Session details fetched successfully');
             }
         }
 
@@ -83,7 +85,9 @@ export async function GET(req: NextRequest) {
             return successResponse(data, 'Student attendance history fetched successfully');
         }
 
-        return errorResponse(null, 'Required parameters missing', 400);
+        const scope = await getUserTenantScope(userId);
+        const data = await AttendanceService.getAllSessions(scope.companyId!);
+        return successResponse(data, 'Recent attendance sessions fetched successfully');
 
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to fetch attendance');
@@ -98,7 +102,24 @@ export async function POST(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const mode = searchParams.get('mode') || 'session'; // session, record, student-mark
 
-        let data = await req.json();
+        // LOG TO FILE START
+        try {
+            const fs = require('fs');
+            fs.appendFileSync('C:\\Users\\DESK\\Desktop\\DURKKAS Foundation\\CLONE\\foundation_durkkas\\attendance_debug.log', `[${new Date().toISOString()}] POST Request Start - Mode: ${mode}\n`);
+        } catch (e) { }
+
+        let data: any;
+        try {
+            data = await req.json();
+            const fs = require('fs');
+            fs.appendFileSync('C:\\Users\\DESK\\Desktop\\DURKKAS Foundation\\CLONE\\foundation_durkkas\\attendance_debug.log', `[${new Date().toISOString()}] POST Payload: ${JSON.stringify(data).substring(0, 500)}...\n`);
+        } catch (jsonErr: any) {
+            const fs = require('fs');
+            fs.appendFileSync('C:\\Users\\DESK\\Desktop\\DURKKAS Foundation\\CLONE\\foundation_durkkas\\attendance_debug.log', `[${new Date().toISOString()}] JSON Parse Error: ${jsonErr.message}\n`);
+            return errorResponse(null, 'Invalid JSON payload', 400);
+        }
+
+        console.log(`[API] Attendance POST mode=${mode}`, data);
 
         if (mode === 'student-mark') {
             const scope = await getUserTenantScope(userId);
@@ -138,6 +159,13 @@ export async function POST(req: NextRequest) {
                 endTime: validatedData.end_time || '10:00'
             });
             return successResponse(session, 'Attendance session created successfully', 201);
+        } else if (mode === 'session-status') {
+            const scope = await getUserTenantScope(userId);
+            const { session_id, status } = data;
+            if (!session_id || !status) return errorResponse(null, 'Session ID and Status are required', 400);
+
+            const result = await AttendanceService.updateSessionStatus(scope.companyId!, session_id, status);
+            return successResponse(result, `Session status updated to ${status}`);
         } else {
             const bulkSchema = z.array(attendanceRecordSchema);
             const validatedRecords = bulkSchema.parse(data.records);

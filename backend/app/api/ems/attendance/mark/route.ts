@@ -39,37 +39,20 @@ export async function POST(req: NextRequest) {
 
         // 3. Check if Record Exists
         const { data: existingRecord } = await ems.attendanceRecords()
-            .select('*')
-            .eq('class_id', classId)
+            .select('id, status')
+            .eq('session_id', classId)
             .eq('student_id', userId)
             .single();
 
-        let updateData: any = {};
-        if (type === 'IN') {
-            updateData = {
-                check_in_time: new Date().toISOString(),
-                check_in_lat: lat,
-                check_in_long: long,
-                check_in_face_url: faceUrl,
-                check_in_face_score: faceScore,
-                attendance_status: 'PARTIAL'
-            };
-        } else {
-            updateData = {
-                check_out_time: new Date().toISOString(),
-                check_out_lat: lat,
-                check_out_long: long,
-                check_out_face_url: faceUrl,
-                check_out_face_score: faceScore,
-                attendance_status: existingRecord?.check_in_time ? 'PRESENT' : 'LATE'
-            };
-        }
+        let updateData: any = {
+            status: type === 'IN' ? 'PRESENT' : 'PRESENT'
+        };
 
         const { data, error } = await ems.attendanceRecords()
             .upsert({
                 id: existingRecord?.id,
                 company_id: scope.companyId,
-                class_id: classId,
+                session_id: classId,
                 student_id: userId,
                 ...updateData
             })

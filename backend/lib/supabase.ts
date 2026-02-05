@@ -108,6 +108,9 @@ export const ems = {
     assignmentSubmissions: () => fromSchema(SCHEMAS.EMS, 'assignment_submissions'),
     courseTutors: () => fromSchema(SCHEMAS.EMS, 'course_tutors'),
     quizAssignments: () => fromSchema(SCHEMAS.EMS, 'quiz_assignments'),
+    faceVerifications: () => fromSchema(SCHEMAS.EMS, 'attendance_face_verifications'),
+    faceProfiles: () => fromSchema(SCHEMAS.EMS, 'student_face_profiles'),
+    institutionLocations: () => fromSchema(SCHEMAS.EMS, 'institution_locations'),
     supabase: supabase
 };
 

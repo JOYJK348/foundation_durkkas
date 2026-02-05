@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { getUserTenantScope, autoAssignCompany } from '@/middleware/tenantFilter';
-import { ems } from '@/lib/supabase';
+import { ems, app_auth } from '@/lib/supabase';
 import { courseMaterialSchema } from '@/lib/validations/ems';
 
 export async function POST(req: NextRequest) {
@@ -42,14 +42,37 @@ export async function GET(req: NextRequest) {
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         const scope = await getUserTenantScope(userId);
-        const { searchParams } = new URL(req.url);
+        const { data: rolesData } = await app_auth.userRoles()
+            .select(`
+                roles:role_id (
+                    name
+                )
+            `)
+            .eq('user_id', userId);
 
+        const userRoles = rolesData?.map((r: any) => r.roles?.name) || [];
+        const isManager = userRoles.includes('ACADEMIC_MANAGER') || userRoles.includes('COMPANY_ADMIN');
+        const { searchParams } = new URL(req.url);
         const courseId = searchParams.get('course_id');
 
-        let query = ems.courseMaterials()
-            .select('*')
+        let query = (ems as any).supabase
+            .schema('ems')
+            .from('course_materials')
+            .select(`
+                *,
+                course:courses (
+                    id,
+                    course_name,
+                    course_code
+                )
+            `)
             .eq('company_id', scope.companyId!)
-            .eq('is_active', true);
+            .is('deleted_at', null);
+
+        // If not manager, only show active materials
+        if (!isManager) {
+            query = query.eq('is_active', true);
+        }
 
         if (courseId) {
             query = query.eq('course_id', parseInt(courseId));

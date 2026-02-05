@@ -27,6 +27,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
+import { AttendanceVerification } from "@/components/ems/attendance/AttendanceVerification";
+
 interface Material {
     id: number;
     material_name: string;
@@ -73,9 +75,9 @@ export default function StudentCourseDetailsPage() {
     const [expandedModules, setExpandedModules] = useState<number[]>([]);
     const [activeTab, setActiveTab] = useState<'curriculum' | 'attendance'>('curriculum');
     const [attendance, setAttendance] = useState<any[]>([]);
-    const [isCaptureModalOpen, setIsCaptureModalOpen] = useState(false);
-    const [verifying, setVerifying] = useState(false);
-    const [stream, setStream] = useState<MediaStream | null>(null);
+    const [showVerification, setShowVerification] = useState(false);
+    const [activeSessionToVerify, setActiveSessionToVerify] = useState<CourseDetails['active_session'] | null>(null);
+
 
     useEffect(() => {
         fetchCourseDetails();
@@ -121,82 +123,11 @@ export default function StudentCourseDetailsPage() {
         );
     };
 
-    const startCapture = async () => {
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            setStream(mediaStream);
-            setIsCaptureModalOpen(true);
-        } catch (err) {
-            toast.error("Camera access denied");
-        }
-    };
-
-    const stopCapture = () => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            setStream(null);
-        }
-        setIsCaptureModalOpen(false);
-    };
-
-    const handleCheckIn = async () => {
-        if (!course?.active_session) return;
-
-        try {
-            setVerifying(true);
-            toast.loading("Verifying your location & biometrics...");
-
-            // 1. Get Location
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject);
-            });
-
-            // 2. Capture Frame from Video
-            const video = document.getElementById('capture-video') as HTMLVideoElement;
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d')?.drawImage(video, 0, 0);
-            const faceImageUrl = canvas.toDataURL('image/jpeg');
-
-            // 3. Submit
-            const response = await api.post("/ems/attendance?mode=student-mark", {
-                session_id: course.active_session.id,
-                verification_type: "OPENING", // Or check window logic
-                face_image_url: faceImageUrl,
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                location_accuracy: position.coords.accuracy,
-                device_info: {
-                    platform: navigator.platform,
-                    vendor: navigator.vendor
-                }
-            });
-
-            toast.dismiss();
-            if (response.data.success) {
-                if (response.data.data.locationResult.is_valid) {
-                    toast.success("Attendance marked successfully!");
-                    fetchAttendance();
-                    stopCapture();
-                } else {
-                    toast.error(`Out of range: ${Math.round(response.data.data.locationResult.distance_meters)}m away from campus`);
-                }
-            }
-        } catch (err: any) {
-            toast.dismiss();
-            toast.error(err.message || "Failed to mark attendance");
-        } finally {
-            setVerifying(false);
-        }
-    };
-
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-24">
-                <TopNavbar />
-                <div className="flex flex-col items-center justify-center py-40">
-                    <Loader2 className="h-10 w-10 animate-spin text-blue-600 mb-4" />
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
                     <p className="text-gray-500 font-medium">Unlocking your learning material...</p>
                 </div>
                 <BottomNav />
@@ -374,7 +305,10 @@ export default function StudentCourseDetailsPage() {
                                         </div>
 
                                         <Button
-                                            onClick={startCapture}
+                                            onClick={() => {
+                                                setActiveSessionToVerify(course.active_session || null);
+                                                setShowVerification(true);
+                                            }}
                                             className="w-full bg-white text-blue-700 hover:bg-gray-100 h-14 rounded-2xl font-bold text-lg shadow-lg"
                                         >
                                             <Camera className="h-5 w-5 mr-3" />
@@ -429,50 +363,22 @@ export default function StudentCourseDetailsPage() {
 
             {/* Verification Modal */}
             <AnimatePresence>
-                {isCaptureModalOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6"
-                    >
-                        <div className="w-full max-w-sm">
-                            <h2 className="text-2xl font-bold text-white mb-2 text-center">Face Verification</h2>
-                            <p className="text-white/60 text-sm text-center mb-8">Align your face in the center of the camera</p>
-
-                            <div className="relative aspect-square rounded-[3rem] overflow-hidden bg-gray-900 border-4 border-white/20">
-                                <video
-                                    id="capture-video"
-                                    autoPlay
-                                    playsInline
-                                    ref={el => { if (el && stream) el.srcObject = stream; }}
-                                    className="w-full h-full object-cover"
-                                />
-                                {/* Face Overlay Guide */}
-                                <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none">
-                                    <div className="w-full h-full border-2 border-dashed border-white/50 rounded-full" />
-                                </div>
-                            </div>
-
-                            <div className="mt-12 space-y-4">
-                                <Button
-                                    onClick={handleCheckIn}
-                                    disabled={verifying}
-                                    className="w-full bg-blue-600 hover:bg-blue-700 h-14 rounded-2xl font-bold text-lg"
-                                >
-                                    {verifying ? <RefreshCw className="h-5 w-5 animate-spin mr-2" /> : <Camera className="h-5 w-5 mr-2" />}
-                                    Capture & Verify
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={stopCapture}
-                                    className="w-full text-white hover:bg-white/10 h-14 rounded-2xl font-medium"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    </motion.div>
+                {showVerification && activeSessionToVerify && (
+                    <AttendanceVerification
+                        sessionId={activeSessionToVerify.id}
+                        verificationType="OPENING"
+                        courseName={course.course_name}
+                        onSuccess={() => {
+                            setShowVerification(false);
+                            setActiveSessionToVerify(null);
+                            fetchAttendance();
+                            fetchCourseDetails();
+                        }}
+                        onClose={() => {
+                            setShowVerification(false);
+                            setActiveSessionToVerify(null);
+                        }}
+                    />
                 )}
             </AnimatePresence>
 

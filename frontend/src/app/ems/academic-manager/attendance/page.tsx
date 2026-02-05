@@ -32,6 +32,7 @@ interface ScheduledBatch {
         course_name: string;
         course_code: string;
     };
+    total_students: number;
     session?: {
         id: number;
         status: string;
@@ -209,10 +210,10 @@ export default function AttendancePage() {
                                             {batch.session && (
                                                 <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
                                                     <span className="flex items-center gap-1 text-green-600">
-                                                        <Users className="h-3 w-3" /> {batch.session.present_count || 0} Present
+                                                        <Users className="h-3 w-3" /> {batch.session.present_count || 0}/{batch.total_students || 0} Present
                                                     </span>
                                                     <span className="flex items-center gap-1 text-red-600">
-                                                        <Users className="h-3 w-3" /> {batch.session.absent_count || 0} Absent
+                                                        <Users className="h-3 w-3" /> {batch.session.absent_count || 0}/{batch.total_students || 0} Absent
                                                     </span>
                                                 </div>
                                             )}

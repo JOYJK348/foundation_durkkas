@@ -17,7 +17,8 @@ import {
     CheckCircle,
     XCircle,
     Clock,
-    AlertCircle
+    AlertCircle,
+    PlayCircle
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -76,13 +77,9 @@ export default function MarkAttendancePage() {
             // That's a bit of a catch-22 if we don't have batchId.
             // Let's assume for now we list all sessions and find this one, OR we fix backend to just fetch by session ID.
 
-            // Let's try fetching the session details from a sessions endpoint if available
-            // Since we don't have a direct "get session by id" in the route I modified earlier without batch_id...
-            // Wait, I can browse recent sessions from GET /api/ems/attendance and find it.
-
-            const sessionsRes = await api.get("/ems/attendance");
-            const sessions = sessionsRes.data.data || [];
-            const currentSession = sessions.find((s: any) => s.id === parseInt(sessionId));
+            // 1. Get the session details to know the batch_id
+            const sessionRes = await api.get(`/ems/attendance?session_id=${sessionId}`);
+            const currentSession = sessionRes.data.data;
 
             if (currentSession) {
                 setSession(currentSession);
@@ -146,6 +143,26 @@ export default function MarkAttendancePage() {
         return attendanceRecords.filter(r => r.status === status).length;
     };
 
+    const toggleSessionStatus = async (newStatus: string) => {
+        if (!session) return;
+        try {
+            setSaving(true);
+            const res = await api.post("/ems/attendance?mode=session-status", {
+                session_id: session.id,
+                status: newStatus
+            });
+            if (res.data.success) {
+                toast.success(`Session is now ${newStatus}`);
+                setSession(res.data.data);
+            }
+        } catch (error) {
+            console.error("Error updating status:", error);
+            toast.error("Failed to update session status");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const saveAttendance = async () => {
         if (!session) return;
 
@@ -162,10 +179,13 @@ export default function MarkAttendancePage() {
                 }))
             };
 
+            console.log("Saving Attendance Payload:", payload);
             const response = await api.post("/ems/attendance?mode=record", payload);
 
             if (response.data.success) {
                 toast.success("Attendance marked successfully");
+                // If manual save, we might want to mark session as COMPLETED? 
+                // Let the user decide via the status toggle.
                 router.push("/ems/academic-manager/attendance");
             }
         } catch (error) {
@@ -212,9 +232,22 @@ export default function MarkAttendancePage() {
                                 Back to Sessions
                             </Button>
                         </Link>
-                        <h1 className="text-3xl font-bold text-gray-900">
-                            Mark Attendance
-                        </h1>
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-3xl font-bold text-gray-900">
+                                Mark Attendance
+                            </h1>
+                            {session?.status === 'OPEN' && (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold animate-pulse flex items-center gap-1 border border-green-200">
+                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                    LIVE TRACKING OPEN
+                                </span>
+                            )}
+                            {session?.status === 'SCHEDULED' && (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold flex items-center gap-1 border border-blue-200">
+                                    SCHEDULED
+                                </span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                             <div className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4" />
@@ -227,11 +260,29 @@ export default function MarkAttendancePage() {
                         </div>
                     </div>
                     <div className="flex gap-3">
+                        {session?.status === 'SCHEDULED' && (
+                            <Button
+                                onClick={() => toggleSessionStatus('OPEN')}
+                                className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                            >
+                                <PlayCircle className="h-4 w-4 mr-2" />
+                                Open for Students
+                            </Button>
+                        )}
+                        {session?.status === 'OPEN' && (
+                            <Button
+                                onClick={() => toggleSessionStatus('COMPLETED')}
+                                className="bg-orange-500 hover:bg-orange-600 text-white font-bold"
+                            >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Stop Tracking
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             onClick={() => fetchSessionAndStudents()} // Reset/Reload
                         >
-                            Reset
+                            Refresh
                         </Button>
                         <Button
                             onClick={saveAttendance}
@@ -243,7 +294,7 @@ export default function MarkAttendancePage() {
                             ) : (
                                 <Save className="h-4 w-4 mr-2" />
                             )}
-                            Save
+                            Final Save
                         </Button>
                     </div>
                 </div>
@@ -331,8 +382,8 @@ export default function MarkAttendancePage() {
                                                     <button
                                                         onClick={() => handleStatusChange(record.student_id, 'PRESENT')}
                                                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${record.status === 'PRESENT'
-                                                                ? 'bg-green-100 text-green-700 ring-2 ring-green-600 ring-offset-1'
-                                                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                            ? 'bg-green-100 text-green-700 ring-2 ring-green-600 ring-offset-1'
+                                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                                                             }`}
                                                     >
                                                         Present
@@ -340,8 +391,8 @@ export default function MarkAttendancePage() {
                                                     <button
                                                         onClick={() => handleStatusChange(record.student_id, 'ABSENT')}
                                                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${record.status === 'ABSENT'
-                                                                ? 'bg-red-100 text-red-700 ring-2 ring-red-600 ring-offset-1'
-                                                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                            ? 'bg-red-100 text-red-700 ring-2 ring-red-600 ring-offset-1'
+                                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                                                             }`}
                                                     >
                                                         Absent

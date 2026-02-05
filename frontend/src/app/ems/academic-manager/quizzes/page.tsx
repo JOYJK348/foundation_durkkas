@@ -20,10 +20,12 @@ import {
     Trash2,
     Eye,
     CheckCircle2,
+    Hammer,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 interface Quiz {
     id: number;
@@ -34,10 +36,26 @@ interface Quiz {
     duration_minutes: number;
     max_attempts: number;
     status: string;
+    total_questions?: number;
     question_count?: number;
     courses?: {
         course_name: string;
+        tutors?: Array<{
+            tutor_id: number;
+            employees?: { first_name: string, last_name?: string, employee_code: string };
+        }>;
+        enrollments?: Array<{
+            student_id: number;
+            students: { first_name: string, last_name: string };
+        }>;
     };
+    quiz_assignments?: Array<{
+        batch_id?: number;
+        student_id?: number;
+        batches?: { id: number, batch_name: string };
+        students?: { id: number, first_name: string, last_name: string };
+    }>;
+    quiz_questions?: Array<{ id: number }>;
 }
 
 interface Course {
@@ -66,6 +84,7 @@ export default function QuizzesPage() {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
+    const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [formData, setFormData] = useState({
         quiz_title: "",
@@ -141,7 +160,43 @@ export default function QuizzesPage() {
         }
     };
 
-    const handleCreateQuiz = async (e: React.FormEvent) => {
+    const openEditModal = (quiz: Quiz) => {
+        setEditingQuiz(quiz);
+
+        // Find existing assignment
+        let type = 'ALL';
+        let bId = "";
+        let sId = "";
+
+        if (quiz.quiz_assignments && quiz.quiz_assignments.length > 0) {
+            const asg = quiz.quiz_assignments[0];
+            if (asg.batch_id) {
+                type = 'BATCH';
+                bId = asg.batch_id.toString();
+            } else if (asg.student_id) {
+                type = 'STUDENT';
+                sId = asg.student_id.toString();
+            }
+        }
+
+        setFormData({
+            quiz_title: quiz.quiz_title,
+            quiz_description: quiz.quiz_description || "",
+            course_id: quiz.course_id.toString(),
+            total_marks: quiz.total_marks,
+            duration_minutes: quiz.duration_minutes,
+            max_attempts: quiz.max_attempts,
+            passing_marks: 40, // Should ideally be in the database
+            start_datetime: "",
+            end_datetime: "",
+            assignment_type: type,
+            selected_batch_id: bId,
+            selected_student_id: sId,
+        });
+        setShowCreateForm(true);
+    };
+
+    const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const assignments = [];
@@ -149,19 +204,34 @@ export default function QuizzesPage() {
                 assignments.push({ batch_id: parseInt(formData.selected_batch_id) });
             } else if (formData.assignment_type === 'STUDENT' && formData.selected_student_id) {
                 assignments.push({ student_id: parseInt(formData.selected_student_id) });
+            } else if (formData.assignment_type === 'ALL') {
+                // For 'ALL', we send an empty array to clear assignments in update 
+                // or just don't send assignments for create (defaults to course-wide)
             }
 
-            // Separate quiz data from assignment data
             const { assignment_type, selected_batch_id, selected_student_id, ...quizData } = formData;
 
-            const response = await api.post("/ems/quizzes", {
+            // Clean payload: converted empty strings to null for dates
+            const payload = {
                 ...quizData,
                 course_id: parseInt(formData.course_id),
-                assignments: assignments.length > 0 ? assignments : undefined
-            });
+                total_marks: parseInt(formData.total_marks.toString()),
+                duration_minutes: parseInt(formData.duration_minutes.toString()),
+                max_attempts: parseInt(formData.max_attempts.toString()),
+                passing_marks: parseInt(formData.passing_marks.toString()),
+                start_datetime: formData.start_datetime || null,
+                end_datetime: formData.end_datetime || null,
+                assignments: assignments
+            };
+
+            const response = editingQuiz
+                ? await api.patch(`/ems/quizzes/${editingQuiz.id}`, payload)
+                : await api.post("/ems/quizzes", payload);
 
             if (response.data.success) {
+                toast.success(editingQuiz ? "Quiz updated successfully" : "Quiz created successfully");
                 setShowCreateForm(false);
+                setEditingQuiz(null);
                 fetchQuizzes();
                 setFormData({
                     quiz_title: "",
@@ -178,8 +248,24 @@ export default function QuizzesPage() {
                     selected_student_id: "",
                 });
             }
-        } catch (error) {
-            console.error("Error creating quiz:", error);
+        } catch (error: any) {
+            console.error("Error saving quiz:", error);
+            toast.error(error.response?.data?.message || "Failed to save quiz");
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!confirm("Are you sure you want to delete this quiz?")) return;
+
+        try {
+            const response = await api.delete(`/ems/quizzes/${id}`);
+            if (response.data.success) {
+                toast.success("Quiz deleted successfully");
+                fetchQuizzes();
+            }
+        } catch (error: any) {
+            console.error("Error deleting quiz:", error);
+            toast.error(error.response?.data?.message || "Failed to delete quiz");
         }
     };
 
@@ -208,7 +294,10 @@ export default function QuizzesPage() {
                         </p>
                     </div>
                     <Button
-                        onClick={() => setShowCreateForm(true)}
+                        onClick={() => {
+                            setEditingQuiz(null);
+                            setShowCreateForm(true);
+                        }}
                         className="bg-purple-600 hover:bg-purple-700"
                     >
                         <Plus className="h-4 w-4 mr-2" />
@@ -297,15 +386,63 @@ export default function QuizzesPage() {
                                                 <span className="text-gray-600">{quiz.total_marks} marks</span>
                                             </div>
                                             <div className="col-span-2 text-gray-600">
-                                                {quiz.question_count || 0} questions • {quiz.max_attempts} attempts
+                                                {quiz.total_questions || quiz.quiz_questions?.length || 0} questions • {quiz.max_attempts} attempts
+                                            </div>
+                                        </div>
+
+                                        {/* Assignments & Tutors Section */}
+                                        <div>
+                                            <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Target Students</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {quiz.quiz_assignments && quiz.quiz_assignments.length > 0 ? (
+                                                    quiz.quiz_assignments.map((asg, idx) => (
+                                                        <span key={idx} className="bg-purple-50 text-purple-700 text-[10px] px-2 py-0.5 rounded border border-purple-100 font-medium">
+                                                            {asg.batches ? `Batch: ${asg.batches.batch_name}` :
+                                                                asg.students ? `Student: ${asg.students.first_name} ${asg.students.last_name || ''}` :
+                                                                    'Assigned'}
+                                                        </span>
+                                                    ))
+                                                ) : quiz.courses?.enrollments && quiz.courses.enrollments.length > 0 ? (
+                                                    quiz.courses.enrollments.map((enr, idx) => (
+                                                        <span key={idx} className="bg-green-50 text-green-700 text-[10px] px-2 py-0.5 rounded border border-green-100 font-medium">
+                                                            {enr.students?.first_name} {enr.students?.last_name || ''}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-gray-400 text-[10px] italic">No students enrolled in course</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Assigned Tutors</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {quiz.courses?.tutors && quiz.courses.tutors.length > 0 ? (
+                                                    quiz.courses.tutors.map((t, idx) => (
+                                                        <span key={idx} className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded border border-blue-100 font-medium">
+                                                            {t.employees ? `${t.employees.first_name} ${t.employees.last_name || ''}` : 'Unnamed Tutor'}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-gray-400 text-[10px] italic">No tutors assigned yet</span>
+                                                )}
                                             </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2 mt-4">
-                                            <Link href={`/ems/academic-manager/quizzes/builder?id=${quiz.id}`}>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="w-full bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                                                onClick={() => openEditModal(quiz)}
+                                            >
+                                                <Edit className="h-4 w-4 mr-1" />
+                                                Edit Info
+                                            </Button>
+                                            <Link href={`/ems/academic-manager/quizzes/builder?id=${quiz.id}`} className="w-full">
                                                 <Button size="sm" variant="outline" className="w-full">
-                                                    <Edit className="h-4 w-4 mr-1" />
-                                                    Build
+                                                    <Hammer className="h-4 w-4 mr-1" />
+                                                    Questions
                                                 </Button>
                                             </Link>
                                             <Link href={`/ems/academic-manager/quizzes/${quiz.id}/results`}>
@@ -320,7 +457,12 @@ export default function QuizzesPage() {
                                                     Review
                                                 </Button>
                                             </Link>
-                                            <Button size="sm" variant="outline" className="w-full text-red-600 hover:text-red-700">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="w-full text-red-600 hover:text-red-700"
+                                                onClick={() => handleDelete(quiz.id)}
+                                            >
                                                 <Trash2 className="h-4 w-4 mr-1" />
                                                 Delete
                                             </Button>
@@ -352,7 +494,7 @@ export default function QuizzesPage() {
                         >
                             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                                 <h2 className="text-2xl font-bold text-gray-900">
-                                    Create New Quiz
+                                    {editingQuiz ? 'Edit Quiz Details' : 'Create New Quiz'}
                                 </h2>
                                 <Button
                                     variant="ghost"
@@ -363,7 +505,7 @@ export default function QuizzesPage() {
                                 </Button>
                             </div>
 
-                            <form onSubmit={handleCreateQuiz} className="p-6 space-y-6">
+                            <form onSubmit={handleFormSubmit} className="p-6 space-y-6">
                                 <div>
                                     <Label htmlFor="quiz_title">Quiz Title *</Label>
                                     <Input
@@ -559,7 +701,7 @@ export default function QuizzesPage() {
                                         type="submit"
                                         className="flex-1 bg-purple-600 hover:bg-purple-700"
                                     >
-                                        Create Quiz
+                                        {editingQuiz ? 'Update Quiz' : 'Create Quiz'}
                                     </Button>
                                 </div>
                             </form>

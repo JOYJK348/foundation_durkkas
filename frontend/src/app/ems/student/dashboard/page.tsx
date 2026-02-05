@@ -19,11 +19,18 @@ import {
     Play,
     Loader2,
     Video,
+    Folder,
+    Camera,
+    ShieldCheck,
+    MapPin,
+    AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
+import { AttendanceVerification } from "@/components/ems/attendance/AttendanceVerification";
+import { AnimatePresence } from "framer-motion";
 
 interface DashboardData {
     student: {
@@ -43,11 +50,13 @@ interface DashboardData {
     pending_assignments: any[];
     upcoming_quizzes: any[];
     upcoming_live_classes: any[];
+    active_attendance_sessions: any[];
 }
 
 export default function StudentDashboard() {
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const [activeAttendanceSession, setActiveAttendanceSession] = useState<any | null>(null);
     const { user } = useAuthStore();
 
     useEffect(() => {
@@ -99,6 +108,7 @@ export default function StudentDashboard() {
 
     const quickActions = [
         { label: "My Courses", icon: BookOpen, href: "/ems/student/courses", color: "blue" },
+        { label: "My Materials", icon: Folder, href: "/ems/student/materials", color: "indigo" },
         { label: "Assignments", icon: FileText, href: "/ems/student/assignments", color: "green" },
         { label: "Assessments", icon: ClipboardCheck, href: "/ems/student/assessments", color: "purple" },
         { label: "Doubts", icon: MessageSquare, href: "/ems/student/doubts", color: "red" },
@@ -111,6 +121,42 @@ export default function StudentDashboard() {
             <TopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                {/* Attendance Alert If Any */}
+                {dashboardData.active_attendance_sessions?.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-8"
+                    >
+                        <Card className="border-0 shadow-xl overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+                            <CardContent className="p-0">
+                                <div className="p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-black/10">
+                                            <ShieldCheck className="h-8 w-8 text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 rounded-full text-[10px] font-bold tracking-widest uppercase mb-2 border border-white/10">
+                                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                                Attendance Open
+                                            </div>
+                                            <h2 className="text-xl sm:text-2xl font-bold italic">Mark Your Attendance!</h2>
+                                            <p className="text-blue-100/80 text-sm mt-1">Session active for <span className="text-white font-bold">{dashboardData.active_attendance_sessions[0].course?.course_name}</span></p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => setActiveAttendanceSession(dashboardData.active_attendance_sessions[0])}
+                                        className="bg-white text-blue-700 hover:bg-gray-100 h-14 px-8 rounded-2xl font-bold text-lg shadow-lg flex items-center gap-3 w-full sm:w-auto"
+                                    >
+                                        <Camera className="h-5 w-5" />
+                                        Verify Presence
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
+
                 {/* Welcome Section */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
@@ -343,6 +389,22 @@ export default function StudentDashboard() {
             </div>
 
             <BottomNav />
+
+            {/* Attendance Verification Modal */}
+            <AnimatePresence>
+                {activeAttendanceSession && (
+                    <AttendanceVerification
+                        sessionId={activeAttendanceSession.id}
+                        verificationType="OPENING" // Default for now, can be dynamic
+                        courseName={activeAttendanceSession.course?.course_name}
+                        onSuccess={() => {
+                            setActiveAttendanceSession(null);
+                            fetchDashboardData();
+                        }}
+                        onClose={() => setActiveAttendanceSession(null)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }
