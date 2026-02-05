@@ -60,16 +60,50 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
         checkEnrollment();
     }, []);
 
+    const getPreciseLocation = () => {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                console.log("✅ Location acquired");
+            },
+            (err) => {
+                console.warn("⚠️ Location error:", err.message);
+                // Fallback: Try with lower accuracy if High Accuracy fails
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                    () => toast.error("Could not get GPS. Please ensure Location is enabled."),
+                    { enableHighAccuracy: false, timeout: 5000 }
+                );
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
+
+    const handleResetCamera = async () => {
+        // Stop current stream before restart
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+        }
+        setStream(null);
+
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            setStream(mediaStream);
+            toast.success("Camera Reset Successful");
+        } catch (err) {
+            toast.error("Could not restart camera");
+        }
+    };
+
     const startVerification = async (session: any) => {
         setSelectedSession(session);
         setError(null);
         setStep("SCANNING");
 
-        navigator.geolocation.getCurrentPosition(
-            (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => console.log("Location delayed"),
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
+        // Only look for location if we don't have it yet
+        if (!location) {
+            getPreciseLocation();
+        }
 
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -114,7 +148,8 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
         const video = videoRef.current;
         if (!video || !canvasRef.current || !faceDetected || isCapturing || !selectedSession) return;
         if (!location) {
-            toast.error("Waiting for GPS...");
+            toast.error("GPS still waiting. Try moving or refreshing.");
+            getPreciseLocation(); // Re-trigger detection
             return;
         }
         setIsCapturing(true);
@@ -224,12 +259,41 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                             <div className="space-y-6">
                                 <div className="relative aspect-square rounded-[2.5rem] overflow-hidden bg-gray-950 border-4 border-gray-50 shadow-2xl">
                                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+
+                                    {/* Camera Control: Refresh Button */}
+                                    <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                                        {!location && (
+                                            <button
+                                                onClick={getPreciseLocation}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/80 hover:bg-amber-600 backdrop-blur-xl rounded-full border border-amber-400/50 text-white transition-all shadow-xl active:scale-95"
+                                            >
+                                                <MapPin className="h-3 w-3 animate-pulse" />
+                                                <span className="text-[8px] font-black uppercase tracking-widest">Retry GPS</span>
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={handleResetCamera}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-black/40 hover:bg-black/60 backdrop-blur-xl rounded-full border border-white/20 text-white transition-all shadow-2xl active:scale-95 group"
+                                        >
+                                            <RefreshCw className={`h-3.5 w-3.5 ${isCapturing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+                                            <span className="text-[9px] font-black uppercase tracking-widest">Reset Camera</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Loading State Overlay */}
+                                    {!stream && (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950/80 backdrop-blur-sm">
+                                            <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-3" />
+                                            <p className="text-[10px] font-black text-white uppercase tracking-widest animate-pulse">Initializing Camera...</p>
+                                        </div>
+                                    )}
+
                                     <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-[2px] bg-blue-400/50 blur-[1px] animate-[scan_2s_ease-in-out_infinite]" />
                                     <style jsx>{` @keyframes scan { 0%, 100% { top: 20%; opacity: 0; } 50% { top: 80%; opacity: 1; } } `}</style>
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <div className={`w-64 h-64 border-2 rounded-full transition-all duration-500 ${faceDetected ? 'border-green-400 scale-105' : 'border-white/20 border-dashed'}`} />
                                     </div>
-                                    <div className="absolute top-4 left-1/2 -translate-x-1/2">
+                                    <div className="absolute top-4 left-4">
                                         <div className={`px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase backdrop-blur-md border ${faceDetected ? 'bg-green-500 text-white border-green-400' : 'bg-black/40 text-white border-white/20'}`}>
                                             {selectedSession?.course?.course_name.substring(0, 15)}...
                                         </div>
