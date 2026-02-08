@@ -64,10 +64,12 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
 
     // Auto-select if only one pending session
     useEffect(() => {
-        if (step === "SELECT_SESSION" && pendingSessions.length === 1) {
-            startVerification(pendingSessions[0]);
+        if (step === "SELECT_SESSION") {
+            if (pendingSessions.length === 1) {
+                startVerification(pendingSessions[0]);
+            }
         }
-    }, [sessions, step]);
+    }, [pendingSessions.length, step]);
 
     const getPreciseLocation = () => {
         navigator.geolocation.getCurrentPosition(
