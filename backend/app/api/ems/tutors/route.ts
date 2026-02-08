@@ -17,7 +17,17 @@ export async function GET(req: NextRequest) {
         const scope = await getUserTenantScope(userId);
         if (!scope.companyId) return errorResponse(null, 'Company context required', 400);
 
-        const data = await TutorService.getAllTutors(scope.companyId);
+        const searchParams = req.nextUrl.searchParams;
+        const mode = searchParams.get('mode');
+
+        if (mode === 'candidates') {
+            const candidates = await TutorService.getPotentialTutors(scope.companyId);
+            return successResponse(candidates, `Candidates fetched successfully`);
+        }
+
+        const courseId = searchParams.get('courseId') ? parseInt(searchParams.get('courseId')!) : undefined;
+
+        const data = await TutorService.getAllTutors(scope.companyId, courseId);
         return successResponse(data, `Tutors fetched successfully (${data?.length || 0} records)`);
 
     } catch (error: any) {
@@ -35,9 +45,16 @@ export async function POST(req: NextRequest) {
         // Auto-assign company and branch context
         data = await autoAssignCompany(userId, data);
 
+        if (data.employee_id) {
+            // Assign existing employee as Tutor
+            await TutorService.assignTutorRole(data.company_id, data.employee_id);
+            return successResponse({ success: true }, 'Employee promoted to Tutor successfully');
+        }
+
+        // Fallback: Create new user & employee (Legacy/Admin flow)
         const tutor = await TutorService.createTutor(data);
 
-        return successResponse(tutor, 'Tutor added successfully', 201);
+        return successResponse(tutor, 'Tutor account created successfully', 201);
 
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to add tutor');

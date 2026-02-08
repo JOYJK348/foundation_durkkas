@@ -23,6 +23,8 @@ import {
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { BatchDetailsModal } from "@/components/ems/batch-details-modal";
+import { toast } from "sonner";
 
 interface Batch {
     id: number;
@@ -60,6 +62,8 @@ export default function BatchesPage() {
         end_date: "",
         schedule_details: "",
     });
+    const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     useEffect(() => {
         fetchBatches();
@@ -263,7 +267,15 @@ export default function BatchesPage() {
                                         </div>
 
                                         <div className="flex gap-2">
-                                            <Button size="sm" variant="outline" className="flex-1">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200"
+                                                onClick={() => {
+                                                    setSelectedBatchId(batch.id);
+                                                    setShowDetailsModal(true);
+                                                }}
+                                            >
                                                 <Eye className="h-4 w-4 mr-1" />
                                                 View
                                             </Button>
@@ -420,6 +432,15 @@ export default function BatchesPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <BatchDetailsModal
+                isOpen={showDetailsModal}
+                onClose={() => {
+                    setShowDetailsModal(false);
+                    setSelectedBatchId(null);
+                }}
+                batchId={selectedBatchId}
+            />
 
             <AcademicManagerBottomNav />
         </div>

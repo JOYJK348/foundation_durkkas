@@ -62,10 +62,12 @@ export class AttendanceService {
         sessionType: string;
         startTime: string;
         endTime: string;
+        classMode?: string;
+        requireFaceVerification?: boolean;
     }) {
         logToFile('Creating Session (Simplified) - Input:', sessionData);
         try {
-            const insertPayload = {
+            const insertPayload: any = {
                 company_id: sessionData.companyId,
                 course_id: sessionData.courseId,
                 batch_id: sessionData.batchId,
@@ -73,6 +75,14 @@ export class AttendanceService {
                 session_type: sessionData.sessionType,
                 status: 'SCHEDULED'
             };
+
+            // Add optional fields if provided
+            if (sessionData.classMode) {
+                insertPayload.class_mode = sessionData.classMode;
+            }
+            if (sessionData.requireFaceVerification !== undefined) {
+                insertPayload.require_face_verification = sessionData.requireFaceVerification;
+            }
 
             logToFile('Insert Payload:', insertPayload);
 
@@ -105,6 +115,52 @@ export class AttendanceService {
             .single();
 
         if (error) throw error;
+        return data;
+    }
+
+    /**
+     * Cancel an attendance session (Soft delete)
+     */
+    static async cancelSession(companyId: number, sessionId: number, reason: string, cancelledBy: number) {
+        logToFile('Cancelling Session:', { sessionId, reason, cancelledBy });
+        const { data, error } = await ems.attendanceSessions()
+            .update({
+                status: 'CANCELLED',
+                cancellation_reason: reason,
+                cancelled_at: new Date().toISOString(),
+                cancelled_by: cancelledBy
+            } as any)
+            .eq('id', sessionId)
+            .eq('company_id', companyId)
+            .select()
+            .single();
+
+        if (error) {
+            logToFile('Cancel Session Error:', error);
+            throw error;
+        }
+        return data;
+    }
+
+    /**
+     * Update attendance session details
+     */
+    static async updateSession(companyId: number, sessionId: number, updateData: any) {
+        logToFile('Updating Session:', { sessionId, updateData });
+        const { data, error } = await ems.attendanceSessions()
+            .update({
+                ...updateData,
+                updated_at: new Date().toISOString()
+            } as any)
+            .eq('id', sessionId)
+            .eq('company_id', companyId)
+            .select()
+            .single();
+
+        if (error) {
+            logToFile('Update Session Error:', error);
+            throw error;
+        }
         return data;
     }
 
@@ -285,88 +341,169 @@ export class AttendanceService {
      * Get daily class schedule with attendance status
      */
     static async getDailySchedule(companyId: number, date: string) {
-        // 1. Get all active batches that are running on this date
-        const { data: batches, error: batchError } = await ems.batches()
+        logToFile('getDailySchedule - Input:', { companyId, date });
+
+        // STRATEGY: Fetch only attendance_sessions for this date, then join batch/course data
+        // This ensures we ONLY show classes that were explicitly scheduled, not all active batches
+
+        const { data: sessions, error: sessionError } = await ems.attendanceSessions()
             .select(`
-                id, batch_name, batch_code, 
-                start_time, end_time, 
-                course:courses(id, course_name, course_code),
-                session:attendance_sessions(id, status)
+                id, 
+                batch_id, 
+                course_id,
+                session_date,
+                session_type,
+                status,
+                class_mode,
+                require_face_verification,
+                require_location_verification,
+                live_class_id,
+                batch:batches(id, batch_name, batch_code, start_time, end_time),
+                course:courses(id, course_name, course_code)
             `)
             .eq('company_id', companyId)
-            .lte('start_date', date)
-            .gte('end_date', date)
-            .eq('is_active', true);
-        // Filter joined session by date - This is tricky in Supabase basic query
-        // Supabase 'eq' on joined resource usually filters the parent rows if using inner join, 
-        // but for left join it might be complex.
-        // Easier approach: Get batches, then get sessions for today.
+            .eq('session_date', date)
+            .order('id', { ascending: true });
 
-        if (batchError) throw batchError;
+        if (sessionError) {
+            logToFile('getDailySchedule Session Error:', sessionError);
+            throw sessionError;
+        }
 
-        // 2. Get sessions for today separately to merge
-        const { data: sessions, error: sessionError } = await ems.attendanceSessions()
-            .select('id, batch_id, status')
-            .eq('company_id', companyId)
-            .eq('session_date', date);
+        if (!sessions || sessions.length === 0) {
+            logToFile('getDailySchedule: No sessions found for date:', date);
+            return [];
+        }
 
-        if (sessionError) throw sessionError;
+        // Get batch IDs to fetch enrollment counts
+        const batchIds = sessions.map(s => s.batch_id).filter(Boolean);
 
-        // 3. Get total students per batch (enrolled)
-        const batchIds = batches.map(b => b.id);
+        // Get total students per batch (enrolled)
         const { data: enrollments } = await ems.enrollments()
             .select('batch_id')
             .in('batch_id', batchIds)
             .eq('enrollment_status', 'ACTIVE');
 
-        // 4. Get attendance counts for these sessions
-        const sessionIds = sessions?.map(s => s.id) || [];
-        let attendanceCounts: any[] = [];
-        if (sessionIds.length > 0) {
-            const { data: counts, error: countError } = await ems.attendanceRecords()
-                .select('session_id, status')
-                .in('session_id', sessionIds);
+        // Get attendance counts for these sessions
+        const sessionIds = sessions.map(s => s.id);
+        const { data: attendanceRecords } = await ems.attendanceRecords()
+            .select('session_id, status')
+            .in('session_id', sessionIds);
 
-            if (countError) {
-                logToFile('getDailySchedule Count Error:', countError);
-            }
-            attendanceCounts = counts || [];
-        }
+        // Transform to match frontend expectations
+        const schedule = sessions.map(session => {
+            const batchData = Array.isArray(session.batch) ? session.batch[0] : session.batch;
+            const courseData = Array.isArray(session.course) ? session.course[0] : session.course;
 
-        // 5. Merge data
-        const schedule = batches.map(batch => {
-            const totalStudents = enrollments?.filter(e => e.batch_id === batch.id).length || 0;
-            // Find session for this batch
-            const session = sessions?.find(s => s.batch_id === batch.id);
 
-            // Clean up course object (Supabase sometimes returns it as an array)
-            const courseData = Array.isArray(batch.course) ? batch.course[0] : batch.course;
+            const totalStudents = enrollments?.filter(e => e.batch_id === session.batch_id).length || 0;
+            const sessionRecords = attendanceRecords?.filter(r => r.session_id === session.id) || [];
 
-            if (session) {
-                const sessionRecords = attendanceCounts.filter(r => r.session_id === session.id);
-                return {
-                    ...batch,
-                    course: courseData,
-                    total_students: totalStudents,
-                    session: {
-                        ...session,
-                        present_count: sessionRecords.filter(r => r.status === 'PRESENT').length,
-                        absent_count: sessionRecords.filter(r => r.status === 'ABSENT').length
-                    },
-                    status: session.status
-                };
-            }
             return {
-                ...batch,
-                course: courseData,
+                id: session.batch_id,
+                batch_name: batchData?.batch_name || 'Unknown Batch',
+                batch_code: batchData?.batch_code || '',
+                start_time: batchData?.start_time || '09:00',
+                end_time: batchData?.end_time || '10:00',
+                course: courseData || { id: session.course_id, course_name: 'Unknown Course', course_code: '' },
                 total_students: totalStudents,
-                session: null,
-                status: 'PENDING'
+                class_mode: session.class_mode || 'OFFLINE',
+                require_face_verification: session.require_face_verification || false,
+                require_location_verification: session.require_location_verification || false,
+
+                session: {
+                    id: session.id,
+                    status: session.status,
+                    present_count: sessionRecords.filter(r => r.status === 'PRESENT').length,
+                    absent_count: sessionRecords.filter(r => r.status === 'ABSENT').length
+                },
+                status: session.status
             };
         });
 
-        return schedule;
+        logToFile('getDailySchedule - Result:', { count: schedule.length, schedule });
+        return {
+            count: schedule.length,
+            schedule
+        };
     }
+
+    /**
+     * Get student's active sessions with status
+     */
+    static async getStudentActiveSessionsWithStatus(companyId: number, studentId: number) {
+        logToFile('getStudentActiveSessionsWithStatus - Input:', { companyId, studentId });
+        try {
+            // Get student's courses and batches first
+            const { data: enrollments, error: enrollError } = await ems.enrollments()
+                .select('batch_id')
+                .eq('student_id', studentId)
+                .eq('company_id', companyId);
+
+            if (enrollError) throw enrollError;
+            if (!enrollments || enrollments.length === 0) return [];
+
+            const batchIds = enrollments.map(e => e.batch_id);
+            const today = new Date().toISOString().split('T')[0];
+
+            let sessions;
+            try {
+                // Optimistic query with all new features
+                const { data: fullSessions, error: sessionsError } = await ems.attendanceSessions()
+                    .select(`
+                        id, company_id, course_id, batch_id, session_date, session_type, status,
+                        class_mode, require_face_verification, require_location_verification, live_class_id,
+                        course:courses(id, course_name, course_code),
+                        batch:batches(id, batch_name, batch_code, start_time, end_time)
+                    `)
+                    .eq('company_id', companyId)
+                    .in('status', ['OPEN', 'IDENTIFYING_ENTRY', 'IDENTIFYING_EXIT', 'IN_PROGRESS', 'SCHEDULED'])
+                    .eq('session_date', today)
+                    .in('batch_id', batchIds);
+
+                if (sessionsError) throw sessionsError;
+                sessions = fullSessions;
+            } catch (err: any) {
+                if (err.message && (err.message.includes('column') || err.message.includes('relationship') || err.code === '42703' || err.code === 'PGRST200')) {
+                    logToFile('⚠️ SCHEMA MISMATCH: Columns/Rel missing in getStudentActiveSessionsWithStatus, falling back.');
+                    const { data: legacySessions, error: legacyError } = await ems.attendanceSessions()
+                        .select(`
+                            id, company_id, course_id, batch_id, session_date, session_type, status,
+                            course:courses(id, course_name, course_code),
+                            batch:batches(id, batch_name, batch_code, start_time, end_time)
+                        `)
+                        .eq('company_id', companyId)
+                        .in('status', ['OPEN', 'IDENTIFYING_ENTRY', 'IDENTIFYING_EXIT', 'IN_PROGRESS', 'SCHEDULED'])
+                        .eq('session_date', today)
+                        .in('batch_id', batchIds);
+
+                    if (legacyError) throw legacyError;
+                    sessions = legacySessions;
+                } else {
+                    throw err;
+                }
+            }
+
+            if (!sessions || sessions.length === 0) return [];
+
+            // Get attendance records to see if student already marked
+            const { data: records, error: recordsError } = await ems.attendanceRecords()
+                .select('session_id, status')
+                .eq('student_id', studentId)
+                .in('session_id', sessions.map((s: any) => s.id));
+
+            if (recordsError) throw recordsError;
+
+            return sessions.map((s: any) => ({
+                ...s,
+                student_status: records?.find(r => r.session_id === s.id)?.status || 'PENDING'
+            }));
+        } catch (err: any) {
+            logToFile('getStudentActiveSessionsWithStatus Catch Error:', { message: err.message, stack: err.stack });
+            throw err;
+        }
+    }
+
 
     /**
      * Verify location against institution whitelist
@@ -526,22 +663,53 @@ export class AttendanceService {
     /**
      * Get batch attendance summary
      */
+    /**
+     * Get batch attendance summary (Full Roster)
+     */
     static async getBatchAttendanceSummary(companyId: number, batchId: number, sessionId: number) {
         logToFile('Getting Batch Attendance Summary - Input:', { companyId, batchId, sessionId });
         try {
-            const { data, error } = await ems.attendanceRecords()
+            // 1. Get all students enrolled in the batch
+            const { data: enrollments, error: enrollError } = await ems.enrollments()
                 .select(`
-                    id, company_id, session_id, student_id, status, created_at,
-                    student:students(id, first_name, last_name, student_code)
+                    student_id,
+                    student:students(id, first_name, last_name, student_code, profile_url)
+                `)
+                .eq('company_id', companyId)
+                .eq('batch_id', batchId)
+                .eq('enrollment_status', 'ACTIVE');
+
+            if (enrollError) throw enrollError;
+
+            // 2. Get existing attendance records for the session
+            const { data: records, error: recordsError } = await ems.attendanceRecords()
+                .select(`
+                    id, company_id, session_id, student_id, status, created_at, remarks,
+                    check_in_time, check_out_time, verification_method
                 `)
                 .eq('company_id', companyId)
                 .eq('session_id', sessionId);
 
-            if (error) {
-                logToFile('getBatchAttendanceSummary DB Error:', error);
-                throw error;
-            }
-            return { attendance: data || [] };
+            if (recordsError) throw recordsError;
+
+            // 3. Merge data
+            const fullRoster = enrollments?.map((enrollment: any) => {
+                const record = records?.find(r => r.student_id === enrollment.student_id);
+                return {
+                    id: record?.id, // Attendance Record ID (if exists)
+                    student_id: enrollment.student_id,
+                    student: enrollment.student,
+                    status: record ? record.status : 'PENDING', // Default to PENDING
+                    remarks: record?.remarks,
+                    check_in_time: record?.check_in_time,
+                    check_out_time: record?.check_out_time,
+                    verification_method: record?.verification_method
+                };
+            }) || [];
+
+            logToFile('Batch Summary Result:', { totalStudents: fullRoster.length, marked: records?.length });
+
+            return { attendance: fullRoster };
         } catch (err: any) {
             logToFile('getBatchAttendanceSummary Catch Error:', { message: err.message, stack: err.stack });
             throw err;

@@ -7,6 +7,9 @@ import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { ems, app_auth } from '@/lib/supabase';
+import { getUserTenantScope } from '@/middleware/tenantFilter';
+import { dataCache } from '@/lib/cache/dataCache';
+import { AttendanceService } from '@/lib/services/AttendanceService';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +17,15 @@ export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
+
+        const scope = await getUserTenantScope(userId);
+
+        // 🚀 CACHE CHECK
+        const cacheKey = `student_dashboard_v2:${userId}:${scope.companyId}`;
+        const cachedData = dataCache.get(cacheKey);
+        if (cachedData) {
+            return successResponse(cachedData, 'Student dashboard (cached)');
+        }
 
         // Get student record from user_id
         const { data: student } = await ems.students()
@@ -23,7 +35,8 @@ export async function GET(req: NextRequest) {
             .single() as any;
 
         if (!student) {
-            return errorResponse(null, 'Student record not found', 404);
+            console.warn('⚠️ [Student Dashboard] Student record not found for user:', userId);
+            return errorResponse(null, 'Student profile not found. Please contact your administrator.', 404);
         }
 
         const studentId = (student as any).id;
@@ -33,6 +46,8 @@ export async function GET(req: NextRequest) {
         const { data: enrollments } = await ems.enrollments()
             .select(`
                 id,
+                course_id,
+                batch_id,
                 enrollment_date,
                 enrollment_status,
                 completion_percentage,
@@ -74,7 +89,7 @@ export async function GET(req: NextRequest) {
                     course_name
                 )
             `)
-            .in('course_id', (enrollments as any[])?.map((e: any) => e.course?.id) || [])
+            .in('course_id', (enrollments as any[])?.map((e: any) => e.course_id) || [])
             .eq('company_id', companyId)
             .eq('is_active', true)
             .is('deleted_at', null)
@@ -82,26 +97,29 @@ export async function GET(req: NextRequest) {
             .order('deadline', { ascending: true })
             .limit(10) as any;
 
-        // Get submission status for each assignment
-        const assignmentsWithStatus = await Promise.all(
-            ((assignments as any[]) || []).map(async (assignment: any) => {
-                const { data: submission } = await ems.assignmentSubmissions()
-                    .select('id, submission_status, marks_obtained, submitted_at')
-                    .eq('assignment_id', assignment.id)
-                    .eq('student_id', studentId)
-                    .single() as any;
+        console.log('--- Student Dashboard Debug ---');
+        console.log('Current Time:', new Date().toISOString());
+        console.log('Enrolled Course IDs (Direct):', (enrollments as any[])?.map((e: any) => e.course_id));
+        console.log('Assignments Fetched:', (assignments as any[])?.map((a: any) => ({ id: a.id, title: a.assignment_title, deadline: a.deadline })));
 
-                return {
-                    ...assignment,
-                    submission: submission || null,
-                    status: submission ? submission.submission_status : 'NOT_SUBMITTED'
-                };
-            })
-        );
+
+        // 3. Get submission status for all assignments at once (OPTIMIZED)
+        const { data: allSubmissions } = await ems.assignmentSubmissions()
+            .select('id, assignment_id, submission_status, marks_obtained, submitted_at')
+            .in('assignment_id', (assignments as any[])?.map(a => a.id) || [])
+            .eq('student_id', studentId) as any;
+
+        const submissionMap = new Map((allSubmissions || []).map((s: any) => [s.assignment_id, s]));
+
+        const assignmentsWithStatus = (assignments as any[])?.map(assignment => ({
+            ...assignment,
+            submission: submissionMap.get(assignment.id) || null,
+            status: (submissionMap.get(assignment.id) as any)?.submission_status || 'NOT_SUBMITTED'
+        })) || [];
 
         // 3. Get Upcoming Quizzes (Assignment-Aware)
-        const enrolledCourseIds = (enrollments as any[])?.map((e: any) => e.course?.id) || [];
-        const enrolledBatchIds = (enrollments as any[])?.map((e: any) => e.batch?.id).filter(Boolean) || [];
+        const enrolledCourseIds = (enrollments as any[])?.map((e: any) => e.course_id) || [];
+        const enrolledBatchIds = (enrollments as any[])?.map((e: any) => e.batch_id).filter(Boolean) || [];
 
         // Fetch specifically assigned quiz IDs
         let assignmentQuery = ems.quizAssignments()
@@ -157,26 +175,34 @@ export async function GET(req: NextRequest) {
             return inTime && (isSpecificallyAssigned || hasNoSpecificAssignments);
         });
 
-        // Get quiz attempt status
-        const quizzesWithStatus = await Promise.all(
-            ((quizzes as any[]) || []).map(async (quiz: any) => {
-                const { data: attempts, count } = await ems.quizAttempts()
-                    .select('id, attempt_number, marks_obtained, percentage, status', { count: 'exact' })
-                    .eq('quiz_id', quiz.id)
-                    .eq('student_id', studentId) as any;
+        // 4. Get quiz attempt status (OPTIMIZED)
+        const { data: allAttempts } = await ems.quizAttempts()
+            .select('id, quiz_id, attempt_number, marks_obtained, percentage, status')
+            .in('quiz_id', (quizzes as any[])?.map(q => q.id) || [])
+            .eq('student_id', studentId) as any;
 
-                return {
-                    ...quiz,
-                    attempts_taken: count || 0,
-                    attempts_remaining: (quiz.max_attempts || 0) - (count || 0),
-                    best_score: (attempts as any[])?.reduce((max, a) => Math.max(max, a.percentage || 0), 0) || 0,
-                    last_attempt: (attempts as any[])?.[(attempts as any[]).length - 1] || null
-                };
-            })
-        );
+        const attemptMap = new Map();
+        (allAttempts || []).forEach((a: any) => {
+            if (!attemptMap.has(a.quiz_id)) attemptMap.set(a.quiz_id, []);
+            attemptMap.get(a.quiz_id).push(a);
+        });
+
+        const quizzesWithStatus = (quizzes as any[])?.map(quiz => {
+            const quizAttempts = attemptMap.get(quiz.id) || [];
+            return {
+                ...quiz,
+                attempts_taken: quizAttempts.length,
+                attempts_remaining: (quiz.max_attempts || 0) - quizAttempts.length,
+                best_score: quizAttempts.reduce((max: number, a: any) => Math.max(max, a.percentage || 0), 0),
+                last_attempt: quizAttempts[quizAttempts.length - 1] || null
+            };
+        }) || [];
 
         // 4. Get Upcoming Live Classes
-        const { data: liveClasses } = await ems.liveClasses()
+        // Filter: Course ID must be in enrolled courses AND (batch_id must match student's enrolled batch OR batch_id is NULL)
+        const enrolledBatchIdsRaw = (enrollments as any[])?.map((e: any) => e.batch_id).filter(Boolean) || [];
+
+        const { data: rawLiveClasses } = await ems.liveClasses()
             .select(`
                 id,
                 class_title,
@@ -186,40 +212,33 @@ export async function GET(req: NextRequest) {
                 end_time,
                 meeting_link,
                 class_status,
+                batch_id,
                 course:courses (
                     id,
                     course_name
                 )
             `)
-            .in('course_id', (enrollments as any[])?.map((e: any) => e.course?.id) || [])
+            .in('course_id', (enrollments as any[])?.map((e: any) => e.course_id) || [])
             .eq('company_id', companyId)
             .gte('scheduled_date', new Date().toISOString().split('T')[0])
             .is('deleted_at', null)
             .order('scheduled_date', { ascending: true })
             .order('start_time', { ascending: true })
-            .limit(5) as any;
+            .limit(20) as any;
+
+        // In-memory filter for precise batch matching
+        const liveClasses = (rawLiveClasses as any[] || []).filter(c => {
+            // If class is for a specific batch, student must be in it
+            if (c.batch_id) {
+                return enrolledBatchIdsRaw.includes(c.batch_id);
+            }
+            // If no batch_id, it's global for the course
+            return true;
+        }).slice(0, 5);
 
         // 5. Get Active Attendance Sessions for today
-        const todayStr = new Date().toISOString().split('T')[0];
-        const batchIds = (enrollments as any[])?.map((e: any) => e.batch?.id).filter(Boolean) || [];
-
-        let activeSessions: any[] = [];
-        if (batchIds.length > 0) {
-            const { data: sessions } = await ems.attendanceSessions()
-                .select(`
-                    id,
-                    session_date,
-                    session_type,
-                    status,
-                    course:courses(id, course_name, course_code),
-                    batch:batches(id, batch_name)
-                `)
-                .in('batch_id', batchIds)
-                .eq('session_date', todayStr)
-                .in('status', ['OPEN', 'SCHEDULED']) as any;
-
-            activeSessions = sessions || [];
-        }
+        const activeSessions = (await AttendanceService.getStudentActiveSessionsWithStatus(companyId, studentId))
+            .filter(s => s.recommended_action !== 'COMPLETED');
 
         // 6. Calculate Overall Stats
         const stats = {
@@ -230,7 +249,7 @@ export async function GET(req: NextRequest) {
             upcoming_classes: (liveClasses as any[])?.length || 0
         };
 
-        return successResponse({
+        const responseData = {
             student: {
                 id: (student as any).id,
                 name: `${(student as any).first_name} ${(student as any).last_name}`,
@@ -243,10 +262,32 @@ export async function GET(req: NextRequest) {
             upcoming_quizzes: quizzesWithStatus || [],
             upcoming_live_classes: liveClasses || [],
             active_attendance_sessions: activeSessions
-        }, 'Student dashboard data fetched successfully');
+        };
+
+        // 🚀 CACHE SET
+        dataCache.set(cacheKey, responseData, 5 * 1000); // 5 seconds cache
+
+        return successResponse(responseData, 'Student dashboard data fetched successfully');
 
     } catch (error: any) {
-        console.error('Student Dashboard Error:', error);
-        return errorResponse(null, error.message || 'Failed to fetch dashboard data');
+        console.error('❌ [Student Dashboard API] Error:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            timestamp: new Date().toISOString()
+        });
+
+        // Provide specific error messages based on error type
+        let errorMessage = 'Failed to fetch dashboard data';
+
+        if (error.message?.includes('Student record not found')) {
+            errorMessage = 'Student profile not found. Please contact your administrator.';
+        } else if (error.code === 'PGRST116') {
+            errorMessage = 'No data found. Your enrollment may be pending.';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        return errorResponse(null, errorMessage, error.status || 500);
     }
 }

@@ -1,0 +1,100 @@
+﻿      -0.035293642431497574,
+      0.03819495812058449,
+      -0.13007666170597076,
+      -0.15807659924030304,
+      -0.2203986495733261,
+      0.07290471345186234,
+      0.36900433897972107,
+      0.15633727610111237,
+      -0.2332984209060669,
+      0.010948142036795616,
+      -0.12987686693668365,
+      0.03983253613114357,
+      0.15705451369285583,
+      -0.009831351228058338,
+      -0.009118877351284027,
+      0.03380998596549034,
+      -0.11838381737470627,
+      0.07290434837341309,
+      0.07749107480049133,
+      -0.06563529372215271,
+      -0.09426682442426682,
+      0.2192397564649582,
+      -0.06265957653522491,
+      0.02047753892838955,
+      0.018184354528784752,
+      0.009139045141637325,
+      -0.01402885839343071,
+      0.04447869583964348,
+      -0.13754448294639587,
+      -0.0005652651307173073,
+      0.12222179770469666,
+      -0.0405944399535656,
+      -0.0010090147843584418,
+      0.02513452060520649,
+      -0.17532114684581757,
+      0.12408643215894699,
+      0.028880111873149872,
+      0.0032892925664782524,
+      0.08469820767641068,
+      0.027279101312160492,
+      -0.18785254657268524,
+      -0.049945082515478134,
+      0.10653464496135712,
+      -0.17487092316150665,
+      0.14138969779014587,
+      0.09427214413881302,
+      -0.06497949361801147,
+      0.13507837057113647,
+      0.0117398202419281,
+      0.07977419346570969,
+      -0.04197034612298012,
+      -0.13322164118289948,
+      -0.13509312272071838,
+      -0.029530582949519157,
+      0.11896875500679016,
+      0.09300940483808517,
+      0.0014259953750297427,
+      -0.00596649618819356
+    ],
+    "latitude": 9.460327,
+    "longitude": 77.776939,
+    "locationAccuracy": 10,
+    "deviceInfo": {},
+    "ipAddress": "127.0.0.1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+  },
+  "companyId": 13
+}
+[2026-02-07T17:45:51.435Z] Verifying Location - Input: {
+  "companyId": 13,
+  "latitude": 9.460327,
+  "longitude": 77.776939
+}
+[2026-02-07T17:45:51.817Z] Location Result: {
+  "is_valid": true,
+  "location_name": "Rajapalayam Branch",
+  "distance_meters": 0
+}
+[2026-02-07T17:45:51.817Z] Location PASSED 
+[2026-02-07T17:45:52.359Z] Face match SUCCESS: {
+  "is_match": true,
+  "confidence": 58.25066741325081,
+  "distance": 0.4174933258674919
+}
+[2026-02-07T17:45:53.078Z] Verification logging error: "Could not find the 'device_info' column of 'attendance_face_verifications' in the schema cache"
+[2026-02-07T17:45:53.078Z] Updating Attendance Record - Input: {
+  "companyId": 13,
+  "sessionId": 4,
+  "studentId": 41,
+  "verificationType": "CLOSING",
+  "verificationId": 0
+}
+[2026-02-07T17:45:53.418Z] Updating Existing Record: 7
+[2026-02-07T17:45:53.843Z] Update Record Error: {
+  "code": "23503",
+  "details": "Key (check_out_id)=(0) is not present in table \"attendance_face_verifications\".",
+  "hint": null,
+  "message": "insert or update on table \"attendance_records\" violates foreign key constraint \"attendance_records_check_out_id_fkey\""
+}
+[2026-02-07T17:45:53.844Z] updateAttendanceRecord CRITICAL Error: "insert or update on table \"attendance_records\" violates foreign key constraint \"attendance_records_check_out_id_fkey\""

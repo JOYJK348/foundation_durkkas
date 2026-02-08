@@ -16,10 +16,12 @@ import {
     Zap,
     ShieldAlert,
     Megaphone,
-    Activity
+    Activity,
+    ArrowRight
 } from "lucide-react";
 import { useNotificationStore, NotificationType } from "@/store/useNotificationStore";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const icons: Record<NotificationType, any> = {
     success: CheckCircle2,
@@ -58,6 +60,18 @@ export default function NotificationPanel({ onClose, isMobile = false }: Notific
         soundEnabled,
         toggleSound
     } = useNotificationStore();
+    const router = useRouter();
+
+    const handleNotificationClick = async (n: any) => {
+        // 1. Mark as read
+        if (!n.read) markAsRead(n.id);
+
+        // 2. Redirect if URL exists
+        if (n.actionUrl) {
+            router.push(n.actionUrl);
+            onClose(); // Close panel on navigation
+        }
+    };
 
     return (
         <div className={`
@@ -150,7 +164,7 @@ export default function NotificationPanel({ onClose, isMobile = false }: Notific
                                         ? 'bg-blue-50/50 hover:bg-blue-50'
                                         : 'bg-white hover:bg-slate-50'
                                         }`}
-                                    onClick={() => markAsRead(n.id)}
+                                    onClick={() => handleNotificationClick(n)}
                                 >
                                     {!n.read && (
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#0066FF] shadow-[2px_0_10px_rgba(0,102,255,0.4)]" />
@@ -183,6 +197,12 @@ export default function NotificationPanel({ onClose, isMobile = false }: Notific
                                                         {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                                                     </span>
                                                 </div>
+                                                {n.actionUrl && (
+                                                    <span className="text-[10px] text-[#0066FF] font-black uppercase tracking-widest flex items-center gap-1 shrink-0 bg-blue-50/50 px-2 py-1 rounded-md border border-blue-100/50">
+                                                        {n.metadata?.action_label || 'View'}
+                                                        <ArrowRight className="w-3 h-3" strokeWidth={3} />
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

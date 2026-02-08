@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { ems } from '@/lib/supabase';
+import { AssignmentService } from '@/lib/services/AssignmentService';
 
 export async function GET(req: NextRequest) {
     try {
@@ -43,45 +44,16 @@ export async function GET(req: NextRequest) {
             return successResponse([], 'No assignments found (no enrolled courses)');
         }
 
-        // Get assignments for these courses
-        const { data: assignments, error } = await ems.assignments()
-            .select(`
-                id,
-                assignment_title,
-                assignment_description,
-                deadline,
-                max_marks,
-                passing_marks,
-                course:courses (
-                    id,
-                    course_name
-                )
-            `)
-            .in('course_id', courseIds)
-            .eq('company_id', scope.companyId!)
-            .eq('is_active', true)
-            .is('deleted_at', null)
-            .order('deadline', { ascending: true }) as any;
+        const data = await AssignmentService.getStudentAssignments(student.id, scope.companyId!);
 
-        if (error) throw error;
-
-        // Get submissions for these assignments by this student
-        const { data: submissions } = await ems.assignmentSubmissions()
-            .select('assignment_id, submission_status, marks_obtained, grade')
-            .eq('student_id', student.id)
-            .in('assignment_id', (assignments as any[])?.map((a: any) => a.id) || []) as any;
-
-        // Combine data
-        const mappedAssignments = (assignments as any[] || []).map((assignment: any) => {
-            const submission = (submissions as any[])?.find((s: any) => s.assignment_id === assignment.id);
-            return {
-                ...assignment,
-                status: submission ? (submission.marks_obtained !== null ? 'graded' : 'submitted') : 'pending',
-                score: submission?.marks_obtained || null,
-                submission_status: submission?.submission_status || null,
-                course_name: assignment.course?.course_name
-            };
-        });
+        // Map status to match frontend expectations (pending, submitted, graded)
+        const mappedAssignments = data.map((a: any) => ({
+            ...a,
+            status: a.submission_status === 'GRADED' ? 'graded' :
+                a.submission_status === 'SUBMITTED' ? 'submitted' : 'pending',
+            score: a.marks_obtained,
+            course_name: a.courses?.course_name
+        }));
 
         return successResponse(mappedAssignments, 'My assignments fetched successfully');
 

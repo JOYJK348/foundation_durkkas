@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
         const { data: enrollments, error: enrollmentError } = await ems.enrollments()
             .select('course_id, batch_id')
             .eq('student_id', student.id)
-            .eq('status', 'ACTIVE')
+            .eq('enrollment_status', 'ACTIVE')
             .is('deleted_at', null);
 
         if (enrollmentError) throw enrollmentError;

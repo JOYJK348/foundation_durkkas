@@ -11,6 +11,7 @@ export interface Notification {
     timestamp: Date;
     read: boolean;
     category?: string;
+    actionUrl?: string;
     metadata?: any;
 }
 
@@ -105,6 +106,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
                     category: n.category,
                     timestamp: new Date(n.created_at),
                     read: n.is_read,
+                    actionUrl: n.action_url,
                     metadata: n.metadata
                 }));
 

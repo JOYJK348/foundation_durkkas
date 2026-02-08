@@ -22,38 +22,25 @@ export async function GET(req: NextRequest) {
             .select('*, sender:sender_id(display_name, avatar_url)');
 
         // 🔒 STRICT ISOLATION & HIERARCHY
+        const filters = [`user_id.eq.${userId}`, `target_type.eq.GLOBAL`];
+
         if (scope.roleLevel === 5) {
-            // PLATFORM ADMIN: Full Visibility
+            // PLATFORM ADMIN: Full Visibility (Override basic filters)
             console.log(`[NOTIFICATIONS] Platform Admin ${userId} - Global Access`);
-        }
-        else if (scope.roleLevel === 4) {
-            // COMPANY ADMIN
-            const filters = [
-                `user_id.eq.${userId}`,                                      // Private
-                `target_type.eq.GLOBAL`,                                     // Platform Alerts
-                `and(target_type.eq.COMPANY,company_id.eq.${scope.companyId})`, // Company-wide
-                `and(target_type.eq.ROLE,target_role_level.eq.${scope.roleLevel},company_id.eq.${scope.companyId})` // Role-based
-            ];
-            query = query.or(filters.join(','));
-        }
-        else if (scope.roleLevel === 1) {
-            // BRANCH ADMIN
-            const filters = [
-                `user_id.eq.${userId}`,
-                `target_type.eq.GLOBAL`,
-                `and(target_type.eq.COMPANY,company_id.eq.${scope.companyId})`,
-                `and(target_type.eq.BRANCH,branch_id.eq.${scope.branchId})`,
-                `and(target_type.eq.ROLE,target_role_level.eq.${scope.roleLevel})`
-            ];
-            query = query.or(filters.join(','));
-        }
-        else {
-            // EMPLOYEES
-            const filters = [
-                `user_id.eq.${userId}`,
-                `target_type.eq.GLOBAL`,
-                `and(target_type.eq.ROLE,target_role_level.eq.${scope.roleLevel},company_id.eq.${scope.companyId})`
-            ];
+        } else {
+            // Role-based filter
+            filters.push(`and(target_type.eq.ROLE,target_role_level.eq.${scope.roleLevel},company_id.eq.${scope.companyId})`);
+
+            if (scope.companyId) {
+                // Anyone with a company scope sees company alerts
+                filters.push(`and(target_type.eq.COMPANY,company_id.eq.${scope.companyId})`);
+            }
+
+            if (scope.branchId) {
+                // Specific branch alerts
+                filters.push(`and(target_type.eq.BRANCH,branch_id.eq.${scope.branchId})`);
+            }
+
             query = query.or(filters.join(','));
         }
 
@@ -100,6 +87,7 @@ export async function POST(req: NextRequest) {
             type,
             category,
             priority,
+            action_url,
             metadata
         } = body;
 
@@ -110,6 +98,7 @@ export async function POST(req: NextRequest) {
             type: type || category || 'INFO',
             category: category || type || 'INFO',
             priority: priority || 'NORMAL',
+            action_url: action_url,
             target_type: target_type || 'USER',
             metadata: metadata || {},
             created_at: new Date().toISOString()

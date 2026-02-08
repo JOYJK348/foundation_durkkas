@@ -72,6 +72,7 @@ export const app_auth = {
     auditLogs: () => fromSchema(SCHEMAS.AUTH, 'audit_logs'),
     trustedDevices: () => fromSchema(SCHEMAS.AUTH, 'trusted_devices'),
     userPermissions: () => fromSchema(SCHEMAS.AUTH, 'user_permissions'),
+    notifications: () => fromSchema(SCHEMAS.AUTH, 'notifications'),
 };
 
 export const hrms = {

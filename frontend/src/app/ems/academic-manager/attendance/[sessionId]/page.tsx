@@ -18,7 +18,13 @@ import {
     XCircle,
     Clock,
     AlertCircle,
-    PlayCircle
+    PlayCircle,
+    Users,
+    UserCheck,
+    MapPin,
+    Minus,
+    CheckSquare,
+    XSquare
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -28,7 +34,7 @@ import { toast } from "sonner";
 interface AttendanceRecord {
     id?: number;
     student_id: number;
-    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED' | 'PENDING';
     remarks?: string;
     student: {
         id: number;
@@ -36,6 +42,17 @@ interface AttendanceRecord {
         last_name: string;
         student_code: string;
     };
+    // Verification fields
+    entry_verified_at?: string;
+    exit_verified_at?: string;
+    entry_status?: string;
+    exit_status?: string;
+    entry_image?: string;
+    exit_image?: string;
+    entry_location_verified?: boolean;
+    exit_location_verified?: boolean;
+    entry_distance?: number;
+    exit_distance?: number;
 }
 
 interface SessionDetails {
@@ -79,38 +96,16 @@ export default function MarkAttendancePage() {
 
             // 1. Get the session details to know the batch_id
             const sessionRes = await api.get(`/ems/attendance?session_id=${sessionId}`);
-            const currentSession = sessionRes.data.data;
-
-            if (currentSession) {
+            if (sessionRes.data.success) {
+                const currentSession = sessionRes.data.data;
                 setSession(currentSession);
 
-                // Now fetch the detailed attendance Summary (students list)
+                // 2. Fetch the detailed attendance Summary (backend now returns ALL enrolled students with metadata)
                 const summaryRes = await api.get(`/ems/attendance?session_id=${sessionId}&batch_id=${currentSession.batch_id}`);
 
                 if (summaryRes.data.success) {
                     const { attendance } = summaryRes.data.data;
-
-                    // If attendance records exist, use them.
-                    // If not (empty array), we need to fetch all students in the batch and initialize them as ABSENT/PRESENT.
-                    // The backend 'getBatchAttendanceReport' returns { sessions, attendance }. 
-                    // If 'attendance' is empty, it means no records yet.
-
-                    if (attendance && attendance.length > 0) {
-                        setAttendanceRecords(attendance);
-                    } else {
-                        // Fetch batch students to initialize
-                        const batchRes = await api.get(`/ems/batches/${currentSession.batch_id}?details=true`);
-                        if (batchRes.data.success) {
-                            const enrolledStudents = batchRes.data.data.student_enrollments || [];
-                            const initialRecords = enrolledStudents.map((enrollment: any) => ({
-                                student_id: enrollment.students.id,
-                                status: 'PRESENT', // Default to present
-                                remarks: '',
-                                student: enrollment.students
-                            }));
-                            setAttendanceRecords(initialRecords);
-                        }
-                    }
+                    setAttendanceRecords(attendance || []);
                 }
             }
         } catch (error) {
@@ -166,11 +161,19 @@ export default function MarkAttendancePage() {
     const saveAttendance = async () => {
         if (!session) return;
 
+        // Filter out PENDING records - we only save what is explicitly marked
+        const recordsToSave = attendanceRecords.filter(r => r.status !== 'PENDING');
+
+        if (recordsToSave.length === 0) {
+            toast.info("No attendance changes to save");
+            return;
+        }
+
         try {
             setSaving(true);
             const payload = {
                 session_id: session.id,
-                records: attendanceRecords.map(r => ({
+                records: recordsToSave.map(r => ({
                     company_id: 1, // This should normally come from context/auth
                     session_id: session.id,
                     student_id: r.student_id,
@@ -262,20 +265,46 @@ export default function MarkAttendancePage() {
                     <div className="flex gap-3">
                         {session?.status === 'SCHEDULED' && (
                             <Button
-                                onClick={() => toggleSessionStatus('OPEN')}
+                                onClick={() => toggleSessionStatus('IDENTIFYING_ENTRY')}
                                 className="bg-green-600 hover:bg-green-700 text-white font-bold"
                             >
                                 <PlayCircle className="h-4 w-4 mr-2" />
-                                Open for Students
+                                Open Entry Window
                             </Button>
                         )}
-                        {session?.status === 'OPEN' && (
+                        {session?.status === 'IDENTIFYING_ENTRY' && (
+                            <div className="flex gap-2">
+                                <Button
+                                    onClick={() => toggleSessionStatus('IN_PROGRESS')}
+                                    variant="outline"
+                                    className="border-gray-200 text-gray-600 font-bold"
+                                >
+                                    Close Window
+                                </Button>
+                                <Button
+                                    onClick={() => toggleSessionStatus('IDENTIFYING_EXIT')}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold"
+                                >
+                                    Open Exit Window
+                                </Button>
+                            </div>
+                        )}
+                        {session?.status === 'IN_PROGRESS' && (
                             <Button
-                                onClick={() => toggleSessionStatus('COMPLETED')}
+                                onClick={() => toggleSessionStatus('IDENTIFYING_EXIT')}
                                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold"
                             >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Stop Tracking
+                                <PlayCircle className="h-4 w-4 mr-2" />
+                                Open Exit Window
+                            </Button>
+                        )}
+                        {session?.status === 'IDENTIFYING_EXIT' && (
+                            <Button
+                                onClick={() => toggleSessionStatus('COMPLETED')}
+                                className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
+                            >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Mark Session Completed
                             </Button>
                         )}
                         <Button
@@ -300,120 +329,229 @@ export default function MarkAttendancePage() {
                 </div>
 
                 {/* Stats & Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <Card className="md:col-span-3 border-0 shadow-sm">
-                        <CardContent className="p-4 flex items-center gap-4">
-                            <div className="flex-1 relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search student name or code..."
-                                    className="pl-10"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-4 w-4 text-gray-500" />
-                                <select
-                                    className="h-10 rounded-md border border-gray-300 text-sm px-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    value={filterStatus}
-                                    onChange={(e) => setFilterStatus(e.target.value)}
-                                >
-                                    <option value="ALL">All Students</option>
-                                    <option value="PRESENT">Present</option>
-                                    <option value="ABSENT">Absent</option>
-                                </select>
-                            </div>
-                        </CardContent>
-                    </Card>
+                <div className="space-y-4 mb-6">
+                    <div className="flex items-center gap-4">
+                        <Card className="flex-1 border-0 shadow-sm bg-white overflow-hidden group">
+                            <CardContent className="p-0 flex items-center gap-4">
+                                <div className="flex-1 relative">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                                    <Input
+                                        placeholder="Search student name or code..."
+                                        className="pl-12 h-14 border-0 focus-visible:ring-0 shadow-none bg-transparent text-gray-700 font-medium placeholder:text-gray-400"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2 pr-6 border-l border-gray-100 pl-6 h-14">
+                                    <Filter className="h-4 w-4 text-gray-400" />
+                                    <select
+                                        className="bg-transparent text-sm font-bold text-gray-600 focus:outline-none cursor-pointer hover:text-purple-600 transition-colors"
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                    >
+                                        <option value="ALL">All Status</option>
+                                        <option value="PRESENT">Present Only</option>
+                                        <option value="ABSENT">Absent Only</option>
+                                    </select>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
 
-                    <Card className="border-0 shadow-sm bg-white">
-                        <CardContent className="p-4 flex justify-between items-center text-center">
-                            <div>
-                                <p className="text-xs text-gray-500 uppercase font-bold">Total</p>
-                                <p className="text-xl font-bold text-gray-900">{attendanceRecords.length}</p>
-                            </div>
-                            <div className="h-8 w-px bg-gray-200"></div>
-                            <div>
-                                <p className="text-xs text-green-600 uppercase font-bold">Present</p>
-                                <p className="text-xl font-bold text-green-700">{countStatus('PRESENT')}</p>
-                            </div>
-                            <div className="h-8 w-px bg-gray-200"></div>
-                            <div>
-                                <p className="text-xs text-red-600 uppercase font-bold">Absent</p>
-                                <p className="text-xl font-bold text-red-700">{countStatus('ABSENT')}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all duration-300">
+                            <CardContent className="p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                                <Users className="absolute -right-2 -bottom-2 h-16 w-16 text-gray-50 opacity-[0.03]" />
+                                <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Total</p>
+                                <p className="text-2xl font-black text-gray-900 leading-none">{attendanceRecords.length}</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all duration-300 border-b-2 border-green-500 group">
+                            <CardContent className="p-4 flex flex-col items-center justify-center relative">
+                                <div className="absolute top-2 right-2 flex gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                </div>
+                                <p className="text-[10px] text-green-600 uppercase font-black tracking-widest mb-1 group-hover:scale-110 transition-transform">Entry (Arrival)</p>
+                                <p className="text-2xl font-black text-green-700 leading-none">{attendanceRecords.filter((r: any) => r.entry_verified_at).length}</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all duration-300 border-b-2 border-blue-500 group">
+                            <CardContent className="p-4 flex flex-col items-center justify-center relative">
+                                <p className="text-[10px] text-blue-600 uppercase font-black tracking-widest mb-1 group-hover:scale-110 transition-transform">Exit (Departure)</p>
+                                <p className="text-2xl font-black text-blue-700 leading-none">{attendanceRecords.filter((r: any) => r.exit_verified_at).length}</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all duration-300 border-b-2 border-purple-500 group">
+                            <CardContent className="p-4 flex flex-col items-center justify-center relative">
+                                <p className="text-[10px] text-purple-600 uppercase font-black tracking-widest mb-1 group-hover:scale-110 transition-transform">Manual Adjust</p>
+                                <p className="text-2xl font-black text-purple-700 leading-none">{countStatus('PRESENT')}</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all duration-300 border-b-2 border-red-500 group">
+                            <CardContent className="p-4 flex flex-col items-center justify-center relative">
+                                <p className="text-[10px] text-red-600 uppercase font-black tracking-widest mb-1 group-hover:scale-110 transition-transform">Absent</p>
+                                <p className="text-2xl font-black text-red-700 leading-none">{countStatus('ABSENT')}</p>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
                 {/* Students List */}
-                <Card className="border-0 shadow-md overflow-hidden">
+                <Card className="border-0 shadow-sm bg-white rounded-2xl overflow-hidden border border-gray-100">
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
-                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/3">Remarks</th>
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50">
+                                    <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[2px]">Student Detail</th>
+                                    <th className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[2px]">Arrival Trace</th>
+                                    <th className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[2px]">Departure Trace</th>
+                                    <th className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[2px]">Manual Override</th>
+                                    <th className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[2px]">Intelligence/Remarks</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {filteredRecords.length > 0 ? (
-                                    filteredRecords.map((record) => (
-                                        <tr key={record.student_id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center">
-                                                    <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold mr-3">
-                                                        {record.student.first_name[0]}
+                                    filteredRecords.map((record: any) => (
+                                        <tr key={record.student_id} className="group hover:bg-gray-50/80 transition-all duration-200">
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative">
+                                                        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-indigo-100 shadow-lg group-hover:scale-105 transition-transform">
+                                                            {record.student.first_name[0]}{record.student.last_name[0]}
+                                                        </div>
+                                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${record.status === 'PRESENT' ? 'bg-green-500' :
+                                                                record.status === 'ABSENT' ? 'bg-red-400' :
+                                                                    'bg-gray-300'
+                                                            }`}></div>
                                                     </div>
                                                     <div>
-                                                        <p className="font-medium text-gray-900">
+                                                        <p className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
                                                             {record.student.first_name} {record.student.last_name}
                                                         </p>
-                                                        <p className="text-xs text-gray-500">
-                                                            {record.student.student_code}
-                                                        </p>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-[9px] font-black text-gray-500 uppercase tracking-widest">{record.student.student_code}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center justify-center gap-2">
+
+                                            {/* Arrival (Entry) */}
+                                            <td className="px-6 py-5">
+                                                {record.entry_verified_at ? (
+                                                    <div className="flex flex-col items-center gap-1.5 focus-within:z-10 relative">
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="group/img relative">
+                                                                <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-black border border-green-100 flex items-center gap-1 cursor-help">
+                                                                    <UserCheck className="h-3 w-3" />
+                                                                    {record.entry_status}
+                                                                </span>
+                                                                {record.entry_image && (
+                                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1 bg-white rounded-lg shadow-xl border border-gray-100 opacity-0 group-hover/img:opacity-100 transition-opacity z-50 pointer-events-none">
+                                                                        <img src={record.entry_image} alt="Entry Verification" className="w-24 h-24 object-cover rounded-md" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {record.entry_location_verified && (
+                                                                <span className="p-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100" title={`Distance: ${Math.round(record.entry_distance || 0)}m`}>
+                                                                    <MapPin className="h-3 w-3" />
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-gray-400 font-bold text-[10px]">
+                                                            <Clock className="h-3 w-3" />
+                                                            {new Date(record.entry_verified_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center text-gray-300">
+                                                        <Minus className="h-5 w-5" />
+                                                        <span className="text-[9px] font-bold uppercase tracking-tighter mt-0.5">No trace</span>
+                                                    </div>
+                                                )}
+                                            </td>
+
+                                            {/* Departure (Exit) */}
+                                            <td className="px-6 py-5">
+                                                {record.exit_verified_at ? (
+                                                    <div className="flex flex-col items-center gap-1.5 relative">
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="group/img relative">
+                                                                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black border border-blue-100 flex items-center gap-1 cursor-help">
+                                                                    <UserCheck className="h-3 w-3" />
+                                                                    {record.exit_status}
+                                                                </span>
+                                                                {record.exit_image && (
+                                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1 bg-white rounded-lg shadow-xl border border-gray-100 opacity-0 group-hover/img:opacity-100 transition-opacity z-50 pointer-events-none">
+                                                                        <img src={record.exit_image} alt="Exit Verification" className="w-24 h-24 object-cover rounded-md" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {record.exit_location_verified && (
+                                                                <span className="p-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100" title={`Distance: ${Math.round(record.exit_distance || 0)}m`}>
+                                                                    <MapPin className="h-3 w-3" />
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-gray-400 font-bold text-[10px]">
+                                                            <Clock className="h-3 w-3" />
+                                                            {new Date(record.exit_verified_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center text-gray-300">
+                                                        <Minus className="h-5 w-5" />
+                                                        <span className="text-[9px] font-bold uppercase tracking-tighter mt-0.5">No trace</span>
+                                                    </div>
+                                                )}
+                                            </td>
+
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     <button
                                                         onClick={() => handleStatusChange(record.student_id, 'PRESENT')}
-                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${record.status === 'PRESENT'
-                                                            ? 'bg-green-100 text-green-700 ring-2 ring-green-600 ring-offset-1'
-                                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${record.status === 'PRESENT'
+                                                            ? 'bg-green-500 text-white shadow-lg shadow-green-100'
+                                                            : 'bg-white border border-gray-100 text-gray-400 hover:border-green-300 hover:text-green-500 hover:bg-green-50/30'
                                                             }`}
+                                                        title="Mark Present"
                                                     >
-                                                        Present
+                                                        <CheckSquare className="h-4 w-4" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleStatusChange(record.student_id, 'ABSENT')}
-                                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${record.status === 'ABSENT'
-                                                            ? 'bg-red-100 text-red-700 ring-2 ring-red-600 ring-offset-1'
-                                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${record.status === 'ABSENT'
+                                                            ? 'bg-red-500 text-white shadow-lg shadow-red-100'
+                                                            : 'bg-white border border-gray-100 text-gray-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50/30'
                                                             }`}
+                                                        title="Mark Absent"
                                                     >
-                                                        Absent
+                                                        <XSquare className="h-4 w-4" />
                                                     </button>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <Input
-                                                    placeholder="Add note (optional)"
-                                                    value={record.remarks || ''}
-                                                    onChange={(e) => handleRemarkChange(record.student_id, e.target.value)}
-                                                    className="bg-transparent border-gray-200 focus:bg-white transition-all"
-                                                />
+                                            <td className="px-6 py-5">
+                                                <div className="relative max-w-[200px]">
+                                                    <Input
+                                                        placeholder="Add insight..."
+                                                        value={record.remarks || ''}
+                                                        onChange={(e) => handleRemarkChange(record.student_id, e.target.value)}
+                                                        className="h-10 bg-gray-50/50 border-gray-100 focus:bg-white focus:border-purple-300 transition-all text-[11px] font-medium rounded-xl"
+                                                    />
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
-                                            <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                                            <p>No students found matching your search.</p>
+                                        <td colSpan={5} className="px-6 py-20 text-center">
+                                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-50 mb-4">
+                                                <Search className="h-8 w-8 text-gray-200" />
+                                            </div>
+                                            <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No students found matching current filters</p>
                                         </td>
                                     </tr>
                                 )}

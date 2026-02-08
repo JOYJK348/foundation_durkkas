@@ -1,5 +1,6 @@
 import { ems } from '@/lib/supabase';
 import { Course, CourseModule, Lesson } from '@/types/database';
+import { TutorService } from './TutorService';
 
 /**
  * Service for Course and Content management
@@ -18,7 +19,7 @@ export class CourseService {
         companyId: number,
         emsProfile?: { profileType: 'tutor' | 'student' | 'manager' | null; profileId: number | null }
     ) {
-        console.log(`📡 [CourseService] Fetching courses for Company: ${companyId}, Profile:`, emsProfile);
+        console.log(`📡 [CourseService] Fetching courses for Company: ${companyId}, Profile Type: ${emsProfile?.profileType}, Profile ID: ${emsProfile?.profileId}`);
 
         let query = ems.courses()
             .select('*')
@@ -267,6 +268,17 @@ export class CourseService {
             .single();
 
         if (error) throw error;
+
+        // Auto-assign role if tutor is selected
+        if (courseData.tutor_id && courseData.company_id) {
+            try {
+                await TutorService.assignTutorRole(courseData.company_id, courseData.tutor_id);
+            } catch (err) {
+                console.warn('⚠️ [CourseService] Failed to auto-assign tutor role:', err);
+                // Don't fail the course creation, just warn
+            }
+        }
+
         return data as Course;
     }
 
@@ -316,6 +328,16 @@ export class CourseService {
             .single();
 
         if (error) throw error;
+
+        // Auto-assign role if tutor is selected
+        if (courseData.tutor_id) {
+            try {
+                await TutorService.assignTutorRole(companyId, courseData.tutor_id);
+            } catch (err) {
+                console.warn('⚠️ [CourseService] Failed to auto-assign tutor role:', err);
+            }
+        }
+
         return data as Course;
     }
 

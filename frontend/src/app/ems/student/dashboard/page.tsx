@@ -62,22 +62,41 @@ export default function StudentDashboard() {
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
     const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const { user } = useAuthStore();
 
     useEffect(() => {
         fetchDashboardData();
     }, []);
 
+    const handleAttendanceClick = () => {
+        if (dashboardData?.active_attendance_sessions?.length && dashboardData.active_attendance_sessions.length > 0) {
+            setIsAttendanceModalOpen(true);
+        } else {
+            toast.info("No active attendance sessions found at this time. Please check with your tutor during class.");
+        }
+    };
+
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
-            const response = await api.get("/ems/students/dashboard");
+            setError(null);
+            const response = await api.get(`/ems/students/dashboard?_t=${Date.now()}`);
             if (response.data.success) {
                 setDashboardData(response.data.data);
+            } else {
+                setError(response.data.message || 'Failed to load dashboard data');
             }
         } catch (error: any) {
-            console.error("Error fetching dashboard:", error);
-            toast.error(error.response?.data?.message || "Failed to load dashboard");
+            console.error("❌ [Student Dashboard] Error:", error);
+            const errorMsg = error.response?.data?.message || error.message || 'Failed to load dashboard';
+            setError(errorMsg);
+
+            if (error.response?.status === 401) {
+                toast.error("Session expired. Please log in again.");
+            } else {
+                toast.error(errorMsg);
+            }
         } finally {
             setLoading(false);
         }
@@ -94,11 +113,24 @@ export default function StudentDashboard() {
         );
     }
 
-    if (!dashboardData) {
+    if (!dashboardData || error) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-gray-600">No data available</p>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="text-center max-w-md">
+                    <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load Dashboard</h2>
+                    <p className="text-gray-600 mb-6">
+                        {error || "No data available. Please try again or contact support if the issue persists."}
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                        <Button onClick={fetchDashboardData} className="bg-blue-600 hover:bg-blue-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>
+                            Retry
+                        </Button>
+                        <Button variant="outline" onClick={() => window.location.href = '/ems/student/login'}>
+                            Login Again
+                        </Button>
+                    </div>
                 </div>
             </div>
         );
@@ -126,60 +158,40 @@ export default function StudentDashboard() {
             <TopNavbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-                {/* Attendance Alerts - Unified Entry Point */}
-                {dashboardData.active_attendance_sessions?.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="mb-8"
-                    >
-                        <Card className="border-0 shadow-2xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white relative group">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:scale-125 transition-transform">
-                                <ShieldCheck className="h-32 w-32" />
-                            </div>
-                            <CardContent className="p-0">
-                                <div className="p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-8 relative z-10">
-                                    <div className="flex items-center gap-6">
-                                        <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-[2rem] flex items-center justify-center shadow-2xl shadow-black/20 border border-white/30">
-                                            <Camera className="h-10 w-10 text-white animate-pulse" />
-                                        </div>
-                                        <div>
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-400 text-[10px] font-black tracking-widest uppercase mb-3 rounded-full text-blue-900 shadow-sm">
-                                                <span className="w-2 h-2 bg-blue-900 rounded-full animate-ping" />
-                                                Live Now
-                                            </div>
-                                            <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase leading-none">
-                                                Attendance Open
-                                            </h2>
-                                            <p className="text-blue-100/90 text-sm font-bold mt-2 flex items-center gap-2">
-                                                <AlertCircle className="h-4 w-4 text-white" />
-                                                {dashboardData.active_attendance_sessions.length} sessions available for marking
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        onClick={() => setIsAttendanceModalOpen(true)}
-                                        className="bg-white text-blue-700 hover:bg-gray-100 h-16 px-10 rounded-3xl font-black text-xl shadow-2xl flex items-center gap-3 w-full sm:w-auto shrink-0 group-hover:scale-105 transition-all"
-                                    >
-                                        <ShieldCheck className="h-6 w-6" />
-                                        PUNCH NOW
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
-
                 {/* Welcome Section */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
+                    className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
-                    <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                        Welcome Back, {dashboardData.student.name}!
-                    </h1>
-                    <p className="text-gray-600">Continue your learning journey • {dashboardData.student.student_code}</p>
+                    <div>
+                        <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                            Welcome Back, {dashboardData.student.name}!
+                        </h1>
+                        <p className="text-gray-600">Continue your learning journey • {dashboardData.student.student_code}</p>
+                    </div>
+
+                    {/* Fixed Attendance Entry Point */}
+                    <Button
+                        onClick={handleAttendanceClick}
+                        className="bg-blue-600 hover:bg-blue-700 h-14 px-8 rounded-2xl font-bold shadow-lg shadow-blue-200 flex items-center gap-3 transition-all active:scale-95 shrink-0 group"
+                    >
+                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                            <Camera className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="text-left">
+                            <div className="text-xs font-black uppercase tracking-widest leading-none mb-0.5">Attendance</div>
+                            <div className="text-[10px] text-blue-100 font-bold leading-none">
+                                {dashboardData.active_attendance_sessions?.some((s: any) => s.status === 'IDENTIFYING_EXIT')
+                                    ? "Punch Exit"
+                                    : dashboardData.active_attendance_sessions?.some((s: any) => s.status === 'IDENTIFYING_ENTRY')
+                                        ? "Punch Entry"
+                                        : dashboardData.active_attendance_sessions?.length > 0
+                                            ? "Punch Now"
+                                            : "Check Sessions"}
+                            </div>
+                        </div>
+                    </Button>
                 </motion.div>
 
                 {/* Stats Grid */}
@@ -408,9 +420,19 @@ export default function StudentDashboard() {
                 {isAttendanceModalOpen && (
                     <AttendanceVerification
                         sessions={dashboardData.active_attendance_sessions}
-                        onSuccess={() => {
+                        onSuccess={(session) => {
                             setIsAttendanceModalOpen(false);
                             fetchDashboardData();
+
+                            // Check for redirect
+                            if (session && (session.class_mode === 'ONLINE' || session.class_mode === 'HYBRID')) {
+                                if (session.live_class?.meeting_link) {
+                                    window.open(session.live_class.meeting_link, '_blank');
+                                    toast.success("Redirecting to live class...");
+                                } else {
+                                    toast.info("Class link not available yet.");
+                                }
+                            }
                         }}
                         onClose={() => setIsAttendanceModalOpen(false)}
                     />

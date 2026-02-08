@@ -27,12 +27,17 @@ interface Assignment {
     assignment_title: string;
     assignment_description: string;
     course_id: number;
+    batch_id?: number;
     max_marks: number;
     deadline: string;
+    submission_mode: 'ONLINE' | 'OFFLINE';
     is_active: boolean;
     courses?: {
         course_name: string;
         course_code: string;
+    };
+    batches?: {
+        batch_name: string;
     };
     submissions_count?: number;
 }
@@ -157,10 +162,23 @@ export default function TutorAssignmentsPage() {
                                             {assignment.assignment_title}
                                         </CardTitle>
                                         {assignment.courses && (
-                                            <p className="text-sm text-blue-600 font-medium">
-                                                {assignment.courses.course_name}
-                                            </p>
+                                            <div className="flex border-t pt-2 mt-2 items-center justify-between">
+                                                <p className="text-xs text-blue-600 font-black px-2 py-0.5 bg-blue-50 rounded">
+                                                    {assignment.courses.course_name}
+                                                </p>
+                                                {assignment.batches && (
+                                                    <p className="text-[10px] text-purple-600 font-bold px-2 py-0.5 bg-purple-50 rounded border border-purple-100">
+                                                        {assignment.batches.batch_name}
+                                                    </p>
+                                                )}
+                                            </div>
                                         )}
+                                        <div className="mt-2 text-[10px] flex gap-2">
+                                            <span className={`px-2 py-0.5 rounded font-black border ${assignment.submission_mode === 'ONLINE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'
+                                                }`}>
+                                                {assignment.submission_mode}
+                                            </span>
+                                        </div>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-3 mb-4">

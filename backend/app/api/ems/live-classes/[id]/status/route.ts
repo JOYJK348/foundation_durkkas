@@ -8,6 +8,7 @@ import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { getUserTenantScope } from '@/middleware/tenantFilter';
 import { ems } from '@/lib/supabase';
+import { AttendanceService } from '@/lib/services/AttendanceService';
 
 export async function PATCH(
     req: NextRequest,
@@ -27,7 +28,7 @@ export async function PATCH(
         }
 
         const updateData: any = {
-            status,
+            class_status: status,
             updated_at: new Date().toISOString()
         };
 
@@ -44,7 +45,38 @@ export async function PATCH(
 
         if (error) throw error;
 
-        return successResponse(data, `Class status updated to ${status}`);
+        // AUTOMATION: If class is COMPLETED, trigger Exit Attendance window for students
+        if (status === 'COMPLETED' && data.batch_id) {
+            try {
+                // Find existing session for today for this batch
+                const today = new Date().toISOString().split('T')[0];
+                const { data: session } = await ems.attendanceSessions()
+                    .select('id')
+                    .eq('batch_id', data.batch_id)
+                    .eq('session_date', today)
+                    .maybeSingle();
+
+                if (session) {
+                    await AttendanceService.updateSessionStatus(scope.companyId!, session.id, 'IDENTIFYING_EXIT');
+                    console.log(`[Automation] Triggered Exit Attendance for batch ${data.batch_id}`);
+                }
+            } catch (autoErr) {
+                console.error('[Automation Error] Failed to trigger Exit Attendance:', autoErr);
+            }
+        }
+
+        // 🔔 AUTOMATION: Trigger notifications for status changes (LIVE, COMPLETED)
+        const { EMSNotificationTriggers } = require('@/lib/services/EMSNotificationTriggers');
+        EMSNotificationTriggers.onClassStatusChanged(classId, status, scope.companyId!).catch(console.error);
+
+        // Map back for response
+        const responseData = {
+            ...data,
+            status: data.class_status || data.status,
+            external_link: data.meeting_link || data.external_link
+        };
+
+        return successResponse(responseData, `Class status updated to ${status}`);
 
     } catch (error: any) {
         console.error('[Live Class Status] Error:', error);

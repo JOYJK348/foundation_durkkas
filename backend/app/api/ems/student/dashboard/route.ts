@@ -8,15 +8,22 @@ import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { EnrollmentService } from '@/lib/services/EnrollmentService';
 import { ems } from '@/lib/supabase';
+import { getUserTenantScope } from '@/middleware/tenantFilter';
+import { dataCache } from '@/lib/cache/dataCache';
 
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const scope = await import('@/middleware/tenantFilter').then(m =>
-            m.getUserTenantScope(userId)
-        );
+        const scope = await getUserTenantScope(userId);
+
+        // 🚀 CACHE CHECK
+        const cacheKey = `student_dashboard:${userId}:${scope.companyId}`;
+        const cachedData = dataCache.get(cacheKey);
+        if (cachedData) {
+            return successResponse(cachedData, 'Student dashboard (cached)');
+        }
 
         // Get student record
         const { data: student } = await ems.students()
@@ -55,7 +62,7 @@ export async function GET(req: NextRequest) {
             .order('deadline', { ascending: true });
 
         // Filter out already submitted assignments
-        const pendingOnly = pendingAssignments?.filter(a =>
+        const pendingOnly = (pendingAssignments as any[])?.filter((a: any) =>
             !a.assignment_submissions || a.assignment_submissions.length === 0
         );
 
@@ -69,6 +76,9 @@ export async function GET(req: NextRequest) {
                 acc + (e.completion_percentage || 0), 0
             ) / (enrollments?.length || 1),
         };
+
+        // 🚀 CACHE SET
+        dataCache.set(cacheKey, dashboardData, 60 * 1000); // 1 minute cache
 
         return successResponse(dashboardData, 'Student dashboard data fetched successfully');
 

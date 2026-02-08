@@ -353,6 +353,7 @@ CREATE TABLE ems.assignments (
     id BIGSERIAL PRIMARY KEY,
     company_id BIGINT NOT NULL REFERENCES core.companies(id) ON DELETE CASCADE,
     course_id BIGINT NOT NULL REFERENCES ems.courses(id) ON DELETE CASCADE,
+    batch_id BIGINT REFERENCES ems.batches(id) ON DELETE CASCADE,
     module_id BIGINT REFERENCES ems.course_modules(id),
     lesson_id BIGINT REFERENCES ems.lessons(id),
     tutor_id BIGINT REFERENCES core.employees(id),
@@ -360,6 +361,7 @@ CREATE TABLE ems.assignments (
     assignment_title VARCHAR(255) NOT NULL,
     assignment_description TEXT,
     assignment_type VARCHAR(50),
+    submission_mode VARCHAR(20) DEFAULT 'ONLINE', -- 'ONLINE' or 'OFFLINE'
     
     max_marks INTEGER,
     passing_marks INTEGER,

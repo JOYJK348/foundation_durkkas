@@ -15,7 +15,7 @@ export async function GET(
         const scope = await getUserTenantScope(userId);
         const assignmentId = parseInt(params.id);
 
-        const assignment = await AssignmentService.getAssignmentById(assignmentId, scope.companyId!);
+        const assignment = await AssignmentService.getAssignmentDetails(assignmentId, scope.companyId!);
 
         return successResponse(assignment, 'Assignment fetched successfully');
     } catch (error: any) {

@@ -21,13 +21,18 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import NotificationPanel from "@/components/notifications/NotificationPanel";
 
 export function TopNavbar() {
     const pathname = usePathname();
     const { user } = useAuthStore();
+    const { unreadCount, fetchNotifications } = useNotificationStore();
     const [showSearch, setShowSearch] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
+    const notificationRef = useRef<HTMLDivElement>(null);
 
     const quickActions = [
         { label: "Dashboard", href: "/ems/student/dashboard", icon: LayoutDashboard },
@@ -40,6 +45,14 @@ export function TopNavbar() {
     ];
 
     useEffect(() => {
+        // Initial fetch
+        fetchNotifications();
+
+        // Professional Polling: Fetch notifications every 30 seconds
+        const pollInterval = setInterval(() => {
+            fetchNotifications();
+        }, 30000);
+
         function handleClickOutside(event: MouseEvent) {
             if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
                 setShowProfileMenu(false);
@@ -47,7 +60,10 @@ export function TopNavbar() {
         }
 
         document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            clearInterval(pollInterval);
+        };
     }, []);
 
     return (
@@ -91,16 +107,30 @@ export function TopNavbar() {
                         </Button>
 
                         {/* Notifications */}
-                        <Link href="/ems/student/notifications">
+                        <div className="relative" ref={notificationRef}>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-9 w-9 relative"
+                                onClick={() => {
+                                    setShowNotifications(!showNotifications);
+                                    if (!showNotifications) fetchNotifications();
+                                }}
                             >
                                 <Bell className="h-5 w-5 text-gray-600" />
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-sm shadow-red-500/50"></span>
+                                )}
                             </Button>
-                        </Link>
+
+                            <AnimatePresence>
+                                {showNotifications && (
+                                    <div className="absolute right-0 mt-2">
+                                        <NotificationPanel onClose={() => setShowNotifications(false)} />
+                                    </div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
                         {/* Profile Menu */}
                         <div className="relative" ref={profileMenuRef}>

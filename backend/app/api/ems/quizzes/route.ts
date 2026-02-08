@@ -29,6 +29,18 @@ export async function GET(req: NextRequest) {
                 ...(junctionMappings?.map((m: any) => m.course_id) || []),
                 ...(legacyCourses?.map((c: any) => c.id) || [])
             ];
+        } else if (scope.emsProfile?.profileType === 'student' && scope.emsProfile.profileId) {
+            // Get student's enrolled courses
+            const { data: enrollments } = await ems.enrollments()
+                .select('course_id')
+                .eq('student_id', scope.emsProfile.profileId)
+                .eq('enrollment_status', 'ACTIVE')
+                .is('deleted_at', null);
+
+            courseIds = enrollments?.map((e: any) => e.course_id) || [];
+            if (courseIds.length === 0) {
+                return successResponse([], 'No enrolled courses found');
+            }
         }
 
         const data = await QuizService.getAllQuizzes(scope.companyId!, courseIds);

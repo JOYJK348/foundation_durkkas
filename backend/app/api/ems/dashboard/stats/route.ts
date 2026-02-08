@@ -8,6 +8,7 @@ import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserTenantScope } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { EMSStatisticsService } from '@/lib/services/EMSStatisticsService';
+import { dataCache } from '@/lib/cache/dataCache';
 
 export async function GET(req: NextRequest) {
     try {
@@ -20,8 +21,18 @@ export async function GET(req: NextRequest) {
             return errorResponse(null, 'Company context required', 400);
         }
 
+        // 🚀 CACHE CHECK
+        const cacheKey = `ems_dashboard_stats:${scope.companyId}`;
+        const cachedData = dataCache.get(cacheKey);
+        if (cachedData) {
+            return successResponse(cachedData, 'Dashboard statistics (cached)');
+        }
+
         // Fetch comprehensive dashboard statistics
         const stats = await EMSStatisticsService.getDashboardStats(scope.companyId);
+
+        // 🚀 CACHE SET
+        dataCache.set(cacheKey, stats, 60 * 1000); // 1 minute cache
 
         return successResponse(stats, 'Dashboard statistics fetched successfully');
 

@@ -8,15 +8,22 @@ import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { AssessmentService } from '@/lib/services/AssessmentService';
 import { ems } from '@/lib/supabase';
+import { getUserTenantScope } from '@/middleware/tenantFilter';
+import { dataCache } from '@/lib/cache/dataCache';
 
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const scope = await import('@/middleware/tenantFilter').then(m =>
-            m.getUserTenantScope(userId)
-        );
+        const scope = await getUserTenantScope(userId);
+
+        // 🚀 CACHE CHECK
+        const cacheKey = `tutor_dashboard:${userId}:${scope.companyId}`;
+        const cachedData = dataCache.get(cacheKey);
+        if (cachedData) {
+            return successResponse(cachedData, 'Tutor dashboard (cached)');
+        }
 
         const tutorId = scope.emsProfile?.profileId;
 
@@ -119,6 +126,15 @@ export async function GET(req: NextRequest) {
             .in('course_id', uniqueCourseIds)
             .is('deleted_at', null);
 
+        // Get 5 most recent notifications for the tutor
+        const { data: notifications } = await ems.supabase
+            .schema('app_auth')
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
         const dashboardData = {
             tutor_id: tutorId,
             pending_grading_count: pendingAssignments?.length || 0,
@@ -129,7 +145,11 @@ export async function GET(req: NextRequest) {
             total_assignments: assignmentCount || 0,
             courses: coursesWithStats || [],
             upcoming_classes: liveClasses || [],
+            recent_activities: notifications || [],
         };
+
+        // 🚀 CACHE SET
+        dataCache.set(cacheKey, dashboardData, 60 * 1000); // 1 minute cache
 
         return successResponse(dashboardData, 'Tutor dashboard data fetched successfully');
 

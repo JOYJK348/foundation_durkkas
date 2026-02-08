@@ -20,6 +20,7 @@ import {
     BookText,
     Layers,
     Target,
+    Bell,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -38,6 +39,8 @@ export default function TutorDashboard() {
     const [assignedCourses, setAssignedCourses] = useState<any[]>([]);
     const [recentResults, setRecentResults] = useState<any[]>([]);
     const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
+    const [recentActivities, setRecentActivities] = useState<any[]>([]);
+    const [pendingAssignments, setPendingAssignments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -57,6 +60,7 @@ export default function TutorDashboard() {
                 const data = dashRes.data.data;
                 setUpcomingClasses(data.upcoming_classes || []);
                 setAssignedCourses(data.courses || []);
+                setPendingAssignments(data.pending_assignments || []);
                 setStats({
                     upcomingClasses: data.upcoming_classes?.length || 0,
                     pendingGrading: data.pending_grading_count || 0,
@@ -66,6 +70,7 @@ export default function TutorDashboard() {
                     resourceLibrary: materialsRes.data.data?.length || 0,
                 });
                 setRecentQuizzes(data.recent_quizzes || []);
+                setRecentActivities(data.recent_activities || []);
                 setRecentResults(recentRes.data.data || []);
             }
         } catch (error) {
@@ -298,7 +303,68 @@ export default function TutorDashboard() {
                             </Card>
                         </motion.div>
 
-                        {/* Recent Activity */}
+                        {/* Pending Assignment Gradings Section */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.45 }}
+                        >
+                            <div className="flex items-center justify-between mb-4 mt-8">
+                                <h2 className="text-2xl font-bold text-gray-900 line-clamp-1">Pending Assignment Gradings</h2>
+                                <Link href="/ems/tutor/grading">
+                                    <Button variant="ghost" className="text-blue-600 hover:text-blue-700">
+                                        View All
+                                        <ArrowRight className="h-4 w-4 ml-2" />
+                                    </Button>
+                                </Link>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {loading ? (
+                                    Array(2).fill(0).map((_, i) => (
+                                        <Card key={i} className="border-0 shadow-md animate-pulse h-24"></Card>
+                                    ))
+                                ) : pendingAssignments.length === 0 ? (
+                                    <Card className="border-0 shadow-md col-span-2">
+                                        <CardContent className="p-8 text-center text-gray-500 italic">
+                                            No pending assignments for grading.
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    pendingAssignments.map((assignment: any) => (
+                                        assignment.assignment_submissions.map((sub: any) => (
+                                            <Card key={`${assignment.id}-${sub.id}`} className="border-0 shadow-md hover:shadow-lg transition-all border-l-4 border-l-emerald-500 bg-white">
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <FileText className="h-3 w-3 text-emerald-600" />
+                                                                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">{assignment.assignment_title}</span>
+                                                            </div>
+                                                            <h3 className="font-bold text-gray-900 line-clamp-1">
+                                                                {sub.students.first_name} {sub.students.last_name}
+                                                            </h3>
+                                                            <div className="flex items-center gap-2 mt-2">
+                                                                <p className="text-[10px] text-gray-500 uppercase font-bold">{sub.students.student_code}</p>
+                                                                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                                <p className="text-[10px] text-gray-400">
+                                                                    Submitted: {new Date(sub.submitted_at).toLocaleDateString()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Link href={`/ems/tutor/grading/${sub.id}`}>
+                                                            <Button size="sm" className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase">
+                                                                Grade Now
+                                                            </Button>
+                                                        </Link>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))
+                                    )).flat()
+                                )}
+                            </div>
+                        </motion.div>
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -308,27 +374,51 @@ export default function TutorDashboard() {
                                 <h2 className="text-2xl font-bold text-gray-900">Recent Activity</h2>
                             </div>
                             <div className="space-y-3">
-                                <Card className="border-0 shadow-md hover:shadow-lg transition-all">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                                                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                {loading ? (
+                                    Array(3).fill(0).map((_, i) => (
+                                        <Card key={i} className="border-0 shadow-sm animate-pulse h-20"></Card>
+                                    ))
+                                ) : recentActivities.length === 0 ? (
+                                    <div className="p-8 text-center bg-white rounded-xl text-gray-400 italic shadow-sm">
+                                        No recent activities.
+                                    </div>
+                                ) : (
+                                    recentActivities.map((activity: any) => (
+                                        <Card key={activity.id} className="border-0 shadow-md hover:shadow-lg transition-all border-l-4 border-l-blue-500 bg-white">
+                                            <CardContent className="p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activity.type === 'SUCCESS' ? 'bg-green-100 text-green-600' :
+                                                            activity.type === 'ERROR' ? 'bg-red-100 text-red-600' :
+                                                                'bg-blue-100 text-blue-600'
+                                                            }`}>
+                                                            {activity.module === 'assignments' ? <FileText className="h-5 w-5" /> :
+                                                                activity.module === 'live_classes' ? <Video className="h-5 w-5" /> :
+                                                                    <Bell className="h-5 w-5" />}
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-semibold text-gray-900">{activity.title}</h3>
+                                                            <p className="text-sm text-gray-600 line-clamp-1">{activity.message}</p>
+                                                            <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-1">
+                                                                <Clock className="h-3 w-3" />
+                                                                {new Date(activity.created_at).toLocaleString('en-IN', {
+                                                                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                                                                })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {activity.action_url && (
+                                                        <Link href={activity.action_url}>
+                                                            <Button size="sm" variant="ghost" className="text-blue-600">
+                                                                View
+                                                            </Button>
+                                                        </Link>
+                                                    )}
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-semibold text-gray-900">Class Completed</h3>
-                                                    <p className="text-sm text-gray-600 flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        2 hours ago
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <Button size="sm" variant="outline">
-                                                View
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                )}
                             </div>
                         </motion.div>
                     </div>

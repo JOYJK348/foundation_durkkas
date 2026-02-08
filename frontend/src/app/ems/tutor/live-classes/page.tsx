@@ -21,6 +21,7 @@ import {
 import api from "@/lib/api";
 import { format } from "date-fns";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 
@@ -42,6 +43,7 @@ export default function TutorLiveClasses() {
     const [loading, setLoading] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [mounted, setMounted] = useState(false);
+    const router = useRouter();
 
     useEffect(() => {
         setMounted(true);
@@ -65,7 +67,7 @@ export default function TutorLiveClasses() {
 
     const startClass = (liveClass: LiveClass) => {
         if (liveClass.meeting_platform === 'JITSI') {
-            window.open(`https://meet.jit.si/${liveClass.meeting_id}`, '_blank');
+            router.push(`/platform/live-room/${liveClass.meeting_id}?role=tutor`);
         }
     };
 

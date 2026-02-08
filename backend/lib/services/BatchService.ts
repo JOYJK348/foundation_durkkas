@@ -1,4 +1,4 @@
-import { ems } from '@/lib/supabase';
+import { ems, core } from '@/lib/supabase';
 import { Batch } from '@/types/database';
 
 /**
@@ -10,6 +10,7 @@ export class BatchService {
         let query = ems.batches()
             .select(`
                 *,
+                enrolled_count:student_enrollments(count),
                 courses:course_id (
                     id,
                     course_name,
@@ -18,10 +19,10 @@ export class BatchService {
             `)
             .eq('company_id', companyId)
             .is('deleted_at', null)
-            .order('start_date', { ascending: false });
+            .order('created_at', { ascending: false });
 
         if (branchId) {
-            query = query.eq('branch_id', branchId);
+            query = query.or(`branch_id.eq.${branchId},branch_id.is.null`);
         }
 
         if (courseId) {
@@ -30,7 +31,14 @@ export class BatchService {
 
         const { data, error } = await query;
         if (error) throw error;
-        return data;
+
+        // Flatten the count from PostgREST sub-query result
+        return data.map((batch: any) => ({
+            ...batch,
+            enrolled_count: Array.isArray(batch.enrolled_count)
+                ? (batch.enrolled_count[0]?.count || 0)
+                : (batch.current_strength || 0)
+        }));
     }
 
     static async createBatch(batchData: Partial<Batch>) {
@@ -131,18 +139,27 @@ export class BatchService {
     }
 
     static async getBatchDetails(batchId: number) {
-        const { data, error } = await ems.batches()
+        const { data: batch, error } = await ems.batches()
             .select(`
                 *,
-                courses:course_id (*),
+                courses:course_id (
+                    id,
+                    course_name,
+                    course_code,
+                    course_category,
+                    course_level
+                ),
                 student_enrollments (
                     id,
+                    enrollment_date,
+                    enrollment_status,
                     students:student_id (
                         id,
                         student_code,
                         first_name,
                         last_name,
-                        email
+                        email,
+                        phone
                     )
                 )
             `)
@@ -150,6 +167,42 @@ export class BatchService {
             .single();
 
         if (error) throw error;
-        return data;
+        if (!batch) return null;
+
+        // Fetch tutors for this course
+        const { data: courseTutors } = await ems.courseTutors()
+            .select(`
+                id,
+                tutor_id,
+                tutor_role,
+                is_primary
+            `)
+            .eq('course_id', batch.course_id)
+            .is('deleted_at', null);
+
+        if (courseTutors && courseTutors.length > 0) {
+            const { data: employees } = await core.employees()
+                .select('id, first_name, last_name, email, employee_code')
+                .in('id', courseTutors.map((ct: any) => ct.tutor_id));
+
+            if (employees) {
+                const employeesMap = new Map((employees as any[]).map((e: any) => [e.id, e]));
+                (batch as any).tutors = courseTutors.map((ct: any) => {
+                    const emp = employeesMap.get(ct.tutor_id);
+                    return {
+                        ...ct,
+                        name: emp ? `${emp.first_name} ${emp.last_name}` : 'Unknown Tutor',
+                        email: emp?.email,
+                        employee_code: emp?.employee_code
+                    };
+                });
+            } else {
+                (batch as any).tutors = [];
+            }
+        } else {
+            (batch as any).tutors = [];
+        }
+
+        return batch;
     }
 }

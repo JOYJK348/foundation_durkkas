@@ -197,7 +197,13 @@ export class AssessmentService {
                 assignment_submissions!inner (
                     id,
                     submission_status,
-                    submitted_at
+                    submitted_at,
+                    students:student_id (
+                        id,
+                        first_name,
+                        last_name,
+                        student_code
+                    )
                 )
             `)
             .in('course_id', uniqueCourseIds)

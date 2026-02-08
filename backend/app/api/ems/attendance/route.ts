@@ -16,6 +16,16 @@ import * as path from 'path';
 
 const LOG_FILE = path.join(process.cwd(), 'attendance_debug.log');
 
+function logToFile(msg: string, data?: any) {
+    try {
+        const timestamp = new Date().toISOString();
+        const logMsg = `[${timestamp}] ${msg} ${data ? JSON.stringify(data, null, 2) : ''}\n`;
+        fs.appendFileSync(LOG_FILE, logMsg);
+    } catch (e) {
+        console.error('Logging failed:', e);
+    }
+}
+
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
@@ -32,6 +42,30 @@ export async function GET(req: NextRequest) {
             const scope = await getUserTenantScope(userId);
             const schedule = await AttendanceService.getDailySchedule(scope.companyId!, date);
             return successResponse(schedule, 'Daily schedule fetched successfully');
+        }
+
+        if (mode === 'student-schedule') {
+            const scope = await getUserTenantScope(userId);
+            // If studentId is provided in query (for admin view), use it. Otherwise use logged-in user's linked student ID
+            // BUT here we assume the logged in user IS a student.
+            // We need to resolve student ID from user ID.
+            // Assuming 1-to-1 mapping or passed via query for now.
+            // Let's rely on student_id param if present, else try to find student profile for user.
+            let targetStudentId = studentId ? parseInt(studentId) : null;
+
+            if (!targetStudentId) {
+                // Try to find student record for this user
+                const { data: student } = await ems.students()
+                    .select('id')
+                    .eq('user_id', userId)
+                    .single();
+                if (student) targetStudentId = student.id;
+            }
+
+            if (!targetStudentId) return errorResponse(null, 'Student ID not found for user', 404);
+
+            const sessions = await AttendanceService.getStudentActiveSessionsWithStatus(scope.companyId!, targetStudentId);
+            return successResponse(sessions, 'Student schedule fetched successfully');
         }
 
         // Case 1: Fetch details for a specific session (e.g. for marking attendance)
@@ -63,13 +97,13 @@ export async function GET(req: NextRequest) {
         }
 
         // Case 3: Fetch history for a specific student
-        if (studentId || mode === 'student-history') {
+        if (studentId || mode === 'student-history' || mode === 'smart-list') {
             const scope = await getUserTenantScope(userId);
 
             let finalStudentId = studentId ? parseInt(studentId) : null;
 
-            // If mode is student-history, we derive studentId from userId
-            if (mode === 'student-history') {
+            // If mode is student-history or smart-list, we derive studentId from userId
+            if (mode === 'student-history' || mode === 'smart-list') {
                 const { data: student } = await ems.students()
                     .select('id')
                     .eq('user_id', userId)
@@ -79,6 +113,14 @@ export async function GET(req: NextRequest) {
             }
 
             if (!finalStudentId) return errorResponse(null, 'Student ID is required', 400);
+
+            if (mode === 'smart-list') {
+                const data = await AttendanceService.getStudentActiveSessionsWithStatus(
+                    scope.companyId!,
+                    finalStudentId
+                );
+                return successResponse(data, 'Smart attendance list fetched successfully');
+            }
 
             const courseId = searchParams.get('course_id');
             const data = await AttendanceService.getStudentAttendance(
@@ -147,17 +189,21 @@ export async function POST(req: NextRequest) {
                 sessionId: data.session_id,
                 studentId: student.id,
                 verificationType: data.verification_type, // OPENING or CLOSING
-                faceImageUrl: data.face_image_url,
-                faceDescriptor: data.face_descriptor, // 128D vector for server-side verification
-                latitude: data.latitude,
-                longitude: data.longitude,
-                locationAccuracy: data.location_accuracy,
-                deviceInfo: data.device_info,
+                faceImageUrl: data.face_image_url || data.captured_image,
+                faceDescriptor: data.face_descriptor, // Pass descriptors as embeddings
+                latitude: data.latitude || data.location?.latitude,
+                longitude: data.longitude || data.location?.longitude,
+                locationAccuracy: data.location_accuracy || 10,
+                deviceInfo: data.device_info || {},
                 ipAddress: req.headers.get('x-forwarded-for') || '0.0.0.0',
                 userAgent: req.headers.get('user-agent') || ''
             }, scope.companyId!);
 
-            return successResponse(result, 'Attendance verification submitted');
+            if (!result.success) {
+                return errorResponse('VERIFICATION_FAILED', result.error || 'Verification failed', 400, result);
+            }
+
+            return successResponse(result, 'Attendance verification successful');
         }
 
         data = await autoAssignCompany(userId, data);
@@ -171,7 +217,9 @@ export async function POST(req: NextRequest) {
                 sessionDate: validatedData.session_date,
                 sessionType: validatedData.session_type,
                 startTime: validatedData.start_time || '09:00',
-                endTime: validatedData.end_time || '10:00'
+                endTime: validatedData.end_time || '10:00',
+                classMode: validatedData.class_mode,
+                requireFaceVerification: validatedData.require_face_verification
             });
             return successResponse(session, 'Attendance session created successfully', 201);
         } else if (mode === 'session-status') {
@@ -179,12 +227,38 @@ export async function POST(req: NextRequest) {
             const { session_id, status } = data;
             if (!session_id || !status) return errorResponse(null, 'Session ID and Status are required', 400);
 
-            const result = await AttendanceService.updateSessionStatus(scope.companyId!, session_id, status);
+            // Added debug logging to file since console is not visible
+            logToFile('POST Request Start - Mode: session-status', { session_id, status, companyId: scope.companyId });
+
+            const result = await AttendanceService.updateSessionStatus(scope.companyId!, parseInt(session_id.toString()), status);
             return successResponse(result, `Session status updated to ${status}`);
+        } else if (mode === 'cancel-session') {
+            const scope = await getUserTenantScope(userId);
+            const { session_id, cancellation_reason } = data;
+            if (!session_id || !cancellation_reason) return errorResponse(null, 'Session ID and Reason are required', 400);
+
+            const result = await AttendanceService.cancelSession(
+                scope.companyId!,
+                parseInt(session_id.toString()),
+                cancellation_reason,
+                userId
+            );
+            return successResponse(result, 'Session cancelled successfully');
+        } else if (mode === 'update-session') {
+            const scope = await getUserTenantScope(userId);
+            const { session_id, ...updateData } = data;
+            if (!session_id) return errorResponse(null, 'Session ID is required', 400);
+
+            const result = await AttendanceService.updateSession(
+                scope.companyId!,
+                parseInt(session_id.toString()),
+                updateData
+            );
+            return successResponse(result, 'Session updated successfully');
         } else {
             const bulkSchema = z.array(attendanceRecordSchema);
             const validatedRecords = bulkSchema.parse(data.records);
-            const result = await AttendanceService.markBulkAttendance(data.session_id, validatedRecords as any);
+            const result = await AttendanceService.markBulkAttendance(parseInt(data.session_id.toString()), validatedRecords as any);
             return successResponse(result, 'Attendance marked successfully');
         }
 

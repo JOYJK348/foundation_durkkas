@@ -24,6 +24,7 @@ const AttendanceVerification = dynamic(
     { ssr: false }
 );
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface LiveClass {
     id: number;
@@ -42,6 +43,7 @@ export default function StudentLiveClasses() {
     const [loading, setLoading] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeVerification, setActiveVerification] = useState<{ id: number; type: 'IN' | 'OUT' } | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         fetchStudentClasses();
@@ -86,7 +88,7 @@ export default function StudentLiveClasses() {
 
     const joinMeeting = (liveClass: LiveClass) => {
         if (liveClass.meeting_platform === 'JITSI') {
-            window.open(`https://meet.jit.si/${liveClass.meeting_id}`, '_blank');
+            router.push(`/platform/live-room/${liveClass.meeting_id}?role=student`);
         }
     };
 

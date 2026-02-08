@@ -68,8 +68,16 @@ export default function AssignmentDetailPage() {
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            // Check file size (5MB = 5 * 1024 * 1024 bytes)
+            if (selectedFile.size > 5 * 1024 * 1024) {
+                toast.error('File size must be less than 5MB');
+                e.target.value = ''; // Reset input
+                setFile(null);
+                return;
+            }
+            setFile(selectedFile);
         }
     };
 
@@ -282,8 +290,10 @@ export default function AssignmentDetailPage() {
                                 <input
                                     type="file"
                                     onChange={handleFileChange}
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.zip,.rar"
                                     className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                 />
+                                <p className="text-xs text-gray-400 mt-1">Accepted formats: PDF, Word, Excel, PPT, Images, Zip. Max size: 5MB.</p>
                                 {file && (
                                     <p className="mt-2 text-sm text-gray-600">Selected: {file.name}</p>
                                 )}

@@ -78,26 +78,45 @@ export function EnrollStudentModal({
 
         setEnrolling(true);
         try {
-            // Process enrollments sequentially to avoid race conditions/errors
-            // In a real generic implementation, we'd have a bulk endpoint
-            const promises = selectedStudentIds.map(studentId =>
-                api.post('/ems/enrollments', {
-                    student_id: studentId,
-                    course_id: courseId,
-                    enrollment_date: new Date().toISOString(),
-                    enrollment_status: 'ACTIVE',
-                    payment_status: 'COMPLETED' // Assuming manual enrollment = Paid/Free
-                })
-            );
+            // Use parallel processing with individual error handling (like Promise.allSettled)
+            const results = await Promise.all(selectedStudentIds.map(async (studentId) => {
+                try {
+                    await api.post('/ems/enrollments', {
+                        student_id: studentId,
+                        course_id: courseId,
+                        enrollment_date: new Date().toISOString(),
+                        enrollment_status: 'ACTIVE',
+                        payment_status: 'COMPLETED' // Assuming manual enrollment = Paid/Free
+                    });
+                    return { status: 'fulfilled', studentId };
+                } catch (error) {
+                    return { status: 'rejected', studentId, error };
+                }
+            }));
 
-            await Promise.all(promises);
+            const successful = results.filter(r => r.status === 'fulfilled');
+            const failed = results.filter(r => r.status === 'rejected');
 
-            toast.success(`Successfully enrolled ${selectedStudentIds.length} students!`);
-            onSuccess();
+            if (successful.length > 0) {
+                toast.success(`Successfully enrolled ${successful.length} students!`);
+                onSuccess(); // Refresh the list
+            }
+
+            if (failed.length > 0) {
+                console.error('Some enrollments failed:', failed);
+                const isDuplicate = failed.some((f: any) => f.error?.response?.data?.message?.includes('already enrolled'));
+
+                if (isDuplicate) {
+                    toast.warning(`${failed.length} students were skipped (already enrolled).`);
+                } else {
+                    toast.error(`Failed to enroll ${failed.length} students. Please check errors.`);
+                }
+            }
+
             onClose();
         } catch (error: any) {
-            console.error('Error enrolling students:', error);
-            toast.error('Failed to enroll some students. Please try again.');
+            console.error('Unexpected error during batch enrollment:', error);
+            toast.error('An unexpected error occurred.');
         } finally {
             setEnrolling(false);
         }
@@ -189,8 +208,8 @@ export function EnrollStudentModal({
                                         key={student.id}
                                         onClick={() => handleToggleStudent(student.id)}
                                         className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${isSelected
-                                                ? 'border-emerald-500 bg-emerald-50/30'
-                                                : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-md'
+                                            ? 'border-emerald-500 bg-emerald-50/30'
+                                            : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-md'
                                             }`}
                                     >
                                         <Checkbox

@@ -1,6 +1,8 @@
 "use client";
 
+
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { AcademicManagerTopNavbar } from "@/components/ems/dashboard/academic-manager-top-navbar";
 import { AcademicManagerBottomNav } from "@/components/ems/dashboard/academic-manager-bottom-nav";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,10 +21,13 @@ import {
     ArrowLeft,
     X,
     UserPlus,
+    Loader2,
+    TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import Cookies from "js-cookie";
 import { MultiTutorModal } from "@/components/ems/multi-tutor-modal";
 import { DeleteCourseModal } from "@/components/ems/delete-course-modal";
 import { EnrollStudentModal } from "@/components/ems/enroll-student-modal";
@@ -72,6 +77,7 @@ export default function CoursesPage() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+    const [tutors, setTutors] = useState<any[]>([]);
     const [formData, setFormData] = useState({
         course_code: "",
         course_name: "",
@@ -81,41 +87,77 @@ export default function CoursesPage() {
         duration_hours: 40,
         price: 0,
         enrollment_capacity: 30,
+        tutor_id: "",
     });
 
     useEffect(() => {
-        fetchCourses();
-        fetchCourseMappings();
+        loadData();
     }, []);
 
-    useEffect(() => {
-        console.log("showCreateForm state changed to:", showCreateForm);
-    }, [showCreateForm]);
+    const [debugInfo, setDebugInfo] = useState<any>(null);
 
-    const fetchCourses = async () => {
+    const loadData = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const response = await api.get("/ems/courses");
-            if (response.data.success) {
-                setCourses(response.data.data || []);
-            }
+            await Promise.all([
+                fetchCourses(),
+                fetchCourseMappings(),
+                fetchTutors()
+            ]);
         } catch (error) {
-            console.error("Error fetching courses:", error);
+            console.error("❌ [Courses] Load Data Error:", error);
         } finally {
             setLoading(false);
         }
     };
 
+    const fetchCourses = async () => {
+        try {
+            console.log("📡 [Courses] Fetching courses list...");
+            const response = await api.get(`/ems/courses?_t=${Date.now()}`);
+
+            // Capture debug info
+            const companyId = Cookies.get('x-company-id');
+            const backendDebug = response.data.meta?.debug || {};
+
+            setDebugInfo((prev: any) => ({
+                ...prev,
+                status: response.status,
+                companyId: companyId || 'missing',
+                lastFetch: new Date().toLocaleTimeString(),
+                ...backendDebug
+            }));
+
+            if (response.data.success) {
+                const data = response.data.data || [];
+                console.log("✅ [Courses] Fetched courses count:", data.length);
+                setCourses(data);
+                return data;
+            }
+        } catch (error: any) {
+            console.error("❌ [Courses] List Fetch Error:", error);
+            setDebugInfo((prev: any) => ({
+                ...prev,
+                status: 'ERROR',
+                error: error.message
+            }));
+            throw error;
+        }
+    };
+
     const fetchCourseMappings = async () => {
         try {
-            const response = await api.get('/ems/dashboard/course-mapping');
+            console.log("📡 [Courses] Fetching course mappings...");
+            const response = await api.get(`/ems/dashboard/course-mapping?_t=${Date.now()}`);
             if (response.data.success) {
                 const mappings = response.data.data || [];
                 setCourseMappings(mappings);
+                console.log("✅ [Courses] Fetched mappings count:", mappings.length);
 
-                // Merge mapping data with courses
-                setCourses(prevCourses =>
-                    prevCourses.map(course => {
+                // Merge mapping data with courses if they already exist
+                setCourses(prevCourses => {
+                    if (prevCourses.length === 0) return prevCourses;
+                    return prevCourses.map(course => {
                         const mapping = mappings.find((m: any) => m.courseId === course.id);
                         if (mapping) {
                             return {
@@ -127,11 +169,22 @@ export default function CoursesPage() {
                             };
                         }
                         return course;
-                    })
-                );
+                    });
+                });
             }
         } catch (error) {
-            console.error('Error fetching course mappings:', error);
+            console.error('❌ [Courses] Mapping Fetch Error:', error);
+        }
+    };
+
+    const fetchTutors = async () => {
+        try {
+            const response = await api.get("/ems/tutors");
+            if (response.data.success) {
+                setTutors(response.data.data || []);
+            }
+        } catch (error) {
+            console.error("Error fetching tutors:", error);
         }
     };
 
@@ -140,12 +193,17 @@ export default function CoursesPage() {
         try {
             let response;
 
+            const payload = {
+                ...formData,
+                tutor_id: formData.tutor_id ? parseInt(formData.tutor_id) : null
+            };
+
             if (selectedCourse) {
                 // Update existing course
-                response = await api.put(`/ems/courses/${selectedCourse.id}`, formData);
+                response = await api.put(`/ems/courses/${selectedCourse.id}`, payload);
             } else {
                 // Create new course
-                response = await api.post("/ems/courses", formData);
+                response = await api.post("/ems/courses", payload);
             }
 
             if (response.data.success) {
@@ -163,12 +221,13 @@ export default function CoursesPage() {
                     duration_hours: 40,
                     price: 0,
                     enrollment_capacity: 30,
+                    tutor_id: "",
                 });
-                alert(selectedCourse ? 'Course updated successfully!' : 'Course created successfully!');
+                toast.success(selectedCourse ? 'Course updated successfully!' : 'Course created successfully!');
             }
         } catch (error: any) {
             console.error("Error saving course:", error);
-            alert(error.response?.data?.message || 'Failed to save course');
+            toast.error(error.response?.data?.message || 'Failed to save course');
         }
     };
 
@@ -183,6 +242,7 @@ export default function CoursesPage() {
             duration_hours: course.duration_hours,
             price: course.price,
             enrollment_capacity: course.enrollment_capacity,
+            tutor_id: course.tutor ? course.tutor.id.toString() : "",
         });
         setSelectedCourse(course);
         setShowCreateForm(true); // Reuse create form for editing
@@ -212,23 +272,44 @@ export default function CoursesPage() {
                                 Back
                             </Button>
                         </Link>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
-                            Courses Management
-                        </h1>
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
+                                Courses Management
+                            </h1>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={loadData}
+                                disabled={loading}
+                                className="h-8 text-xs bg-white/50 border-purple-200 text-purple-700 hover:bg-purple-50"
+                            >
+                                {loading ? (
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                ) : (
+                                    <TrendingUp className="h-3 w-3 mr-1" />
+                                )}
+                                Refresh
+                            </Button>
+                        </div>
                         <p className="text-gray-600 mt-1">
                             Create and manage your course catalog
                         </p>
                     </div>
                     <Button
                         onClick={() => {
-                            try {
-                                console.log("Create Course button clicked!");
-                                console.log("Current showCreateForm state:", showCreateForm);
-                                setShowCreateForm(true);
-                                console.log("Setting showCreateForm to true");
-                            } catch (error) {
-                                console.error("Error in button click handler:", error);
-                            }
+                            setSelectedCourse(null);
+                            setFormData({
+                                course_code: "",
+                                course_name: "",
+                                course_description: "",
+                                course_category: "TECHNOLOGY",
+                                course_level: "BEGINNER",
+                                duration_hours: 40,
+                                price: 0,
+                                enrollment_capacity: 30,
+                                tutor_id: "",
+                            });
+                            setShowCreateForm(true);
                         }}
                         className="bg-purple-600 hover:bg-purple-700"
                     >
@@ -276,12 +357,54 @@ export default function CoursesPage() {
                                 Get started by creating your first course
                             </p>
                             <Button
-                                onClick={() => setShowCreateForm(true)}
+                                onClick={() => {
+                                    setSelectedCourse(null);
+                                    setFormData({
+                                        course_code: "",
+                                        course_name: "",
+                                        course_description: "",
+                                        course_category: "TECHNOLOGY",
+                                        course_level: "BEGINNER",
+                                        duration_hours: 40,
+                                        price: 0,
+                                        enrollment_capacity: 30,
+                                        tutor_id: "",
+                                    });
+                                    setShowCreateForm(true);
+                                }}
                                 className="bg-purple-600 hover:bg-purple-700"
                             >
                                 <Plus className="h-4 w-4 mr-2" />
                                 Create First Course
                             </Button>
+
+                            {/* Debug Info UI (Hidden by default, useful for support) */}
+                            {debugInfo && (
+                                <details className="mt-8 max-w-sm mx-auto text-left">
+                                    <summary className="cursor-pointer text-[10px] text-gray-400 hover:text-gray-600 transition-colors mb-2">
+                                        Advanced Diagnostic Info
+                                    </summary>
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 font-mono text-xs text-gray-600 shadow-inner">
+                                        <h4 className="font-bold text-gray-900 mb-2 border-b border-gray-100 pb-1">System Context</h4>
+                                        <p><strong>Status:</strong> {debugInfo.status}</p>
+                                        <p><strong>Company ID:</strong> {debugInfo.companyId}</p>
+                                        <p><strong>User ID:</strong> {debugInfo.userId}</p>
+                                        <p><strong>Role:</strong> {debugInfo.role} (L{debugInfo.roleLevel})</p>
+                                        <p><strong>Logic:</strong> {debugInfo.selectionReason}</p>
+                                        <p><strong>Raw Count (DB):</strong> {debugInfo.rawCount}</p>
+                                        <p><strong>Fetch Time:</strong> {debugInfo.lastFetch}</p>
+                                        {debugInfo.error && <p className="text-red-500 font-bold mt-2">{debugInfo.error}</p>}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full mt-3 h-7 text-[10px] bg-white"
+                                            onClick={() => loadData()}
+                                        >
+                                            Force Re-fetch
+                                        </Button>
+                                    </div>
+                                </details>
+                            )}
                         </CardContent>
                     </Card>
                 ) : (
@@ -541,6 +664,25 @@ export default function CoursesPage() {
                                             <option value="OTHER">Other</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <Label htmlFor="tutor_id">Assign Tutor</Label>
+                                        <select
+                                            id="tutor_id"
+                                            className="w-full h-10 px-3 rounded-md border border-gray-300"
+                                            value={formData.tutor_id}
+                                            onChange={(e) => setFormData({ ...formData, tutor_id: e.target.value })}
+                                        >
+                                            <option value="">-- Select Tutor --</option>
+                                            {tutors.map((tutor) => (
+                                                <option key={tutor.id} value={tutor.id}>
+                                                    {tutor.first_name} {tutor.last_name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="duration_hours">Duration (Hours)</Label>
                                         <Input

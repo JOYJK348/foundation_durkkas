@@ -72,9 +72,34 @@ export async function GET(req: NextRequest) {
         // If not manager, only show active materials
         if (!isManager) {
             query = query.eq('is_active', true);
-        }
 
-        if (courseId) {
+            // 🛡️ STUDENT ISOLATION:
+            if (scope.emsProfile?.profileType === 'student' && scope.emsProfile.profileId) {
+                const { data: enrollments } = await ems.enrollments()
+                    .select('course_id')
+                    .eq('student_id', scope.emsProfile.profileId)
+                    .eq('enrollment_status', 'ACTIVE')
+                    .is('deleted_at', null);
+
+                const studentCourseIds = enrollments?.map((e: any) => e.course_id) || [];
+
+                if (studentCourseIds.length === 0) {
+                    return successResponse([], 'No enrolled courses found');
+                }
+
+                if (courseId) {
+                    const requestedCid = parseInt(courseId);
+                    if (!studentCourseIds.includes(requestedCid)) {
+                        return errorResponse(null, 'Forbidden: You are not enrolled in this course', 403);
+                    }
+                    query = query.eq('course_id', requestedCid);
+                } else {
+                    query = query.in('course_id', studentCourseIds);
+                }
+            } else if (courseId) {
+                query = query.eq('course_id', parseInt(courseId));
+            }
+        } else if (courseId) {
             query = query.eq('course_id', parseInt(courseId));
         }
 

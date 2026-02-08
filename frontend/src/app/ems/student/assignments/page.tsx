@@ -159,16 +159,29 @@ export default function AssignmentsPage() {
                                                 </div>
                                             </div>
                                             <div className="flex flex-row md:flex-col items-center md:items-end gap-3">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(assignment.status)}`}>
-                                                    {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
-                                                </span>
+                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black border-2 ${getStatusColor(assignment.status)}`}>
+                                                        {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
+                                                    </span>
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black border-2 ${assignment.submission_mode === 'ONLINE' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 'border-amber-200 text-amber-600 bg-amber-50'
+                                                        }`}>
+                                                        {assignment.submission_mode}
+                                                    </span>
+                                                </div>
+
                                                 {assignment.status === "pending" && (
-                                                    <Link href={`/ems/student/assignments/${assignment.id}`}>
-                                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                                                            <Upload className="h-4 w-4 mr-2" />
-                                                            Submit
-                                                        </Button>
-                                                    </Link>
+                                                    assignment.submission_mode === 'ONLINE' ? (
+                                                        <Link href={`/ems/student/assignments/${assignment.id}`}>
+                                                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto">
+                                                                <Upload className="h-4 w-4 mr-2" />
+                                                                Submit
+                                                            </Button>
+                                                        </Link>
+                                                    ) : (
+                                                        <div className="text-[10px] font-bold text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 text-center">
+                                                            PHYSICAL SUBMISSION
+                                                        </div>
+                                                    )
                                                 )}
                                                 {assignment.status !== "pending" && (
                                                     <Link href={`/ems/student/assignments/${assignment.id}`}>

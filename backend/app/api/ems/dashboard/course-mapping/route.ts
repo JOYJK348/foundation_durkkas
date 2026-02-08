@@ -8,6 +8,7 @@ import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserTenantScope } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { ems, core } from '@/lib/supabase';
+import { dataCache } from '@/lib/cache/dataCache';
 
 export async function GET(req: NextRequest) {
     try {
@@ -18,6 +19,13 @@ export async function GET(req: NextRequest) {
 
         if (!scope.companyId) {
             return errorResponse(null, 'Company context required', 400);
+        }
+
+        // 🚀 CACHE CHECK
+        let cacheKey = `course_mapping:${scope.companyId}:${scope.emsProfile?.profileId || 'admin'}`;
+        const cachedData = dataCache.get(cacheKey);
+        if (cachedData) {
+            return successResponse(cachedData, 'Course mappings (cached)');
         }
 
         // Fetch courses (Apply Role-Based Filtering for Tutors)
@@ -106,7 +114,7 @@ export async function GET(req: NextRequest) {
             .select('id, course_id, student_id, enrollment_status')
             .in('course_id', courseIds)
             .eq('company_id', scope.companyId)
-            .in('enrollment_status', ['ENROLLED', 'IN_PROGRESS']);
+            .in('enrollment_status', ['ENROLLED', 'IN_PROGRESS', 'ACTIVE']);
 
         if (enrollError) console.error('Error fetching enrollments:', enrollError);
 
@@ -187,6 +195,10 @@ export async function GET(req: NextRequest) {
                 studentCount: students.length
             };
         });
+
+        // 🚀 CACHE SET
+        cacheKey = `course_mapping:${scope.companyId}:${scope.emsProfile?.profileId || 'admin'}`;
+        dataCache.set(cacheKey, courseMappings, 120 * 1000); // 2 minutes cache
 
         return successResponse(courseMappings, 'Course mappings fetched successfully');
 

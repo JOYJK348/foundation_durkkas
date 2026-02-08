@@ -16,44 +16,130 @@ export interface Tutor {
 }
 
 export class TutorService {
-    static async getAllTutors(companyId: number) {
-        const { core, ems } = require('@/lib/supabase');
+    static async getAllTutors(companyId: number, courseId?: number) {
+        const { core, ems, app_auth } = require('@/lib/supabase');
 
-        // 1. Fetch employees for the company
-        const { data: employees, error: empError } = await core.employees()
-            .select('*')
-            .eq('company_id', companyId)
-            .is('deleted_at', null);
+        let employees: any[] = [];
 
-        if (empError) throw empError;
-        if (!employees || employees.length === 0) return [];
+        if (courseId) {
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // FILTER BY COURSE ASSIGNMENT
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-        // 2. Fetch course IDs from both sources
+            // Find tutors assigned to this specific course
+            const { data: junctionTutors } = await ems.courseTutors()
+                .select('tutor_id')
+                .eq('course_id', courseId)
+                .is('deleted_at', null);
+
+            const { data: legacyCourse } = await ems.courses()
+                .select('tutor_id')
+                .eq('id', courseId)
+                .is('deleted_at', null);
+
+            const assignedTutorIds = new Set([
+                ...(junctionTutors?.map((j: any) => j.tutor_id) || []),
+                ...(legacyCourse?.map((c: any) => c.tutor_id).filter((id: any) => id !== null) || [])
+            ]);
+
+            if (assignedTutorIds.size === 0) return []; // No tutors for this course
+
+            const { data: emps, error } = await core.employees()
+                .select('*')
+                .eq('company_id', companyId)
+                .in('id', Array.from(assignedTutorIds))
+                .is('deleted_at', null);
+
+            if (error) throw error;
+            employees = emps || [];
+
+        } else {
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // GENERAL LIST (Role-Based OR Designation-Based)
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            // 1. By User Role (Strict)
+            const { data: roles } = await app_auth.roles()
+                .select('id, name')
+                .in('name', ['TUTOR', 'ACADEMIC_MANAGER']);
+
+            const relevantRoleIds = roles?.map((r: any) => r.id) || [];
+
+            const { data: userRoles } = await app_auth.userRoles()
+                .select('user_id')
+                .eq('company_id', companyId)
+                .in('role_id', relevantRoleIds);
+            // .is('deleted_at', null);
+
+            const tutorUserIds = userRoles?.map((ur: any) => ur.user_id) || [];
+
+            // 2. By Designation (Implicit Fallback)
+            const { data: designations } = await core.designations()
+                .select('id')
+                .eq('company_id', companyId)
+                .or('title.ilike.%Tutor%,title.ilike.%Instructor%,title.ilike.%Professor%,title.ilike.%Teacher%,title.ilike.%Lecturer%,title.ilike.%Faculty%');
+
+            const implicitDesignationIds = designations?.map((d: any) => d.id) || [];
+
+            // 3. Construct Query
+            let query = core.employees()
+                .select('*')
+                .eq('company_id', companyId)
+                .is('deleted_at', null);
+
+            const conditions = [];
+            if (tutorUserIds.length > 0) conditions.push(`user_id.in.(${tutorUserIds.join(',')})`);
+            if (implicitDesignationIds.length > 0) conditions.push(`designation_id.in.(${implicitDesignationIds.join(',')})`);
+
+            // If we find ANY match criteria, we execute OR. 
+            // If neither search yields results (no roles assigned, no tutor designations), 
+            // we return empty array to avoid listing random employees.
+            if (conditions.length > 0) {
+                query = query.or(conditions.join(','));
+                const { data: emps, error } = await query;
+                if (error) throw error;
+                employees = emps || [];
+            } else {
+                // FALLBACK: If absolutely no one matches "Tutor" criteria, return ALL employees.
+                // This ensures the dropdown is not empty during initial setup.
+                const { data: allEmps, error: allErr } = await core.employees()
+                    .select('*')
+                    .eq('company_id', companyId)
+                    .is('deleted_at', null)
+                    .limit(50); // Limit to 50 to avoid performance hit on large orgs
+
+                if (!allErr) {
+                    employees = allEmps || [];
+                }
+            }
+        }
+
+        if (employees.length === 0) return [];
+
         const tutorIds = employees.map((e: any) => e.id);
 
-        // Legacy Column
+        // 3. (Optional) Fetch total course counts for UI reference
         const { data: legacyCourses } = await ems.courses()
             .select('tutor_id, id')
             .in('tutor_id', tutorIds)
             .eq('company_id', companyId)
             .is('deleted_at', null);
 
-        // New Junction Table
         const { data: junctionMappings } = await ems.courseTutors()
             .select('tutor_id, course_id')
             .in('tutor_id', tutorIds)
             .is('deleted_at', null);
 
-        // 3. Merge and Count Unique Courses
+        // 4. Merge and return
         const tutorsWithCount = employees.map((t: any) => {
-            const courseIds = new Set([
+            const assignedCourseIds = new Set([
                 ...(legacyCourses?.filter((c: any) => c.tutor_id === t.id).map((c: any) => c.id) || []),
                 ...(junctionMappings?.filter((m: any) => m.tutor_id === t.id).map((m: any) => m.course_id) || [])
             ]);
 
             return {
                 ...t,
-                courses_assigned: courseIds.size
+                courses_assigned: assignedCourseIds.size
             };
         });
 
@@ -219,5 +305,90 @@ export class TutorService {
 
         if (error) throw error;
         return data as Tutor;
+    }
+
+    /**
+     * Get employees who are NOT yet tutors (candidates)
+     */
+    static async getPotentialTutors(companyId: number) {
+        const { core, app_auth } = require('@/lib/supabase');
+
+        // 1. Get Role IDs
+        const { data: roles } = await app_auth.roles()
+            .select('id, name')
+            .in('name', ['TUTOR', 'ACADEMIC_MANAGER']);
+
+        const roleIds = roles?.map((r: any) => r.id) || [];
+
+        // 2. Get User IDs that ALREADY have these roles
+        const { data: existingTutors } = await app_auth.userRoles()
+            .select('user_id')
+            .eq('company_id', companyId)
+            .in('role_id', roleIds)
+            // .is('deleted_at', null) // user_roles table may not have deleted_at
+            ;
+
+        const excludeUserIds = existingTutors?.map((ur: any) => ur.user_id) || [];
+
+        // 3. Fetch employees who are NOT in the exclusion list
+        // Note: This only fetches employees who HAVE a user_id (since we need to assign a role to a user)
+        let query = core.employees()
+            .select('id, first_name, last_name, employee_code, email, designation_id, department_id, user_id')
+            .eq('company_id', companyId)
+            .not('user_id', 'is', null) // Must have a user account
+            .is('deleted_at', null);
+
+        if (excludeUserIds.length > 0) {
+            // Postgres NOT IN syntax for multiple values
+            // Supabase client uses .not('column', 'in', array)
+            query = query.not('user_id', 'in', `(${excludeUserIds.join(',')})`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    }
+
+    /**
+     * Assign TUTOR role to an existing employee
+     */
+    static async assignTutorRole(companyId: number, employeeId: number) {
+        const { core, app_auth } = require('@/lib/supabase');
+
+        // 1. Get the employee to find user_id
+        const { data: employee, error: empError } = await core.employees()
+            .select('user_id')
+            .eq('id', employeeId)
+            .eq('company_id', companyId)
+            .single();
+
+        if (empError || !employee) throw new Error('Employee not found');
+        if (!employee.user_id) throw new Error('Employee does not have a linked User account. Please link a user first.');
+
+        // 2. Get TUTOR Role ID
+        const { data: role } = await app_auth.roles()
+            .select('id')
+            .eq('name', 'TUTOR')
+            .maybeSingle();
+
+        if (!role) {
+            // Try fetching "EMSTutor" or similar if name is different, but migration said 'TUTOR'
+            // If not found, throw error
+            throw new Error('System Role TUTOR not found');
+        }
+
+        // 3. Assign Role
+        const { error: roleError } = await app_auth.userRoles().upsert({
+            user_id: employee.user_id,
+            role_id: role.id,
+            company_id: companyId,
+            is_active: true
+        }, {
+            onConflict: 'user_id,role_id,company_id,branch_id'
+        });
+
+        if (roleError) throw roleError;
+
+        return { success: true };
     }
 }

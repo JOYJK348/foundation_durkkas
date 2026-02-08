@@ -1,5 +1,6 @@
 import { ems } from '@/lib/supabase';
 import { StudentEnrollment, LessonProgress } from '@/types/database';
+import { BatchService } from './BatchService';
 
 /**
  * Service for Student Enrollment & Progress Tracking
@@ -53,6 +54,17 @@ export class EnrollmentService {
         }
 
         console.log('✅ [EnrollmentService] Student enrolled successfully:', data.id);
+
+        // Update batch strength if batch_id is present
+        if (data.batch_id) {
+            try {
+                await BatchService.updateBatchStrength(data.batch_id, 1);
+                console.log('📈 [EnrollmentService] Batch strength updated for batch:', data.batch_id);
+            } catch (batchError: any) {
+                console.warn('⚠️ [EnrollmentService] Failed to update batch strength:', batchError.message);
+            }
+        }
+
         return data as StudentEnrollment;
     }
 

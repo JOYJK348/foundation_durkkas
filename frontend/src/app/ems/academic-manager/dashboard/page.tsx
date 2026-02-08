@@ -12,15 +12,22 @@ import {
     GraduationCap,
     Calendar,
     Plus,
+    PlusCircle,
     TrendingUp,
     ArrowRight,
     Building2,
     Loader2,
     Folder,
+    Video,
+    Clock,
+    Clock3,
+    Layers
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import Cookies from "js-cookie";
+import { UnifiedScheduleModal } from "@/components/ems/dashboard/UnifiedScheduleModal";
 
 interface DashboardStats {
     totalCourses: number;
@@ -54,12 +61,15 @@ interface CourseMapping {
 }
 
 export default function AcademicManagerDashboard() {
+    const router = useRouter();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [courseMappings, setCourseMappings] = useState<CourseMapping[]>([]);
     const [recentResults, setRecentResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [mappingsLoading, setMappingsLoading] = useState(true);
     const [companyName, setCompanyName] = useState("");
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    const [todayClasses, setTodayClasses] = useState<any[]>([]);
 
     useEffect(() => {
         fetchDashboardStats();
@@ -67,7 +77,19 @@ export default function AcademicManagerDashboard() {
         // Get company name from cookies or storage
         const storedCompanyName = Cookies.get('company_name') || 'Your Institution';
         setCompanyName(storedCompanyName);
+        fetchTodayClasses();
     }, []);
+
+    const fetchTodayClasses = async () => {
+        try {
+            const date = new Date().toISOString().split('T')[0];
+            const response = await api.get(`/ems/attendance?mode=schedule&date=${date}`);
+            if (response.data.success) {
+                const scheduleData = response.data.data.schedule || response.data.data || [];
+                setTodayClasses(Array.isArray(scheduleData) ? scheduleData : []);
+            }
+        } catch (err) { }
+    };
 
     const fetchDashboardStats = async () => {
         try {
@@ -144,7 +166,14 @@ export default function AcademicManagerDashboard() {
         { label: "Create Batch", icon: Calendar, href: "/ems/academic-manager/batches", color: "blue" },
         { label: "Assign Tutor", icon: GraduationCap, href: "/ems/academic-manager/tutors", color: "green" },
         { label: "Enroll Student", icon: Users, href: "/ems/academic-manager/students", color: "orange" },
-        { label: "Upload Material", icon: Folder, href: "/ems/academic-manager/materials", color: "pink" }, // Added
+        { label: "Upload Material", icon: Folder, href: "/ems/academic-manager/materials", color: "pink" },
+        {
+            label: "Quick Schedule",
+            icon: PlusCircle,
+            onClick: () => setIsScheduleModalOpen(true),
+            color: "indigo",
+            isAction: true
+        },
     ];
 
     return (
@@ -226,20 +255,108 @@ export default function AcademicManagerDashboard() {
                     className="mb-8"
                 >
                     <h2 className="text-2xl font-bold mb-4 text-gray-900">Quick Actions</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {quickActions.map((action, index) => (
-                            <Link key={index} href={action.href}>
-                                <Card className="border-0 shadow-md hover:shadow-lg transition-all cursor-pointer group">
-                                    <CardContent className="p-4 text-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                        {quickActions.map((action, index) => {
+                            const Content = (
+                                <Card className="border-0 shadow-md hover:shadow-lg transition-all cursor-pointer group h-full">
+                                    <CardContent className="p-4 text-center flex flex-col items-center justify-center h-full">
                                         <div className={`w-12 h-12 mx-auto mb-3 rounded-xl bg-${action.color}-100 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                                             <action.icon className={`h-6 w-6 text-${action.color}-600`} />
                                         </div>
                                         <p className="text-sm font-medium text-gray-900">{action.label}</p>
                                     </CardContent>
                                 </Card>
-                            </Link>
-                        ))}
+                            );
+
+                            return (action as any).isAction ? (
+                                <div key={index} onClick={(action as any).onClick}>{Content}</div>
+                            ) : (
+                                <Link key={index} href={(action as any).href}>{Content}</Link>
+                            );
+                        })}
                     </div>
+                </motion.div>
+
+                {/* Today's Unified Schedule Section */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
+                    className="mb-8"
+                >
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-2xl font-bold text-gray-900">Today's Scheduled Classes</h2>
+                        <Link href="/ems/academic-manager/attendance">
+                            <Button variant="ghost" size="sm" className="text-purple-600">
+                                View Full Schedule <ArrowRight className="h-4 w-4 ml-2" />
+                            </Button>
+                        </Link>
+                    </div>
+
+                    {todayClasses.length === 0 ? (
+                        <Card className="border-0 shadow-md bg-white p-8 text-center bg-gray-50/50">
+                            <Clock3 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-gray-500 font-medium">No classes scheduled for today.</p>
+                            <Button variant="outline" size="sm" className="mt-4" onClick={() => setIsScheduleModalOpen(true)}>
+                                <PlusCircle className="h-4 w-4 mr-2" /> Schedule First Class
+                            </Button>
+                        </Card>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {todayClasses.map((cls, idx) => (
+                                <Card key={idx} className="border-0 shadow-md hover:shadow-lg transition-all overflow-hidden bg-white">
+                                    <CardContent className="p-0">
+                                        <div className={`h-1.5 w-full ${cls.class_mode === 'ONLINE' ? 'bg-purple-500' :
+                                            cls.class_mode === 'HYBRID' ? 'bg-orange-500' : 'bg-blue-500'
+                                            }`} />
+                                        <div className="p-5">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                                        {cls.course?.course_code || 'COURSE'}
+                                                    </span>
+                                                    <h4 className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-1">
+                                                        {cls.batch_name}
+                                                    </h4>
+                                                </div>
+                                                <div className={`p-2 rounded-xl bg-gray-50 flex items-center gap-1.5`}>
+                                                    {cls.class_mode === 'ONLINE' ? <Video className="h-3.5 w-3.5 text-purple-600" /> :
+                                                        cls.class_mode === 'HYBRID' ? <Layers className="h-3.5 w-3.5 text-orange-600" /> :
+                                                            <Building2 className="h-3.5 w-3.5 text-blue-600" />}
+                                                    <span className="text-[10px] font-bold text-gray-600 uppercase">{cls.class_mode || 'OFFLINE'}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="flex items-center gap-1 text-gray-500">
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    <span className="text-xs font-bold">{cls.start_time?.substring(0, 5) || '09:00'} - {cls.end_time?.substring(0, 5) || '10:00'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-gray-500">
+                                                    <Users className="h-3.5 w-3.5" />
+                                                    <span className="text-xs font-bold">{cls.total_students || 0} Students</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                {cls.class_mode !== 'OFFLINE' && (
+                                                    <Button variant="outline" size="sm" className="flex-1 rounded-xl text-[10px] font-black uppercase border-purple-100 hover:bg-purple-50 text-purple-600 h-9">
+                                                        Join Class
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    onClick={() => router.push(cls.session ? `/ems/academic-manager/attendance/${cls.session.id}` : `/ems/academic-manager/attendance`)}
+                                                    className={`flex-1 rounded-xl text-[10px] font-black uppercase h-9 ${cls.session?.status === 'COMPLETED' ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                                                        }`}>
+                                                    {cls.session?.status === 'COMPLETED' ? 'Completed' : 'Attendance'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Recent Activity & Analytics */}
@@ -540,6 +657,12 @@ export default function AcademicManagerDashboard() {
             </div>
 
             <AcademicManagerBottomNav />
+
+            <UnifiedScheduleModal
+                isOpen={isScheduleModalOpen}
+                onClose={() => setIsScheduleModalOpen(false)}
+                onSuccess={fetchTodayClasses}
+            />
         </div>
     );
 }

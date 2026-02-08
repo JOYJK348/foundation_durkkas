@@ -16,7 +16,7 @@ const FaceRegistration = dynamic(
 
 interface AttendanceVerificationProps {
     sessions: any[]; // Array of all active sessions
-    onSuccess: () => void;
+    onSuccess: (session?: any) => void;
     onClose: () => void;
 }
 
@@ -98,6 +98,54 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
     const startVerification = async (session: any) => {
         setSelectedSession(session);
         setError(null);
+
+        // If face verification is NO LONGER required for this session, skip the camera step
+        const requireFace = session.require_face_verification !== false;
+
+        if (!requireFace) {
+            setStep("VERIFYING");
+            if (!location) getPreciseLocation();
+
+            // Proactively hit the mark attendance API without face data
+            try {
+                // Wait for location if not yet available
+                let loc = location;
+                if (!loc) {
+                    toast.loading("Getting location...");
+                    await new Promise(resolve => {
+                        navigator.geolocation.getCurrentPosition(
+                            pos => {
+                                loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                                setLocation(loc);
+                                resolve(true);
+                            },
+                            () => resolve(false),
+                            { timeout: 5000 }
+                        );
+                    });
+                    toast.dismiss();
+                }
+
+                const response = await api.post("/ems/attendance?mode=student-mark", {
+                    session_id: session.id,
+                    location: loc ? { latitude: loc.lat, longitude: loc.lng } : null,
+                    verification_type: session.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING'
+                });
+
+                if (response.data.success) {
+                    setStep("SUCCESS");
+                    setTimeout(() => onSuccess(selectedSession), 1500);
+                } else {
+                    setError(response.data.message || "Attendance failed");
+                    setStep("ERROR");
+                }
+            } catch (err: any) {
+                setError(err.message || "Failed to mark attendance");
+                setStep("ERROR");
+            }
+            return;
+        }
+
         setStep("SCANNING");
 
         // Only look for location if we don't have it yet
@@ -109,7 +157,7 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
             setStream(mediaStream);
         } catch (err: any) {
-            setError("Camera access required.");
+            setError("Camera access required for face verification.");
             setStep("ERROR");
         }
     };
@@ -147,30 +195,47 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
     const captureAndVerify = async () => {
         const video = videoRef.current;
         if (!video || !canvasRef.current || !faceDetected || isCapturing || !selectedSession) return;
+
         if (!location) {
             toast.error("GPS still waiting. Try moving or refreshing.");
-            getPreciseLocation(); // Re-trigger detection
+            getPreciseLocation();
             return;
         }
+
         setIsCapturing(true);
-        setStep("VERIFYING");
+        // Don't switch step to VERIFYING immediately, wait for detection
+
         try {
-            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-            if (!detection) throw new Error("Face not detected clearly. Try again.");
+            const detection = await faceapi.detectSingleFace(
+                video,
+                new faceapi.TinyFaceDetectorOptions()
+            ).withFaceLandmarks().withFaceDescriptor();
+
+            if (!detection) {
+                toast.error("Face Mismatched or not detected clearly. Try again.");
+                setIsCapturing(false);
+                return;
+            }
+
+            setStep("VERIFYING");
+
             const canvas = canvasRef.current;
             canvas.width = 480; canvas.height = 480;
             const ctx = canvas.getContext("2d");
             const size = Math.min(video.videoWidth, video.videoHeight);
             ctx?.drawImage(video, (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 0, 0, 480, 480);
+
             const response = await api.post("/ems/attendance?mode=student-mark", {
-                attendance_session_id: selectedSession.id,
+                session_id: selectedSession.id,
                 captured_image: canvas.toDataURL("image/jpeg", 0.6),
                 face_descriptor: Array.from(detection.descriptor),
-                location: { latitude: location.lat, longitude: location.lng }
+                location: { latitude: location.lat, longitude: location.lng },
+                verification_type: selectedSession.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING'
             });
+
             if (response.data.success) {
                 setStep("SUCCESS");
-                setTimeout(onSuccess, 1500);
+                setTimeout(() => onSuccess(selectedSession), 1500);
             } else {
                 throw new Error(response.data.message);
             }
@@ -214,44 +279,62 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                         {step === "SELECT_SESSION" && (
                             <div className="space-y-6">
                                 <div className="space-y-1">
-                                    <h3 className="text-xl font-black text-gray-900 leading-none">Select Active Course</h3>
-                                    <p className="text-gray-500 text-xs font-semibold">Multiple classes are in progress. Select one to mark attendance.</p>
+                                    <h3 className="text-xl font-black text-gray-900 leading-none">Select Class Session</h3>
+                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Choose your course to mark attendance</p>
                                 </div>
                                 <div className="space-y-4">
-                                    {sessions.map((session, idx) => (
-                                        <motion.div
-                                            key={session.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: idx * 0.1 }}
-                                            onClick={() => startVerification(session)}
-                                            className="group relative p-5 bg-blue-50/50 hover:bg-blue-600 rounded-[2rem] border border-blue-100 hover:border-blue-400 transition-all cursor-pointer shadow-sm hover:shadow-blue-500/20 active:scale-95"
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="space-y-3">
-                                                    <div className="w-10 h-10 bg-white group-hover:bg-blue-400 rounded-xl flex items-center justify-center transition-colors shadow-sm">
-                                                        <BookOpen className="h-5 w-5 text-blue-600 group-hover:text-white" />
+                                    {sessions.map((session, idx) => {
+                                        const isExit = session.recommended_action === 'PUNCH_OUT';
+                                        return (
+                                            <motion.div
+                                                key={session.id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: idx * 0.1 }}
+                                                onClick={() => startVerification(session)}
+                                                className={`group relative p-6 rounded-[2.5rem] border-2 transition-all cursor-pointer shadow-lg active:scale-95 ${isExit
+                                                    ? "bg-orange-50/50 border-orange-100 hover:bg-orange-600 hover:border-orange-400"
+                                                    : "bg-green-50/50 border-green-100 hover:bg-green-600 hover:border-green-400"
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between pointer-events-none">
+                                                    <div>
+                                                        <h4 className={`font-black text-lg ${isExit ? "text-orange-900 group-hover:text-white" : "text-green-900 group-hover:text-white"}`}>{session.course?.course_name}</h4>
+                                                        <p className={`text-xs font-bold uppercase tracking-wider ${isExit ? "text-orange-600 group-hover:text-orange-100" : "text-green-600 group-hover:text-green-100"}`}>{session.session_type}</p>
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <h4 className="font-bold text-gray-900 group-hover:text-white leading-tight transition-colors">{session.course?.course_name}</h4>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/50 group-hover:bg-blue-500 rounded-full text-[9px] font-black text-blue-600 group-hover:text-white transition-colors border border-blue-100 group-hover:border-blue-400 uppercase tracking-tighter">
-                                                                <Calendar className="h-2.5 w-2.5" /> {session.batch?.batch_name || "Regular"}
-                                                            </div>
-                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100 group-hover:bg-green-500 rounded-full text-[9px] font-black text-green-700 group-hover:text-white transition-colors border border-green-200 group-hover:border-green-400 uppercase tracking-tighter">
-                                                                <Clock className="h-2.5 w-2.5" /> {session.verification_type}
-                                                            </div>
-                                                        </div>
+                                                    <div className={`p-3 rounded-full ${isExit ? "bg-orange-100 group-hover:bg-white/20" : "bg-green-100 group-hover:bg-white/20"}`}>
+                                                        {isExit ? <User className="h-6 w-6 text-orange-600 group-hover:text-white" /> : <ShieldCheck className="h-6 w-6 text-green-600 group-hover:text-white" />}
                                                     </div>
                                                 </div>
-                                                <div className="w-10 h-10 rounded-full bg-white/50 group-hover:bg-blue-500 flex items-center justify-center transition-colors">
-                                                    <ChevronRight className="h-5 w-5 text-blue-600 group-hover:text-white" />
+
+                                                {/* Class Mode Indicator */}
+                                                <div className="mt-3 flex items-center gap-2">
+                                                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${session.class_mode === 'ONLINE' ? 'bg-purple-100 text-purple-700' :
+                                                            session.class_mode === 'HYBRID' ? 'bg-blue-100 text-blue-700' :
+                                                                'bg-gray-100 text-gray-700'
+                                                        }`}>
+                                                        {session.class_mode || 'OFFLINE'}
+                                                    </span>
                                                 </div>
-                                            </div>
-                                        </motion.div>
-                                    ))}
+                                                {/* Action Badge */}
+                                                <div className="mt-4 flex items-center justify-between">
+                                                    <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+                                                        Batch: {session.batch?.batch_name || "Regular"}
+                                                    </div>
+                                                    <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${isExit
+                                                        ? "bg-orange-500 text-white border-orange-400"
+                                                        : session.recommended_action === 'COMPLETED'
+                                                            ? "bg-gray-400 text-white border-gray-300"
+                                                            : "bg-green-600 text-white border-green-500"
+                                                        }`}>
+                                                        {isExit ? "Exit Attendance" : (session.recommended_action === 'COMPLETED' ? "Done" : "Entry Attendance")}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
                                 </div>
-                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest pt-4 italic">Confirm session details before biometric scan</p>
+                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest pt-4 italic">Select your active session to proceed with biometric scan</p>
                             </div>
                         )}
 
@@ -305,11 +388,11 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                                         </div>
                                     </div>
                                 </div>
-                                <Button onClick={captureAndVerify} disabled={!faceDetected || isCapturing} className="w-full h-15 bg-blue-600 hover:bg-blue-700 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-3">
+                                <Button onClick={captureAndVerify} disabled={!faceDetected && step === 'SCANNING'} className="w-full h-14 bg-blue-600 hover:bg-blue-700 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-3 text-white text-sm uppercase tracking-wider">
                                     <ShieldCheck className={`h-5 w-5 ${faceDetected ? 'animate-bounce' : ''}`} />
                                     Verify & Mark Attendance
                                 </Button>
-                                <Button variant="ghost" onClick={() => { stopStream(); setStep("SELECT_SESSION"); }} className="w-full text-gray-500 font-bold text-xs uppercase">Choose another course</Button>
+                                <Button variant="ghost" onClick={() => { stopStream(); setStep("SELECT_SESSION"); }} className="w-full text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors">Choose another course</Button>
                             </div>
                         )}
 
@@ -334,15 +417,42 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
 
                         {step === "ERROR" && (
                             <div className="text-center py-8 space-y-6">
-                                <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
-                                <p className="text-red-500 font-bold text-sm bg-red-50 p-4 rounded-2xl border border-red-100">{error}</p>
-                                <Button onClick={() => setStep("SELECT_SESSION")} className="w-full h-14 bg-gray-900 text-white rounded-2xl font-bold uppercase">Back to List</Button>
+                                <AlertCircle className="h-12 w-12 text-red-500 mx-auto animate-bounce" />
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-bold text-gray-900">Verification Failed</h3>
+                                    <p className="text-red-500 font-medium text-sm bg-red-50 p-4 rounded-2xl border border-red-100">{error}</p>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    <Button
+                                        onClick={() => setStep("SCANNING")}
+                                        className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold uppercase shadow-lg"
+                                    >
+                                        <RefreshCw className="h-4 w-4 mr-2" />
+                                        Try Again
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setStep("SELECT_SESSION")}
+                                        className="w-full text-gray-500 font-bold text-xs uppercase"
+                                    >
+                                        Back to Session List
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </AnimatePresence>
+                    <canvas ref={canvasRef} className="hidden" />
+                    <div className="absolute top-4 left-4 pointer-events-none">
+                        <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-lg">
+                            <div className="flex gap-1.5">
+                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse delay-75" />
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse delay-150" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </motion.div>
-            <canvas ref={canvasRef} className="hidden" />
-        </div>
+            </motion.div >
+        </div >
     );
 };

@@ -48,7 +48,9 @@ export async function GET(req: NextRequest) {
         // (Quizzes assigned to the course with no specific batch/student are also included)
         const { data: assignments } = await ems.quizAssignments()
             .select('quiz_id, batch_id, student_id')
-            .or(`batch_id.in.(${enrolledBatches.join(',')}),student_id.eq.${student.id}`)
+            .or(enrolledBatches.length > 0
+                ? `batch_id.in.(${enrolledBatches.join(',')}),student_id.eq.${student.id}`
+                : `student_id.eq.${student.id}`)
             .eq('company_id', scope.companyId!);
 
         const specificAssignedIds = assignments?.map(a => a.quiz_id) || [];
