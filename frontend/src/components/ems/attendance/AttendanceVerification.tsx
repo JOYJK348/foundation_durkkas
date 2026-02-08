@@ -60,6 +60,15 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
         checkEnrollment();
     }, []);
 
+    const pendingSessions = sessions.filter(s => s.recommended_action !== 'COMPLETED');
+
+    // Auto-select if only one pending session
+    useEffect(() => {
+        if (step === "SELECT_SESSION" && pendingSessions.length === 1) {
+            startVerification(pendingSessions[0]);
+        }
+    }, [sessions, step]);
+
     const getPreciseLocation = () => {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -305,11 +314,15 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                         {step === "SELECT_SESSION" && (
                             <div className="space-y-6">
                                 <div className="space-y-1">
-                                    <h3 className="text-xl font-black text-gray-900 leading-none">Select Class Session</h3>
-                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Choose your course to mark attendance</p>
+                                    <h3 className="text-xl font-black text-gray-900 leading-none">
+                                        {pendingSessions.length > 0 ? "Select Class Session" : "All Caught Up!"}
+                                    </h3>
+                                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
+                                        {pendingSessions.length > 0 ? "Choose your course to mark attendance" : "You've marked all pending attendance for today."}
+                                    </p>
                                 </div>
                                 <div className="space-y-4">
-                                    {sessions.map((session, idx) => {
+                                    {pendingSessions.map((session, idx) => {
                                         const isExit = session.recommended_action === 'PUNCH_OUT';
                                         return (
                                             <motion.div
@@ -359,8 +372,27 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                                             </motion.div>
                                         );
                                     })}
+
+                                    {pendingSessions.length === 0 && (
+                                        <div className="py-12 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                                            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                                                <CheckCircle2 className="h-8 w-8 text-green-500" />
+                                            </div>
+                                            <p className="text-gray-900 font-black uppercase tracking-tight">No Pending Actions</p>
+                                            <p className="text-gray-500 text-xs mt-1">All attendance markers are complete</p>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={onClose}
+                                                className="mt-6 text-blue-600 font-bold text-[10px] uppercase tracking-widest"
+                                            >
+                                                Close Dashboard
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest pt-4 italic">Select your active session to proceed with biometric scan</p>
+                                {pendingSessions.length > 0 && (
+                                    <p className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest pt-4 italic">Select your active session to proceed with biometric scan</p>
+                                )}
                             </div>
                         )}
 
