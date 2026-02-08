@@ -6,97 +6,93 @@ import { ApprovalService } from '@/lib/services/ApprovalService';
 
 /**
  * EMS Approvals API - GET Pending items, POST Approve/Reject
- * FIXED: Extreme diagnostic mode for Production debugging
+ * FIXED: BULLETPROOF Authorization for Production
  */
 
 async function checkAuthorization(userId: number) {
-    // 1. Fetch raw user roles without filters first
-    const { data: rawRoles, error: dbError } = await app_auth.userRoles()
-        .select(`
-            company_id,
-            is_active,
-            roles!inner ( id, name, level )
-        `)
-        .eq('user_id', userId);
+    try {
+        // 1. Fetch User Roles (Direct Query, no joins to avoid PostgREST schema issues)
+        const { data: userRoles, error: urError } = await app_auth.userRoles()
+            .select('role_id, company_id, branch_id, is_active')
+            .eq('user_id', userId);
 
-    const { data: userData } = await app_auth.users().select('email').eq('id', userId).maybeSingle();
+        if (urError || !userRoles || userRoles.length === 0) {
+            return { isAuthorized: false, role: 'NONE', error: urError || 'No roles mapping' };
+        }
 
-    if (dbError) {
-        return { isAuthorized: false, role: 'DB_ERROR', level: 0, companyId: null, debug: { dbError, userId, email: userData?.email } };
-    }
+        const activeUserRoles = userRoles.filter(ur => ur.is_active);
+        if (activeUserRoles.length === 0) {
+            return { isAuthorized: false, role: 'INACTIVE', error: 'User roles are inactive' };
+        }
 
-    if (!rawRoles || rawRoles.length === 0) {
-        return { isAuthorized: false, role: 'NO_ROLES_FOUND', level: 0, companyId: null, debug: { userId, email: userData?.email } };
-    }
+        // 2. Fetch Role Details separately
+        const roleIds = activeUserRoles.map(ur => ur.role_id);
+        const { data: roles, error: rError } = await app_auth.roles()
+            .select('id, name, level')
+            .in('id', roleIds);
 
-    // 2. Filter active roles
-    const activeRoles = rawRoles.filter((ur: any) => ur.is_active === true);
+        if (rError || !roles || roles.length === 0) {
+            return { isAuthorized: false, role: 'MISSING_DETAILS', error: rError || 'Role details not found' };
+        }
 
-    if (activeRoles.length === 0) {
+        // 3. Compile and find highest authority
+        const userAccess = activeUserRoles.map(ur => {
+            const roleDetail = roles.find(r => r.id === ur.role_id);
+            return {
+                roleName: roleDetail?.name?.toUpperCase()?.replace(/\s+/g, '_') || 'UNKNOWN',
+                level: Number(roleDetail?.level || 0),
+                companyId: ur.company_id
+            };
+        }).sort((a, b) => b.level - a.level);
+
+        const primary = userAccess[0];
+
+        // Broad authorization check
+        const isAuthorized =
+            primary.roleName === 'ACADEMIC_MANAGER' ||
+            primary.roleName === 'COMPANY_ADMIN' ||
+            primary.roleName === 'PLATFORM_ADMIN' ||
+            primary.roleName === 'EMS_ADMIN' ||
+            primary.roleName === 'BRANCH_ADMIN' ||
+            primary.level >= 3;
+
         return {
-            isAuthorized: false,
-            role: 'INACTIVE_ROLES',
-            level: 0,
-            companyId: null,
-            debug: { rawRoles, userId, email: userData?.email }
+            isAuthorized,
+            role: primary.roleName,
+            level: primary.level,
+            companyId: primary.companyId,
+            debug: { userAccess, userId }
         };
+    } catch (err: any) {
+        return { isAuthorized: false, role: 'ERROR', error: err.message };
     }
-
-    // 3. Find the highest role
-    const roles = activeRoles.map((ur: any) => ({
-        name: ur.roles.name?.toUpperCase().replace(/\s+/g, '_'),
-        level: Number(ur.roles.level || 0),
-        companyId: ur.company_id
-    })).sort((a, b) => b.level - a.level);
-
-    const highest = roles[0];
-
-    // Liberal authorization check for production resolution
-    const isAuthorized =
-        highest.name === 'ACADEMIC_MANAGER' ||
-        highest.name === 'COMPANY_ADMIN' ||
-        highest.name === 'PLATFORM_ADMIN' ||
-        highest.name === 'EMS_ADMIN' ||
-        highest.level >= 3;
-
-    return {
-        isAuthorized,
-        role: highest.name,
-        level: highest.level,
-        companyId: highest.companyId,
-        debug: { activeRoles, userId, email: userData?.email, highestRole: highest }
-    };
 }
 
 export async function GET(req: NextRequest) {
     try {
         const userId = await getUserIdFromToken(req);
-        if (!userId) {
-            console.error('[Approvals API] No userId found in token');
-            return errorResponse('UNAUTHORIZED', 'Unauthorized: No valid session', 401);
-        }
+        if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized: Invalid session', 401);
 
         const auth = await checkAuthorization(userId);
 
-        // Use companyId from scope, or from headers as fallback
-        const companyId = auth.companyId || Number(req.headers.get('x-company-id'));
-
-        console.log(`[Approvals API] GET Attempt - User: ${userId}, Authorized: ${auth.isAuthorized}, Role: ${auth.role}, Company: ${companyId}`);
+        const companyIdFromHeader = req.headers.get('x-company-id') || req.headers.get('X-Company-Id');
+        const companyId = auth.companyId || (companyIdFromHeader ? Number(companyIdFromHeader) : null);
 
         if (!auth.isAuthorized) {
-            return errorResponse('AUTHORIZATION_ERROR', `Forbidden: Role ${auth.role} (L${auth.level}) lacks access`, 403, { auth });
+            console.error(`[Approvals 403] User ${userId} blocked. Role: ${auth.role}, Level: ${auth.level}`);
+            return errorResponse('AUTHORIZATION_ERROR', `Forbidden: ${auth.role} (L${auth.level}) cannot access approvals.`, 403, { auth });
         }
 
         if (!companyId) {
-            return errorResponse('BAD_REQUEST', 'Missing context: Company ID required for approvals', 400, { auth });
+            return errorResponse('BAD_REQUEST', 'Missing context: Company ID required', 400, { auth });
         }
 
         const pendingData = await ApprovalService.getPendingItems(companyId);
         return successResponse(pendingData, 'Pending items fetched successfully');
 
     } catch (error: any) {
-        console.error('[Approvals API] GET Critical Error:', error);
-        return errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Failed to fetch pending items');
+        console.error('[Approvals GET Critical]', error);
+        return errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Server error', 500);
     }
 }
 
@@ -106,20 +102,17 @@ export async function POST(req: NextRequest) {
         if (!userId) return errorResponse('UNAUTHORIZED', 'Unauthorized', 401);
 
         const auth = await checkAuthorization(userId);
-        const companyId = auth.companyId || Number(req.headers.get('x-company-id'));
+        const companyIdFromHeader = req.headers.get('x-company-id') || req.headers.get('X-Company-Id');
+        const companyId = auth.companyId || (companyIdFromHeader ? Number(companyIdFromHeader) : null);
 
         if (!auth.isAuthorized) {
-            return errorResponse('AUTHORIZATION_ERROR', 'Forbidden: Only managers can approve/reject items', 403, { auth });
-        }
-
-        if (!companyId) {
-            return errorResponse('BAD_REQUEST', 'Missing context: Company ID required', 400, { auth });
+            return errorResponse('AUTHORIZATION_ERROR', 'Forbidden: Insufficient permissions', 403, { auth });
         }
 
         const { type, id, action, reason } = await req.json();
 
-        if (!type || !id || !action) {
-            return errorResponse('BAD_REQUEST', 'Missing required fields: type, id, action', 400);
+        if (!type || !id || !action || !companyId) {
+            return errorResponse('BAD_REQUEST', 'Missing required fields or company context', 400);
         }
 
         let result;
@@ -128,13 +121,13 @@ export async function POST(req: NextRequest) {
         } else if (action === 'REJECT') {
             result = await ApprovalService.rejectItem(type, id, companyId, userId, reason);
         } else {
-            return errorResponse('BAD_REQUEST', 'Invalid action. Use APPROVE or REJECT', 400);
+            return errorResponse('BAD_REQUEST', 'Invalid action', 400);
         }
 
         return successResponse(result, `Item ${action.toLowerCase()}d successfully`);
 
     } catch (error: any) {
-        console.error('[Approvals API] POST Critical Error:', error);
-        return errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Failed to process approval');
+        console.error('[Approvals POST Critical]', error);
+        return errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Server error', 500);
     }
 }
