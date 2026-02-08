@@ -551,7 +551,11 @@ export class AttendanceService {
         });
 
         if (error) throw error;
-        return data as any || { is_valid: false, location_name: null, distance_meters: null };
+
+        // RPC returns an array because it's a TABLE return type
+        const result = Array.isArray(data) ? data[0] : data;
+
+        return result || { is_valid: false, location_name: null, distance_meters: null };
     }
 
     /**
@@ -572,11 +576,23 @@ export class AttendanceService {
         }
 
         if (!locationResult.is_valid) {
-            logToFile('Location verification failed:', { ...locationResult, input: verificationData });
-            return {
-                success: false,
-                error: `Location verification failed. You are ${Math.round(locationResult.distance_meters || 0)}m away from ${locationResult.location_name || 'campus'}. Allowed: 100m.`
-            };
+            // Check if ANY locations are actually defined for this company. 
+            // If zero locations are defined, we bypass location check to avoid blocking everyone.
+            const { count } = await ems.institutionLocations()
+                .select('*', { count: 'exact', head: true })
+                .eq('company_id', companyId)
+                .eq('is_active', true);
+
+            if (count === 0) {
+                logToFile('⚠️ No authorized locations defined for company. Bypassing check.');
+                locationResult = { is_valid: true, location_name: 'Bypassed (No Campus Defined)', distance_meters: 0 };
+            } else {
+                logToFile('Location verification failed:', { ...locationResult, input: verificationData });
+                return {
+                    success: false,
+                    error: `Location verification failed. You are ${Math.round(locationResult.distance_meters || 0)}m away from ${locationResult.location_name || 'campus'}. Allowed: 100m.`
+                };
+            }
         }
 
         let verificationId = 0;
@@ -591,7 +607,7 @@ export class AttendanceService {
                     face_image_url: verificationData.faceImageUrl,
                     latitude: verificationData.latitude,
                     longitude: verificationData.longitude,
-                    location_accuracy: verificationData.locationAccuracy,
+                    location_accuracy_meters: verificationData.locationAccuracy,
                     location_verified: locationResult.is_valid,
                     distance_from_venue_meters: locationResult.distance_meters,
                     device_info: verificationData.deviceInfo,

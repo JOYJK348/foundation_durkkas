@@ -184,6 +184,8 @@ export async function POST(req: NextRequest) {
             }, scope.companyId!);
 
             if (!result.success) {
+                console.error(`[API] Verification Failed for Student ${student.id}:`, result);
+                logToFile('Verification Failed result:', result);
                 return errorResponse('VERIFICATION_FAILED', result.error || 'Verification failed', 400, result);
             }
 

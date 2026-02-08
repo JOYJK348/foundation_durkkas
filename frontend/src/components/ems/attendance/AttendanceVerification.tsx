@@ -240,7 +240,8 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                 throw new Error(response.data.message);
             }
         } catch (err: any) {
-            setError(err.message || "Verification failed");
+            const backendError = err.response?.data?.message || err.response?.data?.error || err.message;
+            setError(backendError || "Verification failed");
             setStep("ERROR");
         } finally {
             setIsCapturing(false);
@@ -310,8 +311,8 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                                                 {/* Class Mode Indicator */}
                                                 <div className="mt-3 flex items-center gap-2">
                                                     <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${session.class_mode === 'ONLINE' ? 'bg-purple-100 text-purple-700' :
-                                                            session.class_mode === 'HYBRID' ? 'bg-blue-100 text-blue-700' :
-                                                                'bg-gray-100 text-gray-700'
+                                                        session.class_mode === 'HYBRID' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-gray-100 text-gray-700'
                                                         }`}>
                                                         {session.class_mode || 'OFFLINE'}
                                                     </span>
