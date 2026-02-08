@@ -1,0 +1,48 @@
+[2026-02-08T05:41:52.234Z] Starting GET request 
+[2026-02-08T05:41:52.240Z] User ID resolved {
+  "userId": 470
+}
+[2026-02-08T05:41:53.238Z] Tenant scope resolved {
+  "scope": {
+    "userId": 470,
+    "roleLevel": 1,
+    "roleName": "STUDENT",
+    "roleType": "PRODUCT",
+    "companyId": 13,
+    "branchId": 46,
+    "isScoped": true,
+    "selectionReason": "Highest in Company 13",
+    "emsProfile": {
+      "profileType": "student",
+      "profileId": 41
+    }
+  }
+}
+[2026-02-08T05:41:53.239Z] Resolving student record... 
+[2026-02-08T05:41:53.765Z] Target Student Identified {
+  "studentId": 41,
+  "companyId": 13
+}
+[2026-02-08T05:41:53.766Z] Fetching enrollments... 
+[2026-02-08T05:41:54.043Z] Enrollments fetched {
+  "count": 4
+}
+[2026-02-08T05:41:54.049Z] Fetching assignments... 
+[2026-02-08T05:41:54.439Z] Assignments fetched {
+  "count": 3
+}
+[2026-02-08T05:41:54.441Z] Fetching submissions... 
+[2026-02-08T05:41:54.705Z] Submissions processed 
+[2026-02-08T05:41:54.706Z] Fetching quizzes... 
+[2026-02-08T05:41:55.154Z] Quizzes processed {
+  "count": 5
+}
+[2026-02-08T05:41:55.155Z] Fetching live classes... 
+[2026-02-08T05:41:55.596Z] Live classes fetched {
+  "count": 0
+}
+[2026-02-08T05:41:55.598Z] Fetching attendance... 
+[2026-02-08T05:41:56.622Z] Attendance fetch error {
+  "message": "invalid input syntax for type bigint: \"null\""
+}
+[2026-02-08T05:41:56.623Z] Request complete, sending successResponse 

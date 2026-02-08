@@ -228,85 +228,95 @@ export async function getUserTenantScope(
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         try {
             if (selectedRole.role_name === 'TUTOR') {
-                // 1. Try resolving by user_id first (Optimized)
-                let { data: employee } = await core.employees()
-                    .select('id, email, user_id')
-                    .eq('user_id', userId)
+                // 1. Try resolving by user_id first
+                // Use a safe column selection in case user_id doesn't exist yet
+                const { data: employee, error: empError } = await core.employees()
+                    .select('id, email')
+                    .eq('user_id', userId as any) // Cast to any to bypass potential TS errors if not in types
                     .eq('company_id', selectedRole.company_id)
-                    .single();
-
-                // 2. Fallback: Try resolving by email if user_id mapping is missing (Legacy/Manual imports)
-                if (!employee) {
-                    // Get user's email from auth context (passed as userId in this scope usually, 
-                    // but we need to fetch the email from app_auth.users)
-                    const { data: userData } = await app_auth.users()
-                        .select('email')
-                        .eq('id', userId)
-                        .single();
-
-                    if (userData?.email) {
-                        const { data: empByEmail } = await core.employees()
-                            .select('id, email, user_id')
-                            .eq('email', userData.email)
-                            .eq('company_id', selectedRole.company_id)
-                            .single();
-
-                        if (empByEmail) {
-                            employee = empByEmail;
-                            // ⚡ DYNAMIC MAPPING REPAIR: Update the employee record with the user_id for future calls
-                            logger.info('[TenantFilter] Dynamically linking TUTOR user_id', { userId, employeeId: empByEmail.id });
-                            core.employees().update({ user_id: userId }).eq('id', empByEmail.id).then();
-                        }
-                    }
-                }
+                    .maybeSingle();
 
                 if (employee) {
                     tenantScope.emsProfile = {
                         profileType: 'tutor',
                         profileId: (employee as any).id
                     };
-                    logger.info('[TenantFilter] Resolved TUTOR profile', { userId, employeeId: (employee as any).id });
-                }
-            } else if (selectedRole.role_name === 'STUDENT') {
-                // 1. Try user_id
-                let { data: student } = await ems.students()
-                    .select('id, email, user_id')
-                    .eq('user_id', userId)
-                    .eq('company_id', selectedRole.company_id)
-                    .single();
-
-                // 2. Fallback: Try email
-                if (!student) {
+                    logger.info('[TenantFilter] Resolved TUTOR profile via user_id', { userId, employeeId: (employee as any).id });
+                } else if (!empError) {
+                    // 2. Fallback: Try resolving by email
                     const { data: userData } = await app_auth.users()
                         .select('email')
                         .eq('id', userId)
-                        .single();
+                        .maybeSingle();
 
                     if (userData?.email) {
-                        const { data: studentByEmail } = await ems.students()
-                            .select('id, email, user_id')
+                        const { data: empByEmail } = await core.employees()
+                            .select('id, email')
                             .eq('email', userData.email)
                             .eq('company_id', selectedRole.company_id)
-                            .single();
+                            .maybeSingle();
 
-                        if (studentByEmail) {
-                            student = studentByEmail;
-                            // ⚡ DYNAMIC MAPPING REPAIR
-                            logger.info('[TenantFilter] Dynamically linking STUDENT user_id', { userId, studentId: studentByEmail.id });
-                            ems.students().update({ user_id: userId }).eq('id', studentByEmail.id).then();
+                        if (empByEmail) {
+                            tenantScope.emsProfile = {
+                                profileType: 'tutor',
+                                profileId: (empByEmail as any).id
+                            };
+                            logger.info('[TenantFilter] Resolved TUTOR profile via email', { userId, employeeId: (empByEmail as any).id });
+
+                            // Background task: Try to link user_id if column exists
+                            (async () => {
+                                try {
+                                    await core.employees().update({ user_id: userId } as any).eq('id', empByEmail.id);
+                                } catch (e) { }
+                            })();
                         }
                     }
                 }
+            } else if (selectedRole.role_name === 'STUDENT') {
+                // 1. Try resolving by user_id first
+                const { data: student, error: studentIdError } = await ems.students()
+                    .select('id, email')
+                    .eq('user_id', userId as any)
+                    .eq('company_id', selectedRole.company_id)
+                    .maybeSingle();
 
                 if (student) {
                     tenantScope.emsProfile = {
                         profileType: 'student',
                         profileId: (student as any).id
                     };
-                    logger.info('[TenantFilter] Resolved STUDENT profile', { userId, studentId: (student as any).id });
+                    logger.info('[TenantFilter] Resolved STUDENT profile via user_id', { userId, studentId: (student as any).id });
+                } else if (!studentIdError) {
+                    // 2. Fallback: Try resolving by email
+                    const { data: userData } = await app_auth.users()
+                        .select('email')
+                        .eq('id', userId)
+                        .maybeSingle();
+
+                    if (userData?.email) {
+                        const { data: studentByEmail } = await ems.students()
+                            .select('id, email')
+                            .eq('email', userData.email)
+                            .eq('company_id', selectedRole.company_id)
+                            .maybeSingle();
+
+                        if (studentByEmail) {
+                            tenantScope.emsProfile = {
+                                profileType: 'student',
+                                profileId: (studentByEmail as any).id
+                            };
+                            logger.info('[TenantFilter] Resolved STUDENT profile via email', { userId, studentId: (studentByEmail as any).id });
+
+                            // Background task: Try to link user_id
+                            (async () => {
+                                try {
+                                    await ems.students().update({ user_id: userId } as any).eq('id', studentByEmail.id);
+                                } catch (e) { }
+                            })();
+                        }
+                    }
                 }
             } else if (selectedRole.role_name === 'ACADEMIC_MANAGER' || selectedRole.role_level >= 2) {
-                // Managers and admins don't need specific profile resolution
                 tenantScope.emsProfile = {
                     profileType: 'manager',
                     profileId: null
@@ -318,8 +328,8 @@ export async function getUserTenantScope(
                 roleName: selectedRole.role_name,
                 error: profileError.message
             });
-            // Non-critical - continue without EMS profile
         }
+
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // CACHE THE RESULT FOR FUTURE REQUESTS

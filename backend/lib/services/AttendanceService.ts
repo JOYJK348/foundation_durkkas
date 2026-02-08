@@ -436,7 +436,7 @@ export class AttendanceService {
             const batchIds = enrollments.map(e => e.batch_id);
             const today = new Date().toISOString().split('T')[0];
 
-            let sessions;
+            let sessions: any[] = [];
             try {
                 // Optimistic query with all new features
                 const { data: fullSessions, error: sessionsError } = await ems.attendanceSessions()
@@ -452,25 +452,40 @@ export class AttendanceService {
                     .in('batch_id', batchIds);
 
                 if (sessionsError) throw sessionsError;
-                sessions = fullSessions;
+                sessions = fullSessions || [];
             } catch (err: any) {
-                if (err.message && (err.message.includes('column') || err.message.includes('relationship') || err.code === '42703' || err.code === 'PGRST200')) {
-                    logToFile('⚠️ SCHEMA MISMATCH: Columns/Rel missing in getStudentActiveSessionsWithStatus, falling back.');
-                    const { data: legacySessions, error: legacyError } = await ems.attendanceSessions()
-                        .select(`
-                            id, company_id, course_id, batch_id, session_date, session_type, status,
-                            course:courses(id, course_name, course_code),
-                            batch:batches(id, batch_name, batch_code, start_time, end_time)
-                        `)
+                logToFile('⚠️ Joined Query Failed, attempting Minimal Resilient Query:', err.message);
+
+                // Fallback 1: Try without complex joins
+                try {
+                    const { data: minimalSessions, error: minError } = await ems.attendanceSessions()
+                        .select('id, company_id, course_id, batch_id, session_date, session_type, status')
                         .eq('company_id', companyId)
                         .in('status', ['OPEN', 'IDENTIFYING_ENTRY', 'IDENTIFYING_EXIT', 'IN_PROGRESS', 'SCHEDULED'])
                         .eq('session_date', today)
                         .in('batch_id', batchIds);
 
-                    if (legacyError) throw legacyError;
-                    sessions = legacySessions;
-                } else {
-                    throw err;
+                    if (minError) throw minError;
+
+                    if (minimalSessions && minimalSessions.length > 0) {
+                        // Manually hydrate Course/Batch data to avoid 500s later in the UI
+                        const courseIds = [...new Set(minimalSessions.map(s => s.course_id))];
+                        const batchIdsSet = [...new Set(minimalSessions.map(s => s.batch_id))];
+
+                        const [{ data: courses }, { data: batches }] = await Promise.all([
+                            ems.courses().select('id, course_name, course_code').in('id', courseIds),
+                            ems.batches().select('id, batch_name, batch_code, start_time, end_time').in('id', batchIdsSet)
+                        ]);
+
+                        sessions = minimalSessions.map(s => ({
+                            ...s,
+                            course: courses?.find(c => c.id === s.course_id),
+                            batch: batches?.find(b => b.id === s.batch_id)
+                        }));
+                    }
+                } catch (fallbackErr: any) {
+                    logToFile('❌ CRITICAL: Minimal Fallback Failed:', fallbackErr.message);
+                    throw fallbackErr;
                 }
             }
 
