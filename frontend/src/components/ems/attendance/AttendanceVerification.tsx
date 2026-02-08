@@ -374,18 +374,18 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                                     })}
 
                                     {pendingSessions.length === 0 && (
-                                        <div className="py-12 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
-                                            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
-                                                <CheckCircle2 className="h-8 w-8 text-green-500" />
+                                        <div className="py-12 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100 flex flex-col items-center justify-center">
+                                            <div className="w-20 h-20 bg-white rounded-[2rem] shadow-sm flex items-center justify-center mb-4">
+                                                <Calendar className="h-10 w-10 text-gray-200" />
                                             </div>
-                                            <p className="text-gray-900 font-black uppercase tracking-tight">No Pending Actions</p>
-                                            <p className="text-gray-500 text-xs mt-1">All attendance markers are complete</p>
+                                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">No Session Available</h3>
+                                            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">Currently no active attendance sessions found</p>
                                             <Button
                                                 variant="ghost"
                                                 onClick={onClose}
-                                                className="mt-6 text-blue-600 font-bold text-[10px] uppercase tracking-widest"
+                                                className="mt-6 text-blue-600 font-bold text-xs uppercase tracking-widest px-8 h-10 hover:bg-blue-50 rounded-xl transition-all"
                                             >
-                                                Close Dashboard
+                                                Go Back
                                             </Button>
                                         </div>
                                     )}

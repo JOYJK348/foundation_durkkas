@@ -71,8 +71,11 @@ export default function StudentDashboard() {
     }, []);
 
     const handleAttendanceClick = () => {
-        if (dashboardData?.active_attendance_sessions?.length && dashboardData.active_attendance_sessions.length > 0) {
+        const pending = dashboardData?.active_attendance_sessions?.filter((s: any) => s.recommended_action !== 'COMPLETED') || [];
+        if (pending.length > 0) {
             setIsAttendanceModalOpen(true);
+        } else if (dashboardData?.active_attendance_sessions?.length && dashboardData.active_attendance_sessions.length > 0) {
+            toast.info("Currently no session available. You have completed all attendance for your active sessions.");
         } else {
             toast.info("No active attendance sessions found at this time. Please check with your tutor during class.");
         }
@@ -172,7 +175,7 @@ export default function StudentDashboard() {
                         <p className="text-gray-600">Continue your learning journey • {dashboardData.student.student_code}</p>
                     </div>
 
-                    {/* Fixed Attendance Entry Point */}
+                    {/* Attendance Entry Point */}
                     <Button
                         onClick={handleAttendanceClick}
                         className="bg-blue-600 hover:bg-blue-700 h-14 px-8 rounded-2xl font-bold shadow-lg shadow-blue-200 flex items-center gap-3 transition-all active:scale-95 shrink-0 group"
