@@ -506,16 +506,25 @@ export class AttendanceService {
             if (!sessions || sessions.length === 0) return [];
 
             // Get attendance records to see if student already marked
-            const { data: records, error: recordsError } = await ems.attendanceRecords()
-                .select('session_id, status')
-                .eq('student_id', studentId)
-                .in('session_id', sessions.map((s: any) => s.id));
+            const sessionIds = sessions.map((s: any) => s.id);
+            const [{ data: records }, { data: verifications }] = await Promise.all([
+                ems.attendanceRecords()
+                    .select('session_id, status')
+                    .eq('student_id', studentId)
+                    .in('session_id', sessionIds),
+                ems.faceVerifications()
+                    .select('session_id, verification_type')
+                    .eq('student_id', studentId)
+                    .eq('verification_type', 'CLOSING')
+                    .in('session_id', sessionIds)
+            ]);
 
-            if (recordsError) throw recordsError;
+            const recordMap = new Map((records || []).map(r => [r.session_id, r.status]));
+            const exitVerificationMap = new Map((verifications || []).map(v => [v.session_id, true]));
 
             return sessions.map((s: any) => {
-                const record = records?.find(r => r.session_id === s.id);
-                const status = record?.status || 'PENDING';
+                const status = recordMap.get(s.id) || 'PENDING';
+                const alreadyExited = exitVerificationMap.get(s.id) || false;
 
                 // Logic for recommended action (PUNCH_IN, PUNCH_OUT, COMPLETED)
                 let recommendedAction = 'PUNCH_IN';
@@ -524,12 +533,18 @@ export class AttendanceService {
                 const hasPunchedIn = status === 'PRESENT' || status === 'LATE';
                 const canPunchOut = s.is_checkout_active === true || s.status === 'IDENTIFYING_EXIT' || s.status === 'CLOSED';
 
-                if (hasPunchedIn && canPunchOut) recommendedAction = 'PUNCH_OUT';
-                else if (hasPunchedIn) recommendedAction = 'COMPLETED';
+                if (alreadyExited) {
+                    recommendedAction = 'COMPLETED';
+                } else if (hasPunchedIn && canPunchOut) {
+                    recommendedAction = 'PUNCH_OUT';
+                } else if (hasPunchedIn) {
+                    recommendedAction = 'COMPLETED';
+                }
 
                 return {
                     ...s,
                     student_status: status,
+                    has_exited: alreadyExited,
                     recommended_action: recommendedAction
                 };
             });
