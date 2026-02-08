@@ -10,7 +10,7 @@ export class ApprovalService {
      * Approve an item (Course, Lesson, Material, Assignment, Quiz)
      */
     static async approveItem(
-        type: 'course' | 'lesson' | 'material' | 'assignment' | 'quiz',
+        type: 'course' | 'lesson' | 'material' | 'assignment' | 'quiz' | 'batch' | 'live_class' | 'attendance_session',
         id: number,
         companyId: number,
         approvedBy: number
@@ -38,7 +38,7 @@ export class ApprovalService {
      * Reject an item with a reason
      */
     static async rejectItem(
-        type: 'course' | 'lesson' | 'material' | 'assignment' | 'quiz',
+        type: 'course' | 'lesson' | 'material' | 'assignment' | 'quiz' | 'batch' | 'live_class' | 'attendance_session',
         id: number,
         companyId: number,
         rejectedBy: number,
@@ -69,12 +69,15 @@ export class ApprovalService {
      * Get pending items for review
      */
     static async getPendingItems(companyId: number) {
-        const [courses, lessons, materials, assignments, quizzes] = await Promise.all([
+        const [courses, lessons, materials, assignments, quizzes, batches, liveClasses, attendanceSessions] = await Promise.all([
             this.fetchPending('course', companyId),
             this.fetchPending('lesson', companyId),
             this.fetchPending('material', companyId),
             this.fetchPending('assignment', companyId),
-            this.fetchPending('quiz', companyId)
+            this.fetchPending('quiz', companyId),
+            this.fetchPending('batch', companyId),
+            this.fetchPending('live_class', companyId),
+            this.fetchPending('attendance_session', companyId)
         ]);
 
         return {
@@ -82,7 +85,10 @@ export class ApprovalService {
             lessons,
             materials,
             assignments,
-            quizzes
+            quizzes,
+            batches,
+            live_classes: liveClasses,
+            attendance_sessions: attendanceSessions
         };
     }
 
@@ -96,6 +102,9 @@ export class ApprovalService {
             case 'material': return ems.courseMaterials();
             case 'assignment': return ems.assignments();
             case 'quiz': return ems.quizzes();
+            case 'batch': return ems.batches();
+            case 'live_class': return ems.liveClasses();
+            case 'attendance_session': return ems.attendanceSessions();
             default: throw new AppError('INVALID_TYPE', `Unknown content type: ${type}`, 400);
         }
     }
@@ -110,12 +119,10 @@ export class ApprovalService {
         let query = table.select('*').eq('company_id', companyId).eq('approval_status', 'PENDING');
 
         // Add joins based on type for better context
-        if (type === 'lesson') {
+        if (type === 'lesson' || type === 'material' || type === 'assignment' || type === 'quiz' || type === 'batch' || type === 'attendance_session') {
             query = table.select('*, course:courses(course_name)').eq('company_id', companyId).eq('approval_status', 'PENDING');
-        } else if (type === 'material') {
-            query = table.select('*, course:courses(course_name)').eq('company_id', companyId).eq('approval_status', 'PENDING');
-        } else if (type === 'assignment' || type === 'quiz') {
-            query = table.select('*, course:courses(course_name)').eq('company_id', companyId).eq('approval_status', 'PENDING');
+        } else if (type === 'live_class') {
+            query = table.select('*, courses:course_id(course_name)').eq('company_id', companyId).eq('approval_status', 'PENDING');
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });

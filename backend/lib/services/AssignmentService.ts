@@ -52,8 +52,13 @@ export class AssignmentService {
      * Create a new assignment
      */
     static async createAssignment(data: Partial<Assignment>) {
+        const assignmentData = {
+            ...data,
+            approval_status: 'PENDING'
+        };
+
         const { data: assignment, error } = await ems.assignments()
-            .insert([data])
+            .insert([assignmentData])
             .select()
             .single();
 

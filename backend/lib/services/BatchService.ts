@@ -46,6 +46,7 @@ export class BatchService {
             .insert({
                 ...batchData,
                 current_strength: 0,
+                approval_status: 'PENDING'
             })
             .select()
             .single();

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
     Bell,
     User,
@@ -17,6 +17,8 @@ import {
     LayoutDashboard,
     Video,
     Upload,
+    GraduationCap,
+    Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +30,8 @@ import NotificationPanel from "@/components/notifications/NotificationPanel";
 
 export function TutorTopNavbar() {
     const pathname = usePathname();
-    const { user } = useAuthStore();
+    const router = useRouter();
+    const { user, logout } = useAuthStore();
     const { unreadCount, fetchNotifications } = useNotificationStore();
     const [showSearch, setShowSearch] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -36,14 +39,17 @@ export function TutorTopNavbar() {
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationRef = useRef<HTMLDivElement>(null);
 
-    const quickActions = [
+    const navigationLinks = [
         { label: "Dashboard", href: "/ems/tutor/dashboard", icon: LayoutDashboard },
         { label: "My Courses", href: "/ems/tutor/courses", icon: BookOpen },
+        { label: "Batches", href: "/ems/tutor/batches", icon: Layers },
         { label: "Assignments", href: "/ems/tutor/assignments", icon: FileText },
+        { label: "Quizzes", href: "/ems/tutor/quizzes", icon: GraduationCap },
         { label: "Live Classes", href: "/ems/tutor/live-classes", icon: Video },
         { label: "Grading", href: "/ems/tutor/grading", icon: CheckSquare },
-        { label: "Students", href: "/ems/tutor/students", icon: Users },
         { label: "Attendance", href: "/ems/tutor/attendance", icon: Calendar },
+        { label: "Materials", href: "/ems/tutor/materials", icon: Upload },
+        { label: "Students", href: "/ems/tutor/students", icon: Users },
     ];
 
     useEffect(() => {
@@ -170,7 +176,7 @@ export function TutorTopNavbar() {
                                             <div className="px-3 py-1.5">
                                                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Navigation</p>
                                             </div>
-                                            {quickActions.map((action) => {
+                                            {navigationLinks.map((action) => {
                                                 const Icon = action.icon;
                                                 return (
                                                     <Link
@@ -200,17 +206,17 @@ export function TutorTopNavbar() {
 
                                         {/* Logout */}
                                         <div className="border-t border-gray-200 py-1">
-                                            <Link
-                                                href="/login"
+                                            <button
                                                 onClick={() => {
                                                     setShowProfileMenu(false);
-                                                    // Trigger logout logic if needed
+                                                    logout();
+                                                    router.push("/login");
                                                 }}
-                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                             >
                                                 <LogOut className="h-4 w-4" />
                                                 <span className="font-medium">Logout</span>
-                                            </Link>
+                                            </button>
                                         </div>
                                     </motion.div>
                                 )}

@@ -1,0 +1,5 @@
+﻿[dotenv@17.2.3] injecting env (14) from .env.local -- tip: ≡ƒöÉ prevent building .env in docker: https://dotenvx.com/prebuild
+attendance_sessions: false
+live_classes: true
+batches: false
+courses: true

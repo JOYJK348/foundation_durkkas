@@ -192,6 +192,11 @@ export class CourseService {
                 // COMPUTE VISIBILITY FOR MODULE
                 module.visibility = module.is_active ? 'ENROLLED' : 'PRIVATE';
 
+                // 🛡️ STUDENT FILTER: Must be APPROVED
+                if (emsProfile?.profileType === 'student' && module.approval_status !== 'APPROVED') {
+                    module.visibility = 'PRIVATE';
+                }
+
                 // Process Module Level Materials
                 module.course_materials = processMaterials(module.course_materials);
 
@@ -423,7 +428,10 @@ export class CourseService {
         moduleData.approval_status = 'PENDING';
 
         const { data, error } = await ems.courseModules()
-            .insert(moduleData)
+            .insert({
+                ...moduleData,
+                approval_status: 'PENDING'
+            })
             .select()
             .single();
 

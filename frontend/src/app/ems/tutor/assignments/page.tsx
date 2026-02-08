@@ -32,6 +32,7 @@ interface Assignment {
     deadline: string;
     submission_mode: 'ONLINE' | 'OFFLINE';
     is_active: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
     courses?: {
         course_name: string;
         course_code: string;
@@ -147,16 +148,26 @@ export default function TutorAssignmentsPage() {
                                             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                 <FileText className="h-6 w-6 text-blue-600" />
                                             </div>
-                                            <span
-                                                className={`px-3 py-1 rounded-full text-xs font-medium ${new Date(assignment.deadline) < new Date()
-                                                    ? "bg-red-100 text-red-700"
-                                                    : "bg-green-100 text-green-700"
-                                                    }`}
-                                            >
-                                                {new Date(assignment.deadline) < new Date()
-                                                    ? "Expired"
-                                                    : "Active"}
-                                            </span>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span
+                                                    className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-tighter ${assignment.approval_status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                                        assignment.approval_status === 'REJECTED' ? 'bg-rose-100 text-rose-700' :
+                                                            'bg-amber-100 text-amber-700'
+                                                        }`}
+                                                >
+                                                    {assignment.approval_status}
+                                                </span>
+                                                <span
+                                                    className={`px-3 py-1 rounded-full text-[10px] font-bold ${new Date(assignment.deadline) < new Date()
+                                                        ? "bg-red-50 text-red-500"
+                                                        : "bg-green-50 text-green-600"
+                                                        }`}
+                                                >
+                                                    {new Date(assignment.deadline) < new Date()
+                                                        ? "Expired"
+                                                        : "Active"}
+                                                </span>
+                                            </div>
                                         </div>
                                         <CardTitle className="text-lg mt-3 line-clamp-2">
                                             {assignment.assignment_title}

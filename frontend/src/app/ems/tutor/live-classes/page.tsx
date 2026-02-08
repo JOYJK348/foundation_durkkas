@@ -100,7 +100,6 @@ export default function TutorLiveClasses() {
                             <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                                 My Live Classes
                             </h1>
-                            <p className="text-gray-600">Manage your teaching sessions</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border shadow-sm">

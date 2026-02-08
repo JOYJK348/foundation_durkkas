@@ -38,6 +38,7 @@ interface Quiz {
     max_attempts?: number;
     total_questions?: number;
     is_active: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
     created_at: string;
     courses?: {
         course_name: string;
@@ -272,16 +273,13 @@ export default function TutorQuizzesPage() {
                         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                             My Quizzes
                         </h1>
-                        <p className="text-gray-600 mt-1">
-                            Create and manage course assessments
-                        </p>
                     </div>
                     <Button
                         onClick={openCreateModal}
                         className="bg-blue-600 hover:bg-blue-700"
                     >
                         <Plus className="h-4 w-4 mr-2" />
-                        Create Quiz
+                        Request Quiz Approval
                     </Button>
                 </div>
 
@@ -322,7 +320,7 @@ export default function TutorQuizzesPage() {
                                 className="bg-blue-600 hover:bg-blue-700"
                             >
                                 <Plus className="h-4 w-4 mr-2" />
-                                Create First Quiz
+                                Request First Quiz Approval
                             </Button>
                         </CardContent>
                     </Card>
@@ -340,14 +338,24 @@ export default function TutorQuizzesPage() {
                                             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                 <BookOpen className="h-6 w-6 text-blue-600" />
                                             </div>
-                                            <span
-                                                className={`px-3 py-1 rounded-full text-xs font-medium ${quiz.is_active
-                                                    ? "bg-green-100 text-green-700"
-                                                    : "bg-gray-100 text-gray-700"
-                                                    }`}
-                                            >
-                                                {quiz.is_active ? "Active" : "Inactive"}
-                                            </span>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span
+                                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${quiz.approval_status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                                        quiz.approval_status === 'REJECTED' ? 'bg-rose-100 text-rose-700' :
+                                                            'bg-amber-100 text-amber-700'
+                                                        }`}
+                                                >
+                                                    {quiz.approval_status}
+                                                </span>
+                                                <span
+                                                    className={`px-3 py-1 rounded-full text-[10px] font-medium ${quiz.is_active
+                                                        ? "bg-green-50 text-green-600"
+                                                        : "bg-gray-50 text-gray-500"
+                                                        }`}
+                                                >
+                                                    {quiz.is_active ? "Active" : "Inactive"}
+                                                </span>
+                                            </div>
                                         </div>
                                         <CardTitle className="text-lg mt-3 line-clamp-2">
                                             {quiz.quiz_title}
@@ -478,7 +486,7 @@ export default function TutorQuizzesPage() {
                         >
                             <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
                                 <h2 className="text-2xl font-bold text-gray-900">
-                                    {editingQuiz ? "Edit Quiz" : "Create New Quiz"}
+                                    {editingQuiz ? "Edit Quiz" : "Request New Quiz Approval"}
                                 </h2>
                                 <Button
                                     variant="ghost"
@@ -682,10 +690,10 @@ export default function TutorQuizzesPage() {
                                         {isSubmitting ? (
                                             <>
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Saving...
+                                                Submitting...
                                             </>
                                         ) : (
-                                            editingQuiz ? "Update Quiz" : "Create Quiz"
+                                            editingQuiz ? "Update Quiz" : "Submit for Approval"
                                         )}
                                     </Button>
                                 </div>

@@ -1,0 +1,2 @@
+﻿[dotenv@17.2.3] injecting env (14) from .env.local -- tip: ΓÜÖ∩╕Å  override existing env vars with { override: true }
+attendance_sessions: error/no_rpc

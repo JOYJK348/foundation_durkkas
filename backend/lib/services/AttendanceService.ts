@@ -63,7 +63,8 @@ export class AttendanceService {
                 batch_id: sessionData.batchId,
                 session_date: sessionData.sessionDate,
                 session_type: sessionData.sessionType,
-                status: 'SCHEDULED'
+                status: 'SCHEDULED',
+                approval_status: 'PENDING'
             };
 
             // Add optional fields if provided

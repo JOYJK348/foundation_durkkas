@@ -125,6 +125,9 @@ export class QuizService {
     static async createQuiz(data: any) {
         const { assignments, ...quizData } = data;
 
+        // Set default approval status
+        quizData.approval_status = 'PENDING';
+
         const { data: result, error } = await ems.quizzes()
             .insert(quizData)
             .select()

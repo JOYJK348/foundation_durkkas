@@ -21,11 +21,35 @@ import {
     Plus,
     MoreVertical,
     Eye,
-    EyeOff
+    EyeOff,
+    Upload,
+    FileUp,
+    Layout,
+    Type,
+    BrainCircuit,
+    Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface Lesson {
     id: number;
@@ -34,6 +58,7 @@ interface Lesson {
     lesson_type: string;
     duration_minutes: number;
     visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 interface Module {
@@ -41,6 +66,7 @@ interface Module {
     module_name: string;
     module_number: number;
     visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
     lessons: Lesson[];
 }
 
@@ -60,6 +86,19 @@ interface CourseDetails {
 export default function CourseManagementPage() {
     const params = useParams();
     const router = useRouter();
+    const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
+    const [isAddLessonOpen, setIsAddLessonOpen] = useState(false);
+    const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Form States
+    const [moduleName, setModuleName] = useState("");
+    const [lessonData, setLessonData] = useState({
+        lesson_name: "",
+        lesson_type: "VIDEO",
+        duration_minutes: 30,
+        content_body: ""
+    });
     const [course, setCourse] = useState<CourseDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("curriculum");
@@ -82,6 +121,51 @@ export default function CourseManagementPage() {
             toast.error("Failed to load course details");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAddModule = async () => {
+        if (!moduleName.trim()) return toast.error("Module name is required");
+        try {
+            setIsSubmitting(true);
+            const response = await api.post(`/ems/courses/${params.id}/modules`, {
+                module_name: moduleName,
+                module_order: (course?.course_modules?.length || 0) + 1,
+            });
+            if (response.data.success) {
+                toast.success("Module created and sent for approval");
+                setIsAddModuleOpen(false);
+                setModuleName("");
+                fetchCourseDetails();
+            }
+        } catch (error) {
+            toast.error("Failed to create module");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleAddLesson = async () => {
+        if (!lessonData.lesson_name.trim()) return toast.error("Lesson name is required");
+        if (!selectedModuleId) return toast.error("Module selection is required");
+
+        try {
+            setIsSubmitting(true);
+            const response = await api.post(`/ems/courses/modules/${selectedModuleId}/lessons`, {
+                ...lessonData,
+                duration_minutes: Number(lessonData.duration_minutes),
+                lesson_order: 1, // Will be handled by backend usually
+            });
+            if (response.data.success) {
+                toast.success("Lesson submitted for manager approval");
+                setIsAddLessonOpen(false);
+                setLessonData({ lesson_name: "", lesson_type: "VIDEO", duration_minutes: 30, content_body: "" });
+                fetchCourseDetails();
+            }
+        } catch (error) {
+            toast.error("Failed to submit lesson");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -158,12 +242,15 @@ export default function CourseManagementPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" className="hidden sm:flex">
+                        <Button variant="outline" className="hidden sm:flex" onClick={() => window.open(`/ems/courses/${course.id}`, '_blank')}>
                             Preview as Student
                         </Button>
-                        <Button className="bg-blue-600 hover:bg-blue-700 shadow-md">
+                        <Button
+                            className="bg-blue-600 hover:bg-blue-700 shadow-md"
+                            onClick={() => setIsAddModuleOpen(true)}
+                        >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add Content
+                            Request Module Approval
                         </Button>
                     </div>
                 </div>
@@ -201,7 +288,7 @@ export default function CourseManagementPage() {
                                     <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                                     <h3 className="text-lg font-bold">Your curriculum is empty</h3>
                                     <p className="text-gray-500 mb-6">Start by creating your first module and lessons.</p>
-                                    <Button className="bg-blue-600">Create First Module</Button>
+                                    <Button className="bg-blue-600" onClick={() => setIsAddModuleOpen(true)}>Request First Module Approval</Button>
                                 </Card>
                             ) : (
                                 course.course_modules.map((module, mIdx) => (
@@ -212,7 +299,15 @@ export default function CourseManagementPage() {
                                                     {module.module_number}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-gray-900">{module.module_name}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-bold text-gray-900">{module.module_name}</h3>
+                                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${module.approval_status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                                            module.approval_status === 'REJECTED' ? 'bg-rose-100 text-rose-700' :
+                                                                'bg-amber-100 text-amber-700'
+                                                            }`}>
+                                                            {module.approval_status}
+                                                        </span>
+                                                    </div>
                                                     <p className="text-xs text-gray-500">{module.lessons?.length || 0} Lessons</p>
                                                 </div>
                                             </div>
@@ -221,8 +316,8 @@ export default function CourseManagementPage() {
                                                     variant="ghost"
                                                     size="sm"
                                                     className={`h-8 gap-2 px-3 text-xs font-bold transition-all ${module.visibility === 'PUBLIC' ? 'text-blue-600 hover:bg-blue-50' :
-                                                            module.visibility === 'ENROLLED' ? 'text-green-600 hover:bg-green-50' :
-                                                                'text-gray-400 hover:bg-gray-50'
+                                                        module.visibility === 'ENROLLED' ? 'text-green-600 hover:bg-green-50' :
+                                                            'text-gray-400 hover:bg-gray-50'
                                                         }`}
                                                     onClick={() => togglePublish('module', module.id, module.visibility)}
                                                 >
@@ -247,10 +342,16 @@ export default function CourseManagementPage() {
                                                             <div className="flex items-center gap-2">
                                                                 <h4 className="text-sm font-semibold text-gray-800">{lesson.lesson_name}</h4>
                                                                 <span className={`text-[8px] px-1 rounded uppercase font-bold ${lesson.visibility === 'PUBLIC' ? 'bg-blue-100 text-blue-600' :
-                                                                        lesson.visibility === 'ENROLLED' ? 'bg-green-100 text-green-600' :
-                                                                            'bg-orange-100 text-orange-600'
+                                                                    lesson.visibility === 'ENROLLED' ? 'bg-green-100 text-green-600' :
+                                                                        'bg-orange-100 text-orange-600'
                                                                     }`}>
                                                                     {lesson.visibility}
+                                                                </span>
+                                                                <span className={`text-[8px] px-1 rounded uppercase font-black tracking-tighter ${lesson.approval_status === 'APPROVED' ? 'text-emerald-600' :
+                                                                    lesson.approval_status === 'REJECTED' ? 'text-rose-600' :
+                                                                        'text-amber-600'
+                                                                    }`}>
+                                                                    • {lesson.approval_status}
                                                                 </span>
                                                             </div>
                                                             <div className="flex items-center gap-2 text-[10px] text-gray-500 uppercase font-bold tracking-wider mt-0.5">
@@ -269,17 +370,27 @@ export default function CourseManagementPage() {
                                                     </div>
                                                 </div>
                                             ))}
-                                            <button className="w-full py-3 px-6 text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2">
+                                            <button
+                                                className="w-full py-3 px-6 text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2"
+                                                onClick={() => {
+                                                    setSelectedModuleId(module.id);
+                                                    setIsAddLessonOpen(true);
+                                                }}
+                                            >
                                                 <Plus className="h-3 w-3" />
-                                                Add Lesson to this Module
+                                                Request Lesson Approval for this Module
                                             </button>
                                         </div>
                                     </Card>
                                 ))
                             )}
-                            <Button variant="outline" className="w-full py-8 border-dashed border-2 hover:bg-white hover:border-blue-400 hover:text-blue-600 transition-all">
+                            <Button
+                                variant="outline"
+                                className="w-full py-8 border-dashed border-2 hover:bg-white hover:border-blue-400 hover:text-blue-600 transition-all"
+                                onClick={() => setIsAddModuleOpen(true)}
+                            >
                                 <Plus className="h-5 w-5 mr-2" />
-                                Add New Module
+                                Request New Module Approval
                             </Button>
                         </motion.div>
                     )}
@@ -298,6 +409,122 @@ export default function CourseManagementPage() {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Modals */}
+            <Dialog open={isAddModuleOpen} onOpenChange={setIsAddModuleOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Layout className="h-5 w-5 text-blue-600" />
+                            Request New Module Approval
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="module_name">Module Name</Label>
+                            <Input
+                                id="module_name"
+                                placeholder="e.g., Introduction to React"
+                                value={moduleName}
+                                onChange={(e) => setModuleName(e.target.value)}
+                            />
+                        </div>
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex gap-3">
+                            <Info className="h-5 w-5 text-amber-600 shrink-0" />
+                            <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                                <span className="font-bold block uppercase tracking-tighter mb-0.5">Approval Workflow:</span>
+                                New modules will be sent to the Academic Manager for review. Once approved, you can start adding lessons.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddModuleOpen(false)}>Cancel</Button>
+                        <Button
+                            className="bg-blue-600"
+                            onClick={handleAddModule}
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Module"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAddLessonOpen} onOpenChange={setIsAddLessonOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Type className="h-5 w-5 text-blue-600" />
+                            Request New Lesson Approval
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Lesson Name</Label>
+                                <Input
+                                    placeholder="Lesson title"
+                                    value={lessonData.lesson_name}
+                                    onChange={(e) => setLessonData({ ...lessonData, lesson_name: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Lesson Type</Label>
+                                <Select
+                                    value={lessonData.lesson_type}
+                                    onValueChange={(v) => setLessonData({ ...lessonData, lesson_type: v })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="VIDEO">Video Lecture</SelectItem>
+                                        <SelectItem value="DOCUMENT">Document / Text</SelectItem>
+                                        <SelectItem value="OFFLINE">Offline Link</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Duration (Minutes)</Label>
+                            <Input
+                                type="number"
+                                value={lessonData.duration_minutes}
+                                onChange={(e) => setLessonData({ ...lessonData, duration_minutes: parseInt(e.target.value) })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Brief Content Description</Label>
+                            <Textarea
+                                placeholder="What will students learn in this lesson?"
+                                className="h-24 resize-none"
+                                value={lessonData.content_body}
+                                onChange={(e) => setLessonData({ ...lessonData, content_body: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 flex gap-3">
+                            <BrainCircuit className="h-5 w-5 text-blue-600 shrink-0" />
+                            <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
+                                <span className="font-bold block uppercase tracking-tighter mb-0.5">Manager Review Required:</span>
+                                Lessons are automatically marked as 'Pending Approval'. They will appear in the Academic Manager's dashboard for verification.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddLessonOpen(false)}>Cancel</Button>
+                        <Button
+                            className="bg-blue-600"
+                            onClick={handleAddLesson}
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit for Approval"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <TutorBottomNav />
         </div>

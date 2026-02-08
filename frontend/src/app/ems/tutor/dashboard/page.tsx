@@ -90,12 +90,12 @@ export default function TutorDashboard() {
     ];
 
     const quickActions = [
-        { label: "Live Classes", icon: Video, href: "/ems/tutor/live-classes", color: "blue" },
-        { label: "Assignments", icon: FileText, href: "/ems/tutor/assignments", color: "green" },
-        { label: "Quizzes", icon: BookOpen, href: "/ems/tutor/quizzes", color: "purple" },
+        { label: "Create Batch", icon: Layers, href: "/ems/tutor/batches/create", color: "blue" },
+        { label: "Live Schedule", icon: Video, href: "/ems/tutor/live-classes/create", color: "rose" },
+        { label: "New Assignment", icon: FileText, href: "/ems/tutor/assignments/create", color: "green" },
+        { label: "New Quiz", icon: BookOpen, href: "/ems/tutor/quizzes", color: "purple" },
+        { label: "Attend Portal", icon: Calendar, href: "/ems/tutor/attendance", color: "orange" },
         { label: "Students", icon: Users, href: "/ems/tutor/students", color: "red" },
-        { label: "Attendance", icon: Calendar, href: "/ems/tutor/attendance", color: "orange" },
-        { label: "Analytics", icon: TrendingUp, href: "/ems/tutor/analytics", color: "pink" },
     ];
 
     return (

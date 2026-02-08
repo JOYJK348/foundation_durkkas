@@ -15,7 +15,10 @@ import {
     BookOpen,
     ClipboardList,
     GraduationCap,
-    Layout
+    Layout,
+    Users,
+    Video,
+    CalendarCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
@@ -49,7 +52,10 @@ const ApprovalsPage = () => {
         lessons: [],
         materials: [],
         assignments: [],
-        quizzes: []
+        quizzes: [],
+        batches: [],
+        live_classes: [],
+        attendance_sessions: []
     });
     const [activeTab, setActiveTab] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
@@ -94,11 +100,14 @@ const ApprovalsPage = () => {
             ...pendingData.lessons.map((i: any) => ({ ...i, type: 'lesson', displayType: 'Lesson', icon: Layout })),
             ...pendingData.materials.map((i: any) => ({ ...i, type: 'material', displayType: 'Material', icon: FileText })),
             ...pendingData.assignments.map((i: any) => ({ ...i, type: 'assignment', displayType: 'Assignment', icon: ClipboardList })),
-            ...pendingData.quizzes.map((i: any) => ({ ...i, type: 'quiz', displayType: 'Quiz', icon: GraduationCap }))
+            ...pendingData.quizzes.map((i: any) => ({ ...i, type: 'quiz', displayType: 'Quiz', icon: GraduationCap })),
+            ...pendingData.batches.map((i: any) => ({ ...i, type: 'batch', displayType: 'Batch', icon: Users })),
+            ...pendingData.live_classes.map((i: any) => ({ ...i, type: 'live_class', displayType: 'Live Class', icon: Video })),
+            ...pendingData.attendance_sessions.map((i: any) => ({ ...i, type: 'attendance_session', displayType: 'Attendance', icon: CalendarCheck }))
         ];
 
         return items.filter(item => {
-            const matchesSearch = (item.course_name || item.lesson_name || item.material_name || item.assignment_title || item.quiz_title)
+            const matchesSearch = (item.course_name || item.lesson_name || item.material_name || item.assignment_title || item.quiz_title || item.batch_name || item.topic)
                 ?.toLowerCase().includes(searchQuery.toLowerCase());
 
             if (activeTab === "all") return matchesSearch;
@@ -127,16 +136,16 @@ const ApprovalsPage = () => {
             {/* Filters */}
             <div className="mb-8 flex flex-wrap items-center gap-4">
                 <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 flex-wrap">
-                    {["all", "course", "lesson", "material", "assignment", "quiz"].map((tab) => (
+                    {["all", "course", "lesson", "batch", "live_class", "attendance_session", "material", "assignment", "quiz"].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab
-                                    ? "bg-gray-900 text-white shadow-md"
-                                    : "text-gray-500 hover:bg-gray-50"
+                                ? "bg-gray-900 text-white shadow-md"
+                                : "text-gray-500 hover:bg-gray-50"
                                 }`}
                         >
-                            {tab}
+                            {tab.replace('_', ' ')}
                         </button>
                     ))}
                 </div>
@@ -192,9 +201,12 @@ const ApprovalsPage = () => {
                                             <TableCell className="py-6 px-8">
                                                 <div className="flex items-center gap-4">
                                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${item.type === 'course' ? 'bg-blue-50 text-blue-600' :
-                                                            item.type === 'lesson' ? 'bg-indigo-50 text-indigo-600' :
-                                                                item.type === 'material' ? 'bg-orange-50 text-orange-600' :
-                                                                    'bg-purple-50 text-purple-600'
+                                                        item.type === 'lesson' ? 'bg-indigo-50 text-indigo-600' :
+                                                            item.type === 'batch' ? 'bg-emerald-50 text-emerald-600' :
+                                                                item.type === 'live_class' ? 'bg-rose-50 text-rose-600' :
+                                                                    item.type === 'attendance_session' ? 'bg-amber-50 text-amber-600' :
+                                                                        item.type === 'material' ? 'bg-orange-50 text-orange-600' :
+                                                                            'bg-purple-50 text-purple-600'
                                                         }`}>
                                                         <item.icon className="h-6 w-6" />
                                                     </div>
@@ -203,7 +215,7 @@ const ApprovalsPage = () => {
                                                             {item.displayType}
                                                         </Badge>
                                                         <h4 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors capitalize">
-                                                            {item.course_name || item.lesson_name || item.material_name || item.assignment_title || item.quiz_title}
+                                                            {item.course_name || item.lesson_name || item.material_name || item.assignment_title || item.quiz_title || item.batch_name || item.topic || `Session ${item.id}`}
                                                         </h4>
                                                     </div>
                                                 </div>
