@@ -11,19 +11,10 @@ import { attendanceSessionSchema, attendanceRecordSchema } from '@/lib/validatio
 import { AttendanceService } from '@/lib/services/AttendanceService';
 import { ems } from '@/lib/supabase';
 import { z } from 'zod';
-import * as fs from 'fs';
-import * as path from 'path';
 
-const LOG_FILE = path.join(process.cwd(), 'attendance_debug.log');
 
 function logToFile(msg: string, data?: any) {
-    try {
-        const timestamp = new Date().toISOString();
-        const logMsg = `[${timestamp}] ${msg} ${data ? JSON.stringify(data, null, 2) : ''}\n`;
-        fs.appendFileSync(LOG_FILE, logMsg);
-    } catch (e) {
-        console.error('Logging failed:', e);
-    }
+    console.log(`[LOG] ${msg}`, data ? JSON.stringify(data) : '');
 }
 
 export async function GET(req: NextRequest) {
@@ -148,20 +139,13 @@ export async function POST(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const mode = searchParams.get('mode') || 'session'; // session, record, student-mark
 
-        // LOG TO FILE START
-        try {
-            fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] POST Request Start - Mode: ${mode}\n`);
-        } catch (e) { }
-
         let data: any;
         try {
             data = await req.json();
-            fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] POST Payload: ${JSON.stringify(data).substring(0, 500)}...\n`);
+            console.log(`[API] Attendance POST Payload:`, data);
         } catch (jsonErr: any) {
-            try {
-                fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] JSON Parse Error: ${jsonErr.message}\n`);
-            } catch (e) { }
-            return errorResponse(null, 'Invalid JSON payload', 400);
+            console.error(`[API] JSON Parse Error:`, jsonErr.message);
+            return errorResponse('INVALID_JSON', 'Invalid JSON payload', 400);
         }
 
         console.log(`[API] Attendance POST mode=${mode}`, data);
@@ -174,7 +158,7 @@ export async function POST(req: NextRequest) {
                 .single() as any;
 
             if (studentError) {
-                fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] Student Fetch Error for ${userId}: ${JSON.stringify(studentError)}\n`);
+                console.error(`[API] Student Fetch Error for ${userId}:`, studentError);
                 if (studentError.code === 'PGRST116') {
                     return errorResponse(null, 'Student record not found (User is not linked to a student profile)', 404);
                 }

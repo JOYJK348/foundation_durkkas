@@ -4,19 +4,9 @@
  */
 
 import { ems, core } from '@/lib/supabase';
-import * as fs from 'fs';
-import * as path from 'path';
-
-const LOG_FILE = path.join(process.cwd(), 'attendance_debug.log');
 
 function logToFile(msg: string, data?: any) {
-    try {
-        const timestamp = new Date().toISOString();
-        const logMsg = `[${timestamp}] ${msg} ${data ? JSON.stringify(data, null, 2) : ''}\n`;
-        fs.appendFileSync(LOG_FILE, logMsg);
-    } catch (e) {
-        console.error('Logging failed:', e);
-    }
+    console.log(`[AttendanceService] ${msg}`, data ? JSON.stringify(data) : '');
 }
 
 export interface FaceVerificationData {
