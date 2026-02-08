@@ -182,12 +182,12 @@ export default function StudentDashboard() {
                         <div className="text-left">
                             <div className="text-xs font-black uppercase tracking-widest leading-none mb-0.5">Attendance</div>
                             <div className="text-[10px] text-blue-100 font-bold leading-none">
-                                {dashboardData.active_attendance_sessions?.some((s: any) => s.status === 'IDENTIFYING_EXIT')
+                                {dashboardData.active_attendance_sessions?.some((s: any) => s.recommended_action === 'PUNCH_OUT')
                                     ? "Punch Exit"
-                                    : dashboardData.active_attendance_sessions?.some((s: any) => s.status === 'IDENTIFYING_ENTRY')
+                                    : dashboardData.active_attendance_sessions?.some((s: any) => s.recommended_action === 'PUNCH_IN')
                                         ? "Punch Entry"
-                                        : dashboardData.active_attendance_sessions?.length > 0
-                                            ? "Punch Now"
+                                        : dashboardData.active_attendance_sessions?.some((s: any) => s.recommended_action === 'COMPLETED')
+                                            ? "Checked In"
                                             : "Check Sessions"}
                             </div>
                         </div>

@@ -433,8 +433,20 @@ export class AttendanceService {
             if (enrollError) throw enrollError;
             if (!enrollments || enrollments.length === 0) return [];
 
-            const batchIds = enrollments.map(e => e.batch_id);
-            const today = new Date().toISOString().split('T')[0];
+            const batchIds = enrollments.map(e => e.batch_id).filter(id => id !== null && id !== undefined);
+            if (batchIds.length === 0) return [];
+
+            // Timezone Resilience: Look for sessions across a 3-day window to avoid offset issues
+            const todayDate = new Date();
+            const today = todayDate.toISOString().split('T')[0];
+
+            const yesterdayDate = new Date(todayDate);
+            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+            const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+            const tomorrowDate = new Date(todayDate);
+            tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+            const tomorrow = tomorrowDate.toISOString().split('T')[0];
 
             let sessions: any[] = [];
             try {
@@ -448,7 +460,8 @@ export class AttendanceService {
                     `)
                     .eq('company_id', companyId)
                     .in('status', ['OPEN', 'IDENTIFYING_ENTRY', 'IDENTIFYING_EXIT', 'IN_PROGRESS', 'SCHEDULED'])
-                    .eq('session_date', today)
+                    .gte('session_date', yesterday)
+                    .lte('session_date', tomorrow)
                     .in('batch_id', batchIds);
 
                 if (sessionsError) throw sessionsError;
@@ -462,15 +475,16 @@ export class AttendanceService {
                         .select('id, company_id, course_id, batch_id, session_date, session_type, status')
                         .eq('company_id', companyId)
                         .in('status', ['OPEN', 'IDENTIFYING_ENTRY', 'IDENTIFYING_EXIT', 'IN_PROGRESS', 'SCHEDULED'])
-                        .eq('session_date', today)
+                        .gte('session_date', yesterday)
+                        .lte('session_date', tomorrow)
                         .in('batch_id', batchIds);
 
                     if (minError) throw minError;
 
                     if (minimalSessions && minimalSessions.length > 0) {
                         // Manually hydrate Course/Batch data to avoid 500s later in the UI
-                        const courseIds = [...new Set(minimalSessions.map(s => s.course_id))];
-                        const batchIdsSet = [...new Set(minimalSessions.map(s => s.batch_id))];
+                        const courseIds = [...new Set(minimalSessions.map(s => s.course_id))].filter(id => id !== null && id !== undefined);
+                        const batchIdsSet = [...new Set(minimalSessions.map(s => s.batch_id))].filter(id => id !== null && id !== undefined);
 
                         const [{ data: courses }, { data: batches }] = await Promise.all([
                             ems.courses().select('id, course_name, course_code').in('id', courseIds),
@@ -499,10 +513,26 @@ export class AttendanceService {
 
             if (recordsError) throw recordsError;
 
-            return sessions.map((s: any) => ({
-                ...s,
-                student_status: records?.find(r => r.session_id === s.id)?.status || 'PENDING'
-            }));
+            return sessions.map((s: any) => {
+                const record = records?.find(r => r.session_id === s.id);
+                const status = record?.status || 'PENDING';
+
+                // Logic for recommended action (PUNCH_IN, PUNCH_OUT, COMPLETED)
+                let recommendedAction = 'PUNCH_IN';
+
+                // If they punched in but session allows/requires punch out
+                const hasPunchedIn = status === 'PRESENT' || status === 'LATE';
+                const canPunchOut = s.is_checkout_active === true || s.status === 'IDENTIFYING_EXIT' || s.status === 'CLOSED';
+
+                if (hasPunchedIn && canPunchOut) recommendedAction = 'PUNCH_OUT';
+                else if (hasPunchedIn) recommendedAction = 'COMPLETED';
+
+                return {
+                    ...s,
+                    student_status: status,
+                    recommended_action: recommendedAction
+                };
+            });
         } catch (err: any) {
             logToFile('getStudentActiveSessionsWithStatus Catch Error:', { message: err.message, stack: err.stack });
             throw err;

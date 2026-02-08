@@ -19,14 +19,6 @@ export async function GET(req: NextRequest) {
         const scope = await getUserTenantScope(userId);
         logDiagnostic('Tenant scope resolved', { scope });
 
-        // 🚀 CACHE CHECK
-        const cacheKey = `student_dashboard_v3:${userId}:${scope.companyId}`;
-        const cachedData = dataCache.get(cacheKey);
-        if (cachedData) {
-            logDiagnostic('Cache hit', { cacheKey });
-            return successResponse(cachedData, 'Student dashboard (cached)');
-        }
-
         // Resolve student record - RESILIENT version
         let student;
         logDiagnostic('Resolving student record...');
@@ -208,18 +200,52 @@ export async function GET(req: NextRequest) {
         logDiagnostic('Fetching live classes...');
         try {
             const courseIds = (enrollments as any[])?.map((e: any) => e.course_id) || [];
-            if (courseIds.length > 0) {
-                const { data: rawLiveClasses, error: liveError } = await ems.liveClasses()
-                    .select('id, class_title, scheduled_date, start_time')
-                    .in('course_id', courseIds)
+            const batchIds = (enrollments as any[])?.map((e: any) => e.batch_id).filter(Boolean) || [];
+
+            if (courseIds.length > 0 || batchIds.length > 0) {
+                // Construct a robust query that finds classes by Course OR specific Batch
+                let query = ems.liveClasses()
+                    .select(`
+                        id, 
+                        class_title, 
+                        scheduled_date, 
+                        start_time, 
+                        batch_id,
+                        course_id,
+                        course:courses(id, course_name),
+                        batch:batches(id, batch_name)
+                    `)
                     .eq('company_id', companyId)
                     .gte('scheduled_date', new Date().toISOString().split('T')[0])
-                    .is('deleted_at', null)
-                    .limit(5) as any;
+                    .is('deleted_at', null);
+
+                // Build the OR filter string
+                const filters = [];
+                if (courseIds.length > 0) filters.push(`course_id.in.(${courseIds.join(',')})`);
+                if (batchIds.length > 0) filters.push(`batch_id.in.(${batchIds.join(',')})`);
+
+                if (filters.length > 0) {
+                    query = query.or(filters.join(','));
+                }
+
+                const { data: rawLiveClasses, error: liveError } = await query
+                    .order('scheduled_date', { ascending: true })
+                    .order('start_time', { ascending: true }) as any;
 
                 if (liveError) throw liveError;
-                liveClasses = rawLiveClasses || [];
-                logDiagnostic('Live classes fetched', { count: liveClasses.length });
+
+                // Final filtering: Ensure student has access to this specific combination
+                // Rule: If batch_id is set, student MUST be in that batch.
+                // If batch_id is NULL, student must be in the course.
+                liveClasses = (rawLiveClasses || []).filter((lc: any) => {
+                    const studentInBatch = lc.batch_id && batchIds.includes(lc.batch_id);
+                    const studentInCourse = lc.course_id && courseIds.includes(lc.course_id);
+
+                    if (lc.batch_id) return studentInBatch;
+                    return studentInCourse;
+                }).slice(0, 5);
+
+                logDiagnostic('Live classes filtered', { count: liveClasses.length });
             }
         } catch (e: any) {
             logDiagnostic('Live classes fetch error', { message: e.message });
@@ -229,18 +255,22 @@ export async function GET(req: NextRequest) {
         let activeSessions: any[] = [];
         logDiagnostic('Fetching attendance...');
         try {
-            activeSessions = (await AttendanceService.getStudentActiveSessionsWithStatus(companyId, studentId))
-                .filter(s => s.recommended_action !== 'COMPLETED');
+            activeSessions = await AttendanceService.getStudentActiveSessionsWithStatus(companyId, studentId);
             logDiagnostic('Attendance sessions fetched', { count: activeSessions.length });
         } catch (e: any) {
             logDiagnostic('Attendance fetch error', { message: e.message });
         }
 
+        // Calculate average progress
+        const totalProgress = enrollments.reduce((acc: number, curr: any) => acc + (curr.completion_percentage || 0), 0);
+        const averageProgress = enrollments.length > 0 ? totalProgress / enrollments.length : 0;
+
         const stats = {
             total_courses: enrollments.length,
             active_assignments: assignmentsWithStatus.filter(a => a.status === 'NOT_SUBMITTED').length,
             pending_quizzes: quizzesWithStatus.length,
-            upcoming_classes: liveClasses.length
+            upcoming_classes: liveClasses.length,
+            average_progress: averageProgress
         };
 
         const responseData = {
@@ -258,7 +288,6 @@ export async function GET(req: NextRequest) {
         };
 
         logDiagnostic('Request complete, sending successResponse');
-        dataCache.set(cacheKey, responseData, 10 * 1000);
         return successResponse(responseData, 'Student dashboard loaded');
 
     } catch (error: any) {
