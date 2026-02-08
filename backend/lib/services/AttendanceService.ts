@@ -544,13 +544,28 @@ export class AttendanceService {
      * Verify location against institution whitelist
      */
     static async verifyLocation(companyId: number, latitude: number, longitude: number) {
-        const { data, error } = await (ems.supabase.rpc as any)('verify_location', {
+        logToFile('Attempting Location RPC (EMS Schema)...');
+        let { data, error } = await (ems.supabase as any).schema('ems').rpc('verify_location', {
             p_company_id: companyId,
             p_latitude: latitude,
             p_longitude: longitude
         });
 
-        if (error) throw error;
+        if (error) {
+            logToFile('EMS RPC Failed, trying Public Schema...', error.message);
+            const publicRpc = await (ems.supabase as any).rpc('verify_location', {
+                p_company_id: companyId,
+                p_latitude: latitude,
+                p_longitude: longitude
+            });
+            data = publicRpc.data;
+            error = publicRpc.error;
+        }
+
+        if (error) {
+            logToFile('All Location RPC attempts failed:', error);
+            throw error;
+        }
 
         // RPC returns an array because it's a TABLE return type
         const result = Array.isArray(data) ? data[0] : data;
