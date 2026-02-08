@@ -618,32 +618,48 @@ export class AttendanceService {
             }
         }
 
-        let verificationId = 0;
-        try {
-            // Try to Insert face verification record
-            const { data, error } = await ems.faceVerifications()
-                .insert({
-                    company_id: companyId,
-                    session_id: verificationData.sessionId,
-                    student_id: verificationData.studentId,
-                    verification_type: verificationData.verificationType,
-                    face_image_url: verificationData.faceImageUrl,
-                    latitude: verificationData.latitude,
-                    longitude: verificationData.longitude,
-                    location_accuracy_meters: verificationData.locationAccuracy,
-                    location_verified: locationResult.is_valid,
-                    distance_from_venue_meters: locationResult.distance_meters,
-                    device_info: verificationData.deviceInfo,
-                    ip_address: verificationData.ipAddress,
-                    user_agent: verificationData.userAgent,
-                    face_match_status: 'PENDING'
-                } as any)
-                .select()
-                .single();
+        const needsFace = session?.require_face_verification !== false;
 
-            if (data) verificationId = data.id;
-        } catch (err) {
-            logToFile('Face verification table missing/error, proceeding with basic record:', err);
+        // Verify face ONLY if required
+        if (needsFace && !verificationData.faceImageUrl) {
+            return { success: false, error: 'Face verification is required for this session.' };
+        }
+
+        let verificationId = 0;
+        if (verificationData.faceImageUrl) {
+            try {
+                // Try to Insert face verification record
+                const { data, error } = await ems.faceVerifications()
+                    .insert({
+                        company_id: companyId,
+                        session_id: verificationData.sessionId,
+                        student_id: verificationData.studentId,
+                        verification_type: verificationData.verificationType,
+                        face_image_url: verificationData.faceImageUrl,
+                        latitude: verificationData.latitude,
+                        longitude: verificationData.longitude,
+                        location_accuracy_meters: verificationData.locationAccuracy,
+                        location_verified: locationResult.is_valid,
+                        distance_from_venue_meters: locationResult.distance_meters,
+                        device_info: verificationData.deviceInfo,
+                        ip_address: verificationData.ipAddress,
+                        user_agent: verificationData.userAgent,
+                        face_match_status: 'PENDING'
+                    } as any)
+                    .select()
+                    .single();
+
+                if (error) {
+                    logToFile('Face verification record insert failed:', error);
+                    // If face was REQUIRED, this is a failure.
+                    if (needsFace) return { success: false, error: 'Biometric record creation failed: ' + error.message };
+                }
+
+                if (data) verificationId = data.id;
+            } catch (err) {
+                logToFile('Face verification table missing/error, proceeding with basic record:', err);
+                if (needsFace) return { success: false, error: 'Biometric system error.' };
+            }
         }
 
         // Only update attendance if verification passed

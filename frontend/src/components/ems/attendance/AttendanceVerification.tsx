@@ -155,10 +155,13 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                 toast.dismiss();
             }
 
+            const verificationType = selectedSession.verification_type ||
+                (selectedSession.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING');
+
             const response = await api.post("/ems/attendance?mode=student-mark", {
                 session_id: selectedSession.id,
                 location: loc ? { latitude: loc.lat, longitude: loc.lng } : null,
-                verification_type: selectedSession.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING'
+                verification_type: verificationType
             });
 
             if (response.data.success) {
@@ -169,7 +172,9 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                 setStep("ERROR");
             }
         } catch (err: any) {
-            setError(err.message || "Failed to mark attendance");
+            let backendError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+            if (typeof backendError === 'object') backendError = JSON.stringify(backendError);
+            setError(backendError || "Failed to mark attendance");
             setStep("ERROR");
         }
     };
@@ -237,12 +242,15 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
             const size = Math.min(video.videoWidth, video.videoHeight);
             ctx?.drawImage(video, (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 0, 0, 480, 480);
 
+            const verificationType = selectedSession.verification_type ||
+                (selectedSession.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING');
+
             const response = await api.post("/ems/attendance?mode=student-mark", {
                 session_id: selectedSession.id,
                 captured_image: canvas.toDataURL("image/jpeg", 0.6),
                 face_descriptor: Array.from(detection.descriptor),
                 location: { latitude: location.lat, longitude: location.lng },
-                verification_type: selectedSession.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING'
+                verification_type: verificationType
             });
 
             if (response.data.success) {
@@ -283,7 +291,11 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                         </div>
                         <div>
                             <h2 className="text-xl font-bold">Punch Attendance</h2>
-                            <p className="text-blue-100 text-[10px] font-black uppercase tracking-widest opacity-80">Biometric Verification</p>
+                            <p className="text-blue-100 text-[10px] font-black uppercase tracking-widest opacity-80">
+                                {step === "CONFIRM" || (selectedSession && selectedSession.require_face_verification === false)
+                                    ? "Action Confirmation"
+                                    : "Biometric Verification"}
+                            </p>
                         </div>
                     </div>
                 </div>
