@@ -41,6 +41,7 @@ export function AcademicManagerTopNavbar() {
 
     const quickActions = [
         { label: "Dashboard", href: "/ems/academic-manager/dashboard", icon: LayoutDashboard },
+        { label: "Review Center", href: "/ems/academic-manager/approvals", icon: ClipboardCheck }, // New
         { label: "Students", href: "/ems/academic-manager/students", icon: Users },
         { label: "Courses", href: "/ems/academic-manager/courses", icon: BookOpen },
         { label: "Batches", href: "/ems/academic-manager/batches", icon: GraduationCap },
@@ -48,7 +49,7 @@ export function AcademicManagerTopNavbar() {
         { label: "Quizzes", href: "/ems/academic-manager/quizzes", icon: ClipboardCheck },
         { label: "Live Classes", href: "/ems/academic-manager/live-classes", icon: Video },
         { label: "Attendance", href: "/ems/academic-manager/attendance", icon: Calendar },
-        { label: "Materials", href: "/ems/academic-manager/materials", icon: Folder }, // Added
+        { label: "Materials", href: "/ems/academic-manager/materials", icon: Folder },
         { label: "Analytics", href: "/ems/academic-manager/analytics", icon: TrendingUp },
     ];
 

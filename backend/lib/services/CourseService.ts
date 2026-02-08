@@ -63,8 +63,7 @@ export class CourseService {
                 return [];
             }
         } else if (emsProfile?.profileType === 'student' && emsProfile.profileId) {
-            // STUDENTS: Only see courses they are enrolled in
-            // First, get enrolled course IDs
+            // STUDENTS: Only see courses they are enrolled in AND are APPROVED
             const { data: enrollments } = await ems.enrollments()
                 .select('course_id')
                 .eq('student_id', emsProfile.profileId)
@@ -73,13 +72,13 @@ export class CourseService {
             const enrolledCourseIds = enrollments?.map((e: any) => e.course_id) || [];
 
             if (enrolledCourseIds.length > 0) {
-                query = query.in('id', enrolledCourseIds);
+                query = query.in('id', enrolledCourseIds).eq('approval_status', 'APPROVED');
             } else {
-                // Student has no enrollments - return empty array
                 return [];
             }
         }
-        // MANAGERS & ADMINS: See all company courses (no additional filter)
+        // MANAGERS & ADMINS: See all company courses including PENDING/REJECTED
+        // TUTORS: Already filtered to their assigned courses above, no extra approval filter (they need to see their PENDING items)
 
         const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -171,10 +170,10 @@ export class CourseService {
                     // Tutors see everything
                     if (emsProfile?.profileType === 'tutor') return true;
 
-                    // Students: Only see active materials + target audience match
+                    // Students: Only see APPROVED materials + active + target audience match
                     if (emsProfile?.profileType === 'student') {
                         const isStudentAudience = mat.target_audience === 'STUDENTS' || mat.target_audience === 'BOTH';
-                        return mat.is_active && isStudentAudience;
+                        return mat.is_active && isStudentAudience && mat.approval_status === 'APPROVED';
                     }
 
                     return mat.is_active;
@@ -209,6 +208,11 @@ export class CourseService {
                         if (!lesson.is_active) lesson.visibility = 'PRIVATE';
                         else if (lesson.is_preview) lesson.visibility = 'PUBLIC';
                         else lesson.visibility = 'ENROLLED';
+
+                        // 🛡️ STUDENT FILTER: Must be APPROVED
+                        if (emsProfile?.profileType === 'student' && lesson.approval_status !== 'APPROVED') {
+                            lesson.visibility = 'PRIVATE';
+                        }
 
                         const isLocked = emsProfile?.profileType === 'student' && lesson.visibility === 'ENROLLED' && !isEnrolled;
 
@@ -287,6 +291,11 @@ export class CourseService {
     }
 
     static async createCourse(courseData: Partial<Course>) {
+        // Set default approval status
+        if (!courseData.approval_status) {
+            (courseData as any).approval_status = 'PENDING';
+        }
+
         const { data, error } = await ems.courses()
             .insert(courseData)
             .select()
@@ -411,6 +420,8 @@ export class CourseService {
             delete moduleData.visibility;
         }
 
+        moduleData.approval_status = 'PENDING';
+
         const { data, error } = await ems.courseModules()
             .insert(moduleData)
             .select()
@@ -427,6 +438,8 @@ export class CourseService {
             lessonData.is_preview = lessonData.visibility === 'PUBLIC';
             delete lessonData.visibility;
         }
+
+        lessonData.approval_status = 'PENDING';
 
         const { data, error } = await ems.lessons()
             .insert(lessonData)
@@ -455,7 +468,7 @@ export class CourseService {
             delete materialData.visibility;
         }
 
-        // Ensure we don't send is_published if not in schema
+        materialData.approval_status = 'PENDING';
         delete materialData.is_published;
 
         // Ensure defaults

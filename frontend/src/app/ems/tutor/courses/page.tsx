@@ -21,6 +21,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle } from "lucide-react";
 
 interface Course {
     id: number;
@@ -30,9 +32,8 @@ interface Course {
     total_lessons: number;
     thumbnail_url: string;
     is_published: boolean;
-    _count?: {
-        enrollments: number;
-    };
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
     enrollment_count?: number;
 }
 
@@ -134,10 +135,17 @@ export default function TutorCoursesPage() {
                                                 {course.is_published ? "Published" : "Draft"}
                                             </span>
                                         </div>
-                                        <div className="absolute bottom-4 left-4">
+                                        <div className="absolute top-4 left-4 flex flex-col gap-2">
                                             <span className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-[10px] font-bold text-blue-800 uppercase tracking-wider">
                                                 {course.course_code}
                                             </span>
+                                            <Badge className={`rounded-md uppercase text-[10px] font-black tracking-tight ${course.approval_status === 'APPROVED' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                                                    course.approval_status === 'REJECTED' ? 'bg-rose-500 hover:bg-rose-600' :
+                                                        'bg-amber-500 hover:bg-amber-600'
+                                                }`}>
+                                                {course.approval_status === 'REJECTED' ? 'REJECTED' :
+                                                    course.approval_status === 'APPROVED' ? 'APPROVED' : 'PENDING REVIEW'}
+                                            </Badge>
                                         </div>
                                     </div>
 
@@ -145,6 +153,17 @@ export default function TutorCoursesPage() {
                                         <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">
                                             {course.course_name}
                                         </h3>
+
+                                        {course.approval_status === 'REJECTED' && course.rejection_reason && (
+                                            <div className="mb-4 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-2">
+                                                <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                                                <p className="text-xs text-rose-700 font-medium">
+                                                    <span className="font-bold uppercase tracking-tighter mr-1 text-[9px]">Feedback:</span>
+                                                    {course.rejection_reason}
+                                                </p>
+                                            </div>
+                                        )}
+
                                         <p className="text-sm text-gray-600 mb-6 line-clamp-2">
                                             {course.course_description || "No description available for this course."}
                                         </p>

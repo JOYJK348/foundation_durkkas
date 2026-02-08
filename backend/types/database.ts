@@ -517,6 +517,10 @@ export interface Course {
     end_date?: string;
     is_published: boolean;
     status: string;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -532,6 +536,10 @@ export interface CourseModule {
     module_order: number;
     duration_hours?: number;
     is_mandatory: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -550,6 +558,10 @@ export interface Lesson {
     video_url?: string;
     is_preview: boolean;
     is_mandatory: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -628,6 +640,10 @@ export interface Quiz {
     passing_marks?: number;
     duration_minutes?: number;
     max_attempts: number;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -651,6 +667,10 @@ export interface Assignment {
     deadline?: string;
     allow_late_submission?: boolean;
     is_mandatory: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
