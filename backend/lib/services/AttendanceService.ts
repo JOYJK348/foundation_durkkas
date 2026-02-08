@@ -593,8 +593,9 @@ export class AttendanceService {
                 const loc = await this.verifyLocation(companyId, verificationData.latitude, verificationData.longitude);
                 if (loc) locationResult = loc;
             } catch (err) {
+                const underlyingError = (err as any)?.message || 'Unknown RPC error';
                 logToFile('Location verification system error:', err);
-                return { success: false, error: 'Location verification system currently unavailable. Please try again later.' };
+                return { success: false, error: `Location system error: ${underlyingError}. Please notify your administrator.` };
             }
         }
 
