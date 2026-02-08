@@ -9,6 +9,35 @@
 -- 1. FIX ATTENDANCE SESSIONS SCHEMA
 DO $$
 BEGIN
+    -- Fix Status Column (Ensure it accepts new values)
+    -- Create type if not exists or add values
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'attendance_status') THEN
+            -- Might be text check constraint, so we just add check constraint if needed
+            NULL;
+        ELSE
+            ALTER TYPE ems.attendance_status ADD VALUE IF NOT EXISTS 'IDENTIFYING_ENTRY';
+            ALTER TYPE ems.attendance_status ADD VALUE IF NOT EXISTS 'IDENTIFYING_EXIT';
+            ALTER TYPE ems.attendance_status ADD VALUE IF NOT EXISTS 'IN_PROGRESS';
+            ALTER TYPE ems.attendance_status ADD VALUE IF NOT EXISTS 'COMPLETED';
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
+
+    -- Update Check Constraint if it exists (for text columns)
+    -- This handles cases where status is VARCHAR with a CHECK constraint
+    DECLARE
+        chk_name text;
+    BEGIN
+        SELECT conname INTO chk_name FROM pg_constraint WHERE conrelid = 'ems.attendance_sessions'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%status%';
+        IF chk_name IS NOT NULL THEN
+            EXECUTE 'ALTER TABLE ems.attendance_sessions DROP CONSTRAINT ' || chk_name;
+            ALTER TABLE ems.attendance_sessions ADD CONSTRAINT attendance_sessions_status_check 
+            CHECK (status IN ('SCHEDULED', 'OPEN', 'CLOSED', 'CANCELLED', 'IN_PROGRESS', 'COMPLETED', 'IDENTIFYING_ENTRY', 'IDENTIFYING_EXIT'));
+        END IF;
+    END;
+
     -- Add class_mode
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ems' AND table_name = 'attendance_sessions' AND column_name = 'class_mode') THEN
         ALTER TABLE ems.attendance_sessions ADD COLUMN class_mode VARCHAR(20) DEFAULT 'OFFLINE';

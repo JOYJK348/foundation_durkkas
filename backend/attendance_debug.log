@@ -4493,3 +4493,825 @@
     }
   ]
 }
+[2026-02-08T04:15:47.736Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:15:48.623Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:15:49.138Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    }
+  ]
+}
+[2026-02-08T04:15:50.001Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    }
+  ]
+}
+[2026-02-08T04:15:52.686Z] POST Request Start - Mode: session-status
+[2026-02-08T04:15:52.687Z] POST Payload: {"session_id":8,"status":"IDENTIFYING_ENTRY"}...
+[2026-02-08T04:15:53.749Z] POST Request Start - Mode: session-status {
+  "session_id": 8,
+  "status": "IDENTIFYING_ENTRY",
+  "companyId": 13
+}
+[2026-02-08T04:15:54.667Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:15:56.201Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "IDENTIFYING_ENTRY",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "IDENTIFYING_ENTRY"
+    }
+  ]
+}
+[2026-02-08T04:25:16.559Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:25:17.173Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:25:17.286Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "IDENTIFYING_ENTRY",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "IDENTIFYING_ENTRY"
+    }
+  ]
+}
+[2026-02-08T04:25:17.906Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "IDENTIFYING_ENTRY",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "IDENTIFYING_ENTRY"
+    }
+  ]
+}
+[2026-02-08T04:25:45.106Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:25:45.330Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:25:45.784Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "IDENTIFYING_ENTRY",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "IDENTIFYING_ENTRY"
+    }
+  ]
+}
+[2026-02-08T04:25:46.038Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "IDENTIFYING_ENTRY",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "IDENTIFYING_ENTRY"
+    }
+  ]
+}
+[2026-02-08T04:25:47.194Z] POST Request Start - Mode: session-status
+[2026-02-08T04:25:47.194Z] POST Payload: {"session_id":5,"status":"IDENTIFYING_ENTRY"}...
+[2026-02-08T04:25:47.865Z] POST Request Start - Mode: session-status {
+  "session_id": 5,
+  "status": "IDENTIFYING_ENTRY",
+  "companyId": 13
+}
+[2026-02-08T04:25:48.479Z] getDailySchedule - Input: {
+  "companyId": 13,
+  "date": "2026-02-08"
+}
+[2026-02-08T04:25:49.502Z] getDailySchedule - Result: {
+  "count": 4,
+  "schedule": [
+    {
+      "id": 16,
+      "batch_name": "Data Science Batch C - Evening",
+      "batch_code": "DSAI-C",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 2,
+        "course_code": "DSAI-2026",
+        "course_name": "Data Science & AI Mastery"
+      },
+      "total_students": 0,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 5,
+        "status": "IDENTIFYING_ENTRY",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "IDENTIFYING_ENTRY"
+    },
+    {
+      "id": 1,
+      "batch_name": "Full Stack Batch A - Morning",
+      "batch_code": "FSD-BATCH-A",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 1,
+        "course_code": "FSD-2026",
+        "course_name": "Full Stack Development Bootcamp"
+      },
+      "total_students": 10,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": false,
+      "session": {
+        "id": 6,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "ONLINE",
+      "require_face_verification": true,
+      "require_location_verification": true,
+      "session": {
+        "id": 7,
+        "status": "SCHEDULED",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "SCHEDULED"
+    },
+    {
+      "id": 8,
+      "batch_name": "Data Science Weekend Batch",
+      "batch_code": "DS-WKND-FEB26",
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "course": {
+        "id": 17,
+        "course_code": "DS-2026-01",
+        "course_name": "Data Science & Machine Learning"
+      },
+      "total_students": 1,
+      "class_mode": "OFFLINE",
+      "require_face_verification": false,
+      "require_location_verification": true,
+      "session": {
+        "id": 8,
+        "status": "IDENTIFYING_ENTRY",
+        "present_count": 0,
+        "absent_count": 0
+      },
+      "status": "IDENTIFYING_ENTRY"
+    }
+  ]
+}

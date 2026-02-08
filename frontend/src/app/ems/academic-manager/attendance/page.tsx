@@ -94,10 +94,16 @@ export default function AttendancePage() {
                 toast.success(`Attendance window: ${status}`);
                 fetchDailySchedule(); // Refresh data
             }
-        } catch (error) {
+        } catch (error: any) {
             toast.dismiss();
             console.error("Error updating status:", error);
-            toast.error("Failed to update status");
+            // Check for specific API error response
+            if (error?.response?.data) {
+                console.error("API Error Details:", error.response.data);
+                toast.error(error.response.data.error?.message || "Failed to update status: API Error");
+            } else {
+                toast.error(error.message || "Failed to update status");
+            }
         }
     };
 

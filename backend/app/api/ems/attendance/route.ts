@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { successResponse, errorResponse } from '@/lib/errorHandler';
+import { successResponse, errorResponse, handleError } from '@/lib/errorHandler';
 import { getUserIdFromToken } from '@/lib/jwt';
 import { autoAssignCompany, getUserTenantScope } from '@/middleware/tenantFilter';
 import { attendanceSessionSchema, attendanceRecordSchema } from '@/lib/validations/ems';
@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
         } else if (mode === 'session-status') {
             const scope = await getUserTenantScope(userId);
             const { session_id, status } = data;
-            if (!session_id || !status) return errorResponse(null, 'Session ID and Status are required', 400);
+            if (!session_id || !status) return errorResponse('MISSING_REQUIRED_FIELDS', 'Session ID and Status are required', 400);
 
             // Added debug logging to file since console is not visible
             logToFile('POST Request Start - Mode: session-status', { session_id, status, companyId: scope.companyId });
@@ -263,9 +263,12 @@ export async function POST(req: NextRequest) {
         }
 
     } catch (error: any) {
-        if (error.name === 'ZodError') {
-            return errorResponse(error.errors, 'Validation failed', 400);
-        }
-        return errorResponse(null, error.message || 'Failed to process attendance');
+        logToFile('POST Request Fatal Error:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+        });
+        return handleError(error);
     }
 }
