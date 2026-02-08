@@ -562,35 +562,42 @@ export class AttendanceService {
      * Submit face verification for attendance
      */
     static async submitFaceVerification(verificationData: FaceVerificationData, companyId: number) {
-        // First, verify location (if RPC exists - otherwise default to true for testing)
-        let locationResult = { is_valid: false, location_name: null as string | null, distance_meters: null as number | null };
-        try {
-            const loc = await this.verifyLocation(companyId, verificationData.latitude, verificationData.longitude);
-            if (loc) locationResult = loc;
-        } catch (err) {
-            logToFile('Location verification failed/missing:', err);
-            // If secure verification is required, we should fail here.
-            // But for now, if function is missing, we might default to fail or mock true. 
-            // In Production: Default to FALSE.
-            return { success: false, error: 'Location verification system unavailable.' };
+        // Fetch session to check requirements
+        const { data: session } = await ems.attendanceSessions()
+            .select('require_location_verification, require_face_verification, status')
+            .eq('id', verificationData.sessionId)
+            .single();
+
+        const needsLocation = session?.require_location_verification !== false;
+
+        // Verify location (only if required)
+        let locationResult = { is_valid: true, location_name: 'Bypassed', distance_meters: 0 };
+
+        if (needsLocation) {
+            try {
+                const loc = await this.verifyLocation(companyId, verificationData.latitude, verificationData.longitude);
+                if (loc) locationResult = loc;
+            } catch (err) {
+                logToFile('Location verification system error:', err);
+                return { success: false, error: 'Location verification system currently unavailable. Please try again later.' };
+            }
         }
 
-        if (!locationResult.is_valid) {
-            // Check if ANY locations are actually defined for this company. 
-            // If zero locations are defined, we bypass location check to avoid blocking everyone.
-            const { count } = await ems.institutionLocations()
-                .select('*', { count: 'exact', head: true })
-                .eq('company_id', companyId)
-                .eq('is_active', true);
+        if (needsLocation && !locationResult.is_valid) {
+            // Check if ANY locations are actually defined for this company in either possible source.
+            const [{ count: emsCount }, { count: coreCount }] = await Promise.all([
+                ems.institutionLocations().select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_active', true),
+                core.locations().select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_active', true)
+            ]);
 
-            if (count === 0) {
-                logToFile('⚠️ No authorized locations defined for company. Bypassing check.');
-                locationResult = { is_valid: true, location_name: 'Bypassed (No Campus Defined)', distance_meters: 0 };
+            if ((emsCount || 0) === 0 && (coreCount || 0) === 0) {
+                logToFile('⚠️ No authorized locations defined in EMS or Core. Bypassing check.');
+                locationResult = { is_valid: true, location_name: 'Bypassed (No Campus Configured)', distance_meters: 0 };
             } else {
                 logToFile('Location verification failed:', { ...locationResult, input: verificationData });
                 return {
                     success: false,
-                    error: `Location verification failed. You are ${Math.round(locationResult.distance_meters || 0)}m away from ${locationResult.location_name || 'campus'}. Allowed: 100m.`
+                    error: `Location verification failed. You are ${Math.round(locationResult.distance_meters || 0)}m away from ${locationResult.location_name || 'the campus center'}. Allowed: 100m.`
                 };
             }
         }

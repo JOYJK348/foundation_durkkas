@@ -240,7 +240,8 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                 throw new Error(response.data.message);
             }
         } catch (err: any) {
-            const backendError = err.response?.data?.message || err.response?.data?.error || err.message;
+            let backendError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+            if (typeof backendError === 'object') backendError = JSON.stringify(backendError);
             setError(backendError || "Verification failed");
             setStep("ERROR");
         } finally {
