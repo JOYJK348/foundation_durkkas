@@ -24,6 +24,9 @@ import {
     ShieldCheck,
     MapPin,
     AlertCircle,
+    Zap,
+    Bookmark,
+    Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
@@ -52,6 +55,7 @@ interface DashboardData {
         upcoming_classes: number;
     };
     enrolled_courses: any[];
+    available_courses: any[];
     pending_assignments: any[];
     upcoming_quizzes: any[];
     upcoming_live_classes: any[];
@@ -226,69 +230,95 @@ export default function StudentDashboard() {
                     ))}
                 </div>
 
-                {/* Continue Learning */}
+                {/* Continue Learning - REFINED DYNAMIC SECTION */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="mb-8"
+                    className="mb-10"
                 >
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">Continue Learning</h2>
+                    <div className="flex items-center gap-2 mb-6">
+                        <div className="w-2 h-8 bg-blue-600 rounded-full" />
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Continue Learning</h2>
+                    </div>
+
                     {dashboardData.enrolled_courses.length === 0 ? (
-                        <Card className="border-0 shadow-lg">
-                            <CardContent className="p-12 text-center">
-                                <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">No Courses Enrolled</h3>
-                                <p className="text-gray-600">Contact your administrator to enroll in courses</p>
+                        <Card className="border-0 shadow-xl bg-white/50 backdrop-blur-sm rounded-3xl overflow-hidden border-2 border-dashed border-gray-200">
+                            <CardContent className="p-16 text-center">
+                                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <BookOpen className="h-10 w-10 text-blue-300" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">Kickstart Your Journey!</h3>
+                                <p className="text-gray-500 max-w-sm mx-auto mb-8">You haven't enrolled in any courses yet. Discover something new today.</p>
+                                <Button className="rounded-2xl px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
+                                    Browse Catalog
+                                </Button>
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {dashboardData.enrolled_courses.slice(0, 4).map((enrollment: any, index: number) => (
-                                <Card key={enrollment.id} className="border-0 shadow-lg hover:shadow-xl transition-all overflow-hidden group">
-                                    <div className="relative h-48 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {dashboardData.enrolled_courses.map((enrollment: any, index: number) => (
+                                <Card key={enrollment.id} className="border-0 shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden group bg-white rounded-[2rem]">
+                                    <div className="relative h-56 overflow-hidden">
                                         {enrollment.course.thumbnail_url ? (
                                             <img
                                                 src={enrollment.course.thumbnail_url}
                                                 alt={enrollment.course.course_name}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                             />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <BookOpen className="h-20 w-20 text-white/30" />
+                                            <div className="w-full h-full bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 flex items-center justify-center">
+                                                <Zap className="h-24 w-24 text-white/20 animate-pulse" />
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                        <div className="absolute bottom-4 left-4 right-4">
-                                            <h3 className="text-white font-bold text-lg mb-1">{enrollment.course.course_name}</h3>
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-white/90 text-xs px-2 py-0.5 bg-white/10 backdrop-blur-md rounded-full border border-white/20">{enrollment.course.course_level}</p>
-                                                {enrollment.batch && (
-                                                    <p className="text-blue-200 text-xs font-bold">#{enrollment.batch.batch_name}</p>
-                                                )}
-                                            </div>
+                                        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-transparent to-transparent"></div>
+
+                                        <div className="absolute top-4 left-4">
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/20 backdrop-blur-md text-white border border-white/30">
+                                                {enrollment.course.course_level}
+                                            </span>
+                                        </div>
+
+                                        <div className="absolute bottom-6 left-6 right-6">
+                                            <h3 className="text-white font-black text-2xl mb-1 line-clamp-1 group-hover:text-blue-200 transition-colors">
+                                                {enrollment.course.course_name}
+                                            </h3>
+                                            {enrollment.batch && (
+                                                <div className="flex items-center gap-2 text-blue-200/80 font-bold text-xs uppercase tracking-widest">
+                                                    <Sparkles className="h-3 w-3" />
+                                                    #{enrollment.batch.batch_name}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm text-gray-600">Progress</span>
-                                            <span className="text-sm font-bold text-blue-600">{Math.round(enrollment.completion_percentage || 0)}%</span>
+                                    <CardContent className="p-8">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                                                <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Progress</span>
+                                            </div>
+                                            <span className="text-xl font-black text-blue-600">{Math.round(enrollment.completion_percentage || 0)}%</span>
                                         </div>
-                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
-                                            <div
-                                                className="h-full bg-blue-600 rounded-full"
-                                                style={{ width: `${enrollment.completion_percentage || 0}%` }}
-                                            ></div>
+
+                                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-6 border border-gray-50">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${enrollment.completion_percentage || 0}%` }}
+                                                transition={{ duration: 1.5, ease: "easeOut" }}
+                                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+                                            />
                                         </div>
-                                        <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                                            <span>{enrollment.lessons_completed || 0} / {enrollment.total_lessons || 0} lessons</span>
+
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="text-xs font-bold text-gray-400 uppercase tracking-tighter">
+                                                {enrollment.lessons_completed || 0} / {enrollment.total_lessons || 0} MODULES COMPLETED
+                                            </div>
+                                            <Link href={`/ems/student/courses/${enrollment.course.id}`} className="shrink-0">
+                                                <Button className="rounded-2xl px-6 bg-gray-900 hover:bg-blue-600 text-white font-black uppercase text-xs tracking-widest transition-all h-12">
+                                                    Resume <ArrowRight className="h-4 w-4 ml-2" />
+                                                </Button>
+                                            </Link>
                                         </div>
-                                        <Link href={`/ems/student/courses/${enrollment.course.id}`}>
-                                            <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                                                <Play className="h-4 w-4 mr-2" />
-                                                Continue Learning
-                                            </Button>
-                                        </Link>
                                     </CardContent>
                                 </Card>
                             ))}
@@ -296,11 +326,76 @@ export default function StudentDashboard() {
                     )}
                 </motion.div>
 
+                {/* Explore New Courses - MARKETPLACE DYNAMIC SECTION */}
+                {dashboardData.available_courses.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="mb-12"
+                    >
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-8 bg-purple-600 rounded-full" />
+                                <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Explore New Skills</h2>
+                            </div>
+                            <Link href="/ems/student/courses/browse">
+                                <Button variant="ghost" className="rounded-full font-black text-xs uppercase tracking-widest text-purple-600 hover:bg-purple-50">
+                                    Explore Store <ArrowRight className="h-4 w-4 ml-2" />
+                                </Button>
+                            </Link>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {dashboardData.available_courses.map((course: any, index: number) => (
+                                <Card key={course.id} className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group bg-white rounded-3xl border border-gray-100/50">
+                                    <div className="relative h-44 overflow-hidden bg-purple-50">
+                                        {course.thumbnail_url ? (
+                                            <img
+                                                src={course.thumbnail_url}
+                                                alt={course.course_name}
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-purple-100">
+                                                <Sparkles className="h-10 w-10 text-purple-300" />
+                                            </div>
+                                        )}
+                                        <div className="absolute top-4 left-4">
+                                            <span className="px-2 py-1 rounded bg-white/90 backdrop-blur-sm text-[9px] font-black uppercase tracking-tighter text-purple-600 shadow-sm">
+                                                {course.course_level}
+                                            </span>
+                                        </div>
+                                        <div className="absolute bottom-4 right-4">
+                                            <button className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-purple-600 hover:bg-purple-600 hover:text-white transition-all shadow-md">
+                                                <Bookmark className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <CardContent className="p-6">
+                                        <h3 className="font-black text-gray-900 text-lg mb-2 line-clamp-1 group-hover:text-purple-600 transition-colors uppercase tracking-tight">
+                                            {course.course_name}
+                                        </h3>
+                                        <p className="text-xs text-gray-500 mb-6 line-clamp-2 leading-relaxed min-h-[2.5rem]">
+                                            {course.course_description || "Master these professional skills with expert-led industry training sessions."}
+                                        </p>
+                                        <Link href={`/ems/student/courses/${course.id}`}>
+                                            <Button variant="outline" className="w-full rounded-2xl border-2 border-purple-100 text-purple-600 hover:bg-purple-600 hover:text-white font-black text-xs uppercase tracking-widest transition-all h-12">
+                                                View Course
+                                            </Button>
+                                        </Link>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* Quick Actions */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
+                    transition={{ delay: 0.6 }}
                     className="mb-8"
                 >
                     <h2 className="text-2xl font-bold mb-4 text-gray-900">Quick Actions</h2>

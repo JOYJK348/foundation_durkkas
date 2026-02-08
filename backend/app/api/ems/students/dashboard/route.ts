@@ -83,7 +83,9 @@ export async function GET(req: NextRequest) {
                     course:courses (
                         id,
                         course_code,
-                        course_name
+                        course_name,
+                        thumbnail_url,
+                        course_level
                     ),
                     batch:batches (
                         id,
@@ -92,7 +94,7 @@ export async function GET(req: NextRequest) {
                 `)
                 .eq('student_id', studentId)
                 .eq('company_id', companyId)
-                .eq('enrollment_status', 'ACTIVE')
+                .in('enrollment_status', ['ACTIVE', 'PENDING', 'ENROLLED'])
                 .is('deleted_at', null) as any;
 
             if (enrollmentError) throw enrollmentError;
@@ -289,6 +291,28 @@ export async function GET(req: NextRequest) {
             logDiagnostic('Materials fetch error', { message: e.message });
         }
 
+        // 8. Available Courses (Not Enrolled)
+        let availableCourses: any[] = [];
+        logDiagnostic('Fetching available courses...');
+        try {
+            const enrolledCourseIds = (enrollments as any[])?.map((e: any) => e.course_id) || [];
+            let query = ems.courses()
+                .select('*')
+                .eq('company_id', companyId)
+                .eq('is_published', true)
+                .is('deleted_at', null);
+
+            if (enrolledCourseIds.length > 0) {
+                query = query.not('id', 'in', `(${enrolledCourseIds.join(',')})`);
+            }
+
+            const { data: availableData } = await query.limit(10) as any;
+            availableCourses = availableData || [];
+            logDiagnostic('Available courses fetched', { count: availableCourses.length });
+        } catch (e: any) {
+            logDiagnostic('Available courses fetch error', { message: e.message });
+        }
+
         // Calculate average progress
         const totalProgress = enrollments.reduce((acc: number, curr: any) => acc + (curr.completion_percentage || 0), 0);
         const averageProgress = enrollments.length > 0 ? totalProgress / enrollments.length : 0;
@@ -309,6 +333,7 @@ export async function GET(req: NextRequest) {
             },
             stats,
             enrolled_courses: enrollments,
+            available_courses: availableCourses,
             pending_assignments: assignmentsWithStatus,
             upcoming_quizzes: quizzesWithStatus,
             upcoming_live_classes: liveClasses,
