@@ -23,6 +23,8 @@ import {
     UserPlus,
     Loader2,
     TrendingUp,
+    Upload,
+    Camera,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -64,6 +66,7 @@ interface Course {
         studentCode: string;
     }>;
     studentCount?: number;
+    thumbnail_url?: string;
 }
 
 export default function CoursesPage() {
@@ -88,7 +91,9 @@ export default function CoursesPage() {
         price: 0,
         enrollment_capacity: 30,
         tutor_id: "",
+        thumbnail_url: "",
     });
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -188,6 +193,32 @@ export default function CoursesPage() {
         }
     };
 
+    const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bucket', 'branding');
+        formData.append('folder', 'courses/thumbnails');
+
+        try {
+            const { data } = await api.post('/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            if (data.success) {
+                setFormData(prev => ({ ...prev, thumbnail_url: data.data.url }));
+                toast.success('Thumbnail uploaded');
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleCreateCourse = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -222,6 +253,7 @@ export default function CoursesPage() {
                     price: 0,
                     enrollment_capacity: 30,
                     tutor_id: "",
+                    thumbnail_url: "",
                 });
                 toast.success(selectedCourse ? 'Course updated successfully!' : 'Course created successfully!');
             }
@@ -243,6 +275,7 @@ export default function CoursesPage() {
             price: course.price,
             enrollment_capacity: course.enrollment_capacity,
             tutor_id: course.tutor ? course.tutor.id.toString() : "",
+            thumbnail_url: course.thumbnail_url || "",
         });
         setSelectedCourse(course);
         setShowCreateForm(true); // Reuse create form for editing
@@ -308,6 +341,7 @@ export default function CoursesPage() {
                                 price: 0,
                                 enrollment_capacity: 30,
                                 tutor_id: "",
+                                thumbnail_url: "",
                             });
                             setShowCreateForm(true);
                         }}
@@ -369,6 +403,7 @@ export default function CoursesPage() {
                                         price: 0,
                                         enrollment_capacity: 30,
                                         tutor_id: "",
+                                        thumbnail_url: "",
                                     });
                                     setShowCreateForm(true);
                                 }}
@@ -415,18 +450,33 @@ export default function CoursesPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                             >
-                                <Card className="border-0 shadow-lg hover:shadow-xl transition-all group">
-                                    <CardContent className="p-6">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <BookOpen className="h-6 w-6 text-purple-600" />
+                                <Card className="border-0 shadow-lg hover:shadow-xl transition-all group overflow-hidden">
+                                    <div className="relative h-40 w-full overflow-hidden bg-purple-50">
+                                        {course.thumbnail_url ? (
+                                            <img
+                                                src={course.thumbnail_url}
+                                                alt={course.course_name}
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <BookOpen className="h-12 w-12 text-purple-200" />
                                             </div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${course.status === 'PUBLISHED'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-yellow-100 text-yellow-700'
+                                        )}
+                                        <div className="absolute top-4 right-4">
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md border ${course.status === 'PUBLISHED'
+                                                ? 'bg-green-500/80 text-white border-green-400'
+                                                : 'bg-yellow-500/80 text-white border-yellow-400'
                                                 }`}>
                                                 {course.status}
                                             </span>
+                                        </div>
+                                    </div>
+                                    <CardContent className="p-6">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                <BookOpen className="h-5 w-5 text-purple-600" />
+                                            </div>
                                         </div>
 
                                         <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
@@ -598,8 +648,48 @@ export default function CoursesPage() {
                                     <X className="h-5 w-5" />
                                 </Button>
                             </div>
-
                             <form onSubmit={handleCreateCourse} className="p-6 space-y-6">
+                                {/* Thumbnail Upload Section */}
+                                <div className="space-y-4 p-4 bg-purple-50/50 rounded-2xl border-2 border-dashed border-purple-100 relative group">
+                                    <Label className="text-purple-900 font-bold uppercase tracking-widest text-[10px]">Course Display Banner</Label>
+                                    <div className="flex items-center gap-6">
+                                        <div className="relative w-40 h-24 rounded-xl overflow-hidden bg-white shadow-inner border border-purple-100 flex items-center justify-center shrink-0">
+                                            {formData.thumbnail_url ? (
+                                                <img src={formData.thumbnail_url} className="w-full h-full object-cover" alt="Preview" />
+                                            ) : (
+                                                <Camera className="h-8 w-8 text-purple-200" />
+                                            )}
+                                            {uploading && (
+                                                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                                                    <Loader2 className="h-5 w-5 text-purple-600 animate-spin" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 space-y-2">
+                                            <p className="text-xs text-purple-700 font-medium">Upload a professional thumbnail for your course. Ideal size: 800x450px.</p>
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    id="thumbnail"
+                                                    className="hidden"
+                                                    accept="image/*"
+                                                    onChange={handleThumbnailUpload}
+                                                    disabled={uploading}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => document.getElementById('thumbnail')?.click()}
+                                                    className="w-full bg-white border-purple-200 text-purple-700 hover:bg-purple-50 rounded-xl"
+                                                >
+                                                    <Upload className="h-4 w-4 mr-2" />
+                                                    {formData.thumbnail_url ? 'Change Image' : 'Upload Image'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="course_code">Course Code *</Label>
@@ -788,6 +878,6 @@ export default function CoursesPage() {
             />
 
             <AcademicManagerBottomNav />
-        </div>
+        </div >
     );
 }

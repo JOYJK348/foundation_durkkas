@@ -48,8 +48,13 @@ export async function POST(req: NextRequest) {
             });
 
         if (error) {
-            console.error('Upload failed:', error);
-            throw new Error(error.message);
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.error('❌ [UPLOAD API] Supabase Storage Error:');
+            console.error('   Bucket:', bucket);
+            console.error('   File Path:', fileName);
+            console.error('   Error Details:', error);
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            throw new Error(error.message || 'Supabase storage upload failed');
         }
 
         // 7. Get Public URL
