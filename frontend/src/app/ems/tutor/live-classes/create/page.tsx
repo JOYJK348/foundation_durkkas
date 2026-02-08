@@ -100,223 +100,343 @@ const CreateLiveClassPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50/50 p-6 pb-24">
-            <div className="max-w-4xl mx-auto">
-                <Button
-                    variant="ghost"
-                    className="mb-6 rounded-2xl hover:bg-white shadow-sm transition-all group"
-                    onClick={() => router.back()}
-                >
-                    <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                    Back to Schedule
-                </Button>
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/20 to-blue-50/20 pb-20">
+            {/* Header Section */}
+            <div className="bg-white border-b border-gray-100 sticky top-0 z-10 backdrop-blur-lg bg-white/80">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    <Button
+                        variant="ghost"
+                        className="rounded-xl hover:bg-gray-100 transition-all group"
+                        onClick={() => router.back()}
                     >
-                        <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase mb-2">Request Live Session Approval</h1>
-                    </motion.div>
+                        <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="hidden sm:inline">Back to Schedule</span>
+                        <span className="sm:hidden">Back</span>
+                    </Button>
                 </div>
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                {/* Page Title */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-8"
+                >
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                            <Video className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 tracking-tight">
+                                Schedule Live Session
+                            </h1>
+                            <p className="text-sm sm:text-base text-gray-600 mt-1">Request approval for a new live class</p>
+                        </div>
+                    </div>
+                </motion.div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+                    {/* Main Form */}
                     <div className="lg:col-span-2">
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            <Card className="border-0 shadow-2xl shadow-gray-200/50 rounded-[2.5rem] overflow-hidden bg-white">
-                                <CardHeader className="bg-gray-50/50 border-b border-gray-100 p-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-500/20">
-                                            <Layout className="h-6 w-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <CardTitle className="text-xl font-black uppercase tracking-tight text-gray-900">Live Session Details</CardTitle>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-8 space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1" htmlFor="course">Course</Label>
-                                            <Select value={formData.course_id} onValueChange={handleCourseChange}>
-                                                <SelectTrigger id="course" className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold">
-                                                    <SelectValue placeholder="Select Course" />
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-2xl border-gray-100 font-bold">
-                                                    {courses.map(course => (
-                                                        <SelectItem key={course.id} value={course.id.toString()}>{course.course_name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1" htmlFor="batch">Target Batch</Label>
-                                            <Select
-                                                value={formData.batch_id}
-                                                onValueChange={(v) => setFormData({ ...formData, batch_id: v })}
-                                                disabled={!formData.course_id}
-                                            >
-                                                <SelectTrigger id="batch" className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold">
-                                                    <SelectValue placeholder="Select Batch" />
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-2xl border-gray-100 font-bold">
-                                                    {batches.map(batch => (
-                                                        <SelectItem key={batch.id} value={batch.id.toString()}>{batch.batch_name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Session Topic</Label>
-                                        <Input
-                                            placeholder="e.g. Introduction to Advanced React Patterns"
-                                            className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold px-6"
-                                            value={formData.topic}
-                                            onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Agenda / Description</Label>
-                                        <Textarea
-                                            placeholder="What will students learn in this session?"
-                                            className="rounded-2xl border-gray-100 bg-gray-50/50 font-medium px-6 py-4 min-h-[120px]"
-                                            value={formData.description}
-                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="border-0 shadow-2xl shadow-gray-200/50 rounded-[2.5rem] overflow-hidden bg-white">
-                                <CardHeader className="bg-gray-50/50 border-b border-gray-100 p-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/20">
-                                            <Clock className="h-6 w-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <CardTitle className="text-xl font-black uppercase tracking-tight text-gray-900">Schedule & Platform</CardTitle>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-8 space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Date</Label>
-                                            <Input
-                                                type="date"
-                                                className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold px-6"
-                                                value={formData.scheduled_date}
-                                                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Start Time</Label>
-                                            <Input
-                                                type="time"
-                                                className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold px-6"
-                                                value={formData.scheduled_time}
-                                                onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Duration (Minutes)</Label>
-                                            <Input
-                                                type="number"
-                                                className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold px-6"
-                                                value={formData.duration_minutes}
-                                                onChange={(e) => setFormData({ ...formData, duration_minutes: Number(e.target.value) })}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Platform</Label>
-                                            <Select value={formData.provider} onValueChange={(v) => setFormData({ ...formData, provider: v })}>
-                                                <SelectTrigger className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-2xl border-gray-100 font-bold">
-                                                    <SelectItem value="ZOOM">Zoom Meetings</SelectItem>
-                                                    <SelectItem value="GOOGLE_MEET">Google Meet</SelectItem>
-                                                    <SelectItem value="MS_TEAMS">Microsoft Teams</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Meeting Link</Label>
-                                        <div className="relative">
-                                            <LinkIcon className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                                            <Input
-                                                placeholder="https://zoom.us/j/..."
-                                                className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 font-bold pl-14"
-                                                value={formData.meeting_link}
-                                                onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full h-16 rounded-[1.5rem] bg-gray-900 hover:bg-black text-white font-black uppercase text-sm tracking-[0.2em] shadow-2xl transition-all"
+                            {/* Session Details Card */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
                             >
-                                {loading ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    "Schedule for Approval"
-                                )}
-                            </Button>
+                                <Card className="border-0 shadow-xl rounded-3xl overflow-hidden bg-white">
+                                    <CardHeader className="bg-gradient-to-r from-rose-50 to-pink-50 border-b border-gray-100 p-6 sm:p-8">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-rose-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-500/30">
+                                                <Layout className="h-6 w-6 text-white" />
+                                            </div>
+                                            <div>
+                                                <CardTitle className="text-lg sm:text-xl font-bold text-gray-900">Session Details</CardTitle>
+                                                <CardDescription className="text-sm">Configure your live class information</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="p-6 sm:p-8 space-y-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-600" htmlFor="course">
+                                                    Course *
+                                                </Label>
+                                                <Select value={formData.course_id} onValueChange={handleCourseChange}>
+                                                    <SelectTrigger id="course" className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold hover:bg-gray-100 transition-colors">
+                                                        <SelectValue placeholder="Select Course" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-xl border-gray-200">
+                                                        {courses.map(course => (
+                                                            <SelectItem key={course.id} value={course.id.toString()} className="font-semibold">
+                                                                {course.course_name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-600" htmlFor="batch">
+                                                    Target Batch *
+                                                </Label>
+                                                <Select
+                                                    value={formData.batch_id}
+                                                    onValueChange={(v) => setFormData({ ...formData, batch_id: v })}
+                                                    disabled={!formData.course_id}
+                                                >
+                                                    <SelectTrigger id="batch" className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold hover:bg-gray-100 transition-colors disabled:opacity-50">
+                                                        <SelectValue placeholder="Select Batch" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-xl border-gray-200">
+                                                        {batches.map(batch => (
+                                                            <SelectItem key={batch.id} value={batch.id.toString()} className="font-semibold">
+                                                                {batch.batch_name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                                Session Topic *
+                                            </Label>
+                                            <Input
+                                                placeholder="e.g. Introduction to Advanced React Patterns"
+                                                className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold px-4 hover:bg-gray-100 transition-colors"
+                                                value={formData.topic}
+                                                onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                                Agenda / Description
+                                            </Label>
+                                            <Textarea
+                                                placeholder="What will students learn in this session?"
+                                                className="rounded-xl border-gray-200 bg-gray-50 font-medium px-4 py-3 min-h-[100px] sm:min-h-[120px] hover:bg-gray-100 transition-colors resize-none"
+                                                value={formData.description}
+                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+
+                            {/* Schedule & Platform Card */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                            >
+                                <Card className="border-0 shadow-xl rounded-3xl overflow-hidden bg-white">
+                                    <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-100 p-6 sm:p-8">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                                                <Clock className="h-6 w-6 text-white" />
+                                            </div>
+                                            <div>
+                                                <CardTitle className="text-lg sm:text-xl font-bold text-gray-900">Schedule & Platform</CardTitle>
+                                                <CardDescription className="text-sm">Set date, time, and meeting details</CardDescription>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="p-6 sm:p-8 space-y-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                                    Date *
+                                                </Label>
+                                                <Input
+                                                    type="date"
+                                                    className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold px-4 hover:bg-gray-100 transition-colors"
+                                                    value={formData.scheduled_date}
+                                                    onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                                    Start Time *
+                                                </Label>
+                                                <Input
+                                                    type="time"
+                                                    className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold px-4 hover:bg-gray-100 transition-colors"
+                                                    value={formData.scheduled_time}
+                                                    onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                                    Duration (Minutes) *
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    min="15"
+                                                    max="300"
+                                                    step="15"
+                                                    className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold px-4 hover:bg-gray-100 transition-colors"
+                                                    value={formData.duration_minutes}
+                                                    onChange={(e) => setFormData({ ...formData, duration_minutes: Number(e.target.value) })}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                                    Platform *
+                                                </Label>
+                                                <Select value={formData.provider} onValueChange={(v) => setFormData({ ...formData, provider: v })}>
+                                                    <SelectTrigger className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold hover:bg-gray-100 transition-colors">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-xl border-gray-200">
+                                                        <SelectItem value="ZOOM" className="font-semibold">🎥 Zoom Meetings</SelectItem>
+                                                        <SelectItem value="GOOGLE_MEET" className="font-semibold">📹 Google Meet</SelectItem>
+                                                        <SelectItem value="MS_TEAMS" className="font-semibold">💼 Microsoft Teams</SelectItem>
+                                                        <SelectItem value="JITSI_MEET" className="font-semibold">🎬 Jitsi Meet</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                                                Meeting Link *
+                                            </Label>
+                                            <div className="relative">
+                                                <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                                                <Input
+                                                    placeholder="https://zoom.us/j/..."
+                                                    className="h-12 sm:h-14 rounded-xl border-gray-200 bg-gray-50 font-semibold pl-12 pr-4 hover:bg-gray-100 transition-colors"
+                                                    value={formData.meeting_link}
+                                                    onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+
+                            {/* Submit Button */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                <Button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full h-14 sm:h-16 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm sm:text-base shadow-xl shadow-purple-500/30 transition-all disabled:opacity-50"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                            Submitting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle2 className="h-5 w-5 mr-2" />
+                                            Submit for Approval
+                                        </>
+                                    )}
+                                </Button>
+                            </motion.div>
                         </form>
                     </div>
 
+                    {/* Sidebar */}
                     <div className="space-y-6">
-                        <Card className="border-0 shadow-xl rounded-[2.5rem] bg-gray-900 text-white overflow-hidden">
-                            <CardContent className="p-8">
-                                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
-                                    <Clock className="h-7 w-7 text-rose-400" />
-                                </div>
-                                <h3 className="text-xl font-black uppercase tracking-tight mb-4">Scheduling Flow</h3>
-                                <div className="space-y-4 text-gray-400 font-medium text-sm leading-relaxed">
-                                    <p className="flex gap-3">
-                                        <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
-                                        <span>All live classes must be approved by the Academic Manager.</span>
-                                    </p>
-                                    <p className="flex gap-3">
-                                        <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
-                                        <span>Once approved, students in the target batch will receive notifications.</span>
-                                    </p>
-                                    <p className="flex gap-3">
-                                        <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
-                                        <span>The link will be visible on the student dashboard 15 mins before start.</span>
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {/* Approval Flow Card */}
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 }}
+                        >
+                            <Card className="border-0 shadow-xl rounded-3xl bg-gradient-to-br from-gray-900 to-gray-800 text-white overflow-hidden">
+                                <CardContent className="p-6 sm:p-8">
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6">
+                                        <Target className="h-6 w-6 sm:h-7 sm:w-7 text-purple-400" />
+                                    </div>
+                                    <h3 className="text-lg sm:text-xl font-bold mb-4">Approval Workflow</h3>
+                                    <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
+                                        <div className="flex gap-3">
+                                            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                                            <span>Your request will be sent to the Academic Manager for approval</span>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                                            <span>Students will be notified once approved</span>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                                            <span>Meeting link becomes visible 15 minutes before start time</span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
 
-                        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 flex items-start gap-4">
-                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                                <Info className="h-5 w-5 text-blue-500" />
-                            </div>
-                            <div>
-                                <h4 className="font-black uppercase text-[10px] tracking-widest text-blue-600 mb-1">Live Class Tip</h4>
-                                <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                                    Record your sessions and upload them as course materials later for students who might miss the live experience.
-                                </p>
-                            </div>
-                        </div>
+                        {/* Tips Card */}
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 }}
+                        >
+                            <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 overflow-hidden">
+                                <CardContent className="p-6 sm:p-8">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                                            <Info className="h-5 w-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-sm text-blue-900 mb-2">Pro Tip</h4>
+                                            <p className="text-xs text-blue-700 leading-relaxed">
+                                                Record your sessions and upload them as course materials for students who miss the live class.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+
+                        {/* Quick Stats */}
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="hidden lg:block"
+                        >
+                            <Card className="border-0 shadow-lg rounded-3xl bg-white overflow-hidden">
+                                <CardContent className="p-6 sm:p-8">
+                                    <h4 className="font-bold text-sm text-gray-900 mb-4">Platform Features</h4>
+                                    <div className="space-y-3 text-xs text-gray-600">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                                            <span>Automatic student notifications</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                                            <span>Attendance tracking</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                                            <span>Session recording support</span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     </div>
                 </div>
             </div>

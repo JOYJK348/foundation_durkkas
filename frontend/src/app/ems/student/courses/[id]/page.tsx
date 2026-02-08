@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
-import { BottomNav } from "@/components/ems/dashboard/bottom-nav";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
     ArrowLeft,
     BookOpen,
@@ -18,16 +16,17 @@ import {
     CheckCircle,
     Calendar,
     Users,
-    MapPin,
-    Camera,
-    RefreshCw,
-    Clock
+    Clock,
+    Download,
+    Eye,
+    Award
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
+import { BottomNav } from "@/components/ems/dashboard/bottom-nav";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import api from "@/lib/api";
 import { toast } from "sonner";
-
-import { AttendanceVerification } from "@/components/ems/attendance/AttendanceVerification";
 
 interface Material {
     id: number;
@@ -59,14 +58,6 @@ interface CourseDetails {
     course_description: string;
     course_materials?: Material[];
     course_modules: Module[];
-    active_session?: {
-        id: number;
-        status: string;
-        opening_window_start: string;
-        opening_window_end: string;
-        closing_window_start: string;
-        closing_window_end: string;
-    } | null;
 }
 
 export default function StudentCourseDetailsPage() {
@@ -75,15 +66,9 @@ export default function StudentCourseDetailsPage() {
     const [course, setCourse] = useState<CourseDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [expandedModules, setExpandedModules] = useState<number[]>([]);
-    const [activeTab, setActiveTab] = useState<'curriculum' | 'attendance'>('curriculum');
-    const [attendance, setAttendance] = useState<any[]>([]);
-    const [showVerification, setShowVerification] = useState(false);
-    const [activeSessionToVerify, setActiveSessionToVerify] = useState<CourseDetails['active_session'] | null>(null);
-
 
     useEffect(() => {
         fetchCourseDetails();
-        fetchAttendance();
     }, [params.id]);
 
     const fetchCourseDetails = async () => {
@@ -98,327 +83,282 @@ export default function StudentCourseDetailsPage() {
             }
         } catch (error: any) {
             console.error("Error fetching course details:", error);
-            if (error.response?.status === 403) {
-                toast.error("Not enrolled or content locked");
-            } else {
-                toast.error("Failed to load course materials");
-            }
+            toast.error("Failed to load course details");
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchAttendance = async () => {
-        try {
-            const response = await api.get(`/ems/attendance?mode=student-history&course_id=${params.id}`);
-            if (response.data.success) {
-                setAttendance(response.data.data || []);
-            }
-        } catch (error) {
-            console.error("Error fetching attendance:", error);
-        }
-    };
-
-    const toggleModule = (id: number) => {
+    const toggleModule = (moduleId: number) => {
         setExpandedModules(prev =>
-            prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
+            prev.includes(moduleId)
+                ? prev.filter(id => id !== moduleId)
+                : [...prev, moduleId]
         );
     };
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                    <p className="text-gray-500 font-medium">Unlocking your learning material...</p>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600 font-medium">Loading course...</p>
                 </div>
-                <BottomNav />
             </div>
         );
     }
 
-    if (!course) return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-            <Lock className="h-16 w-16 text-gray-300 mb-4" />
-            <h2 className="text-xl font-bold text-gray-800">Access Restricted</h2>
-            <p className="text-gray-500 text-center mt-2">This course is either not available or you are not enrolled.</p>
-            <Button onClick={() => router.push('/ems/student/courses')} className="mt-6 bg-blue-600">Back to Courses</Button>
-        </div>
-    );
+    if (!course) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <Card className="max-w-md w-full">
+                    <CardContent className="p-8 text-center">
+                        <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Course Not Found</h3>
+                        <p className="text-gray-600 mb-6">The course you're looking for doesn't exist.</p>
+                        <Button onClick={() => router.back()} className="w-full">
+                            Go Back
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    // Calculate progress
+    const totalLessons = course.course_modules.reduce((acc, mod) => acc + mod.lessons.length, 0);
+    const completedLessons = 0; // This would come from API
+    const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-gray-50 pb-20">
             <TopNavbar />
 
-            <div className="max-w-4xl mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <Button
-                        variant="ghost"
-                        onClick={() => router.back()}
-                        className="mb-4 hover:bg-white text-gray-500"
-                    >
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back
-                    </Button>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-6 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                        <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-lg shadow-blue-100">
-                            <BookOpen className="h-10 w-10 text-white" />
-                        </div>
-                        <div className="flex-1">
-                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{course.course_name}</h1>
-                            <div className="flex items-center gap-3 mt-2">
-                                <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider">{course.course_code}</span>
-                                <span className="text-gray-400">•</span>
-                                <div className="flex items-center gap-1 text-sm text-gray-500">
-                                    <Users className="h-4 w-4 text-orange-400" />
-                                    <span>Morning Batch A</span>
+            <div className="max-w-4xl mx-auto px-4 py-6">
+                {/* Back Button */}
+                <Button
+                    variant="ghost"
+                    onClick={() => router.back()}
+                    className="mb-4 hover:bg-white"
+                >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                </Button>
+
+                {/* Course Hero Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative mb-6 rounded-2xl overflow-hidden shadow-xl"
+                >
+                    {/* Background Gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+                    </div>
+
+                    {/* Content */}
+                    <div className="relative p-6 text-white">
+                        <div className="flex items-start gap-4 mb-6">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/30">
+                                <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h1 className="text-2xl sm:text-3xl font-bold mb-2 line-clamp-2">{course.course_name}</h1>
+                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                    <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-lg font-bold uppercase tracking-wider border border-white/30">
+                                        {course.course_code}
+                                    </span>
+                                    <span className="text-white/60">•</span>
+                                    <span className="text-white/90">{totalLessons} Lessons</span>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-white/80">Course Progress</span>
+                                <span className="font-bold">{progress}%</span>
+                            </div>
+                            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${progress}%` }}
+                                    transition={{ duration: 1, delay: 0.3 }}
+                                    className="h-full bg-white rounded-full"
+                                />
+                            </div>
+                            <div className="text-xs text-white/70">
+                                {completedLessons} of {totalLessons} lessons completed
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </motion.div>
 
-                {/* Tabs */}
-                <div className="flex gap-2 mb-6 bg-gray-100 p-1.5 rounded-2xl w-fit">
-                    <button
-                        onClick={() => setActiveTab('curriculum')}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'curriculum' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Curriculum
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('attendance')}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'attendance' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Attendance
-                    </button>
-                </div>
+                {/* Course Description */}
+                {course.course_description && (
+                    <Card className="mb-6 border-0 shadow-md">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">About This Course</h3>
+                            <p className="text-gray-700 leading-relaxed">{course.course_description}</p>
+                        </CardContent>
+                    </Card>
+                )}
 
-                <div className="space-y-6">
-                    {activeTab === 'curriculum' ? (
-                        <>
-                            <h2 className="text-xl font-bold text-gray-800 ml-1">Learning Curriculum</h2>
+                {/* Course Materials (Handbooks) */}
+                {course.course_materials && course.course_materials.length > 0 && (
+                    <Card className="mb-6 border-0 shadow-md bg-blue-50/50">
+                        <CardContent className="p-5">
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                                    <FileText className="h-4 w-4 text-white" />
+                                </div>
+                                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Course Materials</h3>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {course.course_materials.map(material => (
+                                    <button
+                                        key={material.id}
+                                        onClick={() => window.open(material.file_url, '_blank')}
+                                        className="flex items-center gap-3 bg-white hover:bg-blue-50 border border-blue-100 px-4 py-3 rounded-xl transition-all group"
+                                    >
+                                        <Download className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                                        <div className="flex-1 text-left min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">{material.material_name}</p>
+                                            <p className="text-xs text-gray-500 uppercase">{material.material_type}</p>
+                                        </div>
+                                        <Eye className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
+                                    </button>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
-                            {(!course.course_modules || course.course_modules.length === 0) ? (
-                                <Card className="border-0 shadow-sm">
-                                    <CardContent className="p-12 text-center text-gray-500">
-                                        <Lock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                                        <p>No items have been published for this course yet.</p>
-                                        <p className="text-xs mt-2">Check back later when your tutor releases the first section.</p>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <div className="space-y-4">
-                                    {/* Course Level Materials (Official Handbooks) */}
-                                    {course.course_materials && course.course_materials.length > 0 && (
-                                        <div className="bg-blue-50/30 rounded-2xl p-4 border border-blue-100/50 mb-6">
-                                            <h3 className="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-3 flex items-center gap-2">
-                                                <BookOpen className="h-3 w-3" />
-                                                Official Course Handbooks
-                                            </h3>
+                {/* Curriculum Section */}
+                <div className="mb-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <div className="w-1 h-6 bg-blue-600 rounded-full" />
+                        Learning Curriculum
+                    </h2>
+
+                    {(!course.course_modules || course.course_modules.length === 0) ? (
+                        <Card className="border-2 border-dashed border-gray-200">
+                            <CardContent className="p-12 text-center">
+                                <Lock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                <p className="text-gray-600 font-medium mb-1">No Content Available</p>
+                                <p className="text-sm text-gray-400">Check back later when your tutor releases the curriculum.</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {course.course_modules.map((module, moduleIndex) => (
+                                <Card key={module.id} className="border-0 shadow-md overflow-hidden">
+                                    {/* Module Header */}
+                                    <div
+                                        onClick={() => toggleModule(module.id)}
+                                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                                                <span className="text-blue-600 font-bold text-sm">{module.module_number}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-900 truncate">{module.module_name}</h3>
+                                                <p className="text-xs text-gray-500">{module.lessons.length} lessons</p>
+                                            </div>
+                                        </div>
+                                        <ChevronDown
+                                            className={`h-5 w-5 text-gray-400 transition-transform flex-shrink-0 ${expandedModules.includes(module.id) ? 'rotate-180' : ''
+                                                }`}
+                                        />
+                                    </div>
+
+                                    {/* Module Materials */}
+                                    {module.course_materials && module.course_materials.length > 0 && expandedModules.includes(module.id) && (
+                                        <div className="px-4 pb-3 bg-purple-50/30 border-t border-gray-100">
+                                            <div className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-2 mt-3">Module Resources</div>
                                             <div className="flex flex-wrap gap-2">
-                                                {course.course_materials.map(mat => (
+                                                {module.course_materials.map(mat => (
                                                     <button
                                                         key={mat.id}
                                                         onClick={() => window.open(mat.file_url, '_blank')}
-                                                        className="flex items-center gap-3 bg-white hover:bg-blue-50 border border-blue-50 px-4 py-2.5 rounded-xl transition-all shadow-sm group"
+                                                        className="flex items-center gap-2 bg-white hover:bg-purple-50 border border-purple-100 px-3 py-2 rounded-lg transition-all text-sm"
                                                     >
-                                                        <FileText className="h-4 w-4 text-blue-500" />
-                                                        <span className="text-sm font-bold text-gray-700">{mat.material_name}</span>
+                                                        <FileText className="h-3 w-3 text-purple-600" />
+                                                        <span className="font-medium text-gray-700 text-xs">{mat.material_name}</span>
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
                                     )}
 
-                                    {course.course_modules.map((module) => (
-                                        <div key={module.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                            {/* Module Header */}
-                                            <div
-                                                className={`p-5 flex items-center justify-between cursor-pointer group hover:bg-gray-50 transition-colors ${expandedModules.includes(module.id) ? 'border-b border-gray-50' : ''}`}
-                                                onClick={() => toggleModule(module.id)}
+                                    {/* Lessons */}
+                                    <AnimatePresence>
+                                        {expandedModules.includes(module.id) && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: "auto", opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.3 }}
+                                                className="border-t border-gray-100"
                                             >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-sm">
-                                                        {module.module_number}
-                                                    </div>
-                                                    <h3 className="font-bold text-gray-800 text-lg">{module.module_name}</h3>
-                                                </div>
-                                                <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedModules.includes(module.id) ? 'rotate-180' : ''}`} />
-                                            </div>
-
-                                            {/* Module Level Materials */}
-                                            {expandedModules.includes(module.id) && module.course_materials && module.course_materials.length > 0 && (
-                                                <div className="px-5 py-3 bg-gray-50 flex flex-wrap gap-2 border-b border-gray-100">
-                                                    {module.course_materials.map(mat => (
-                                                        <button
-                                                            key={mat.id}
-                                                            onClick={(e) => { e.stopPropagation(); window.open(mat.file_url, '_blank'); }}
-                                                            className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-xl hover:border-blue-300 transition-all shadow-sm text-xs font-bold text-gray-600"
+                                                <div className="p-4 space-y-2 bg-gray-50/50">
+                                                    {module.lessons.map((lesson, lessonIndex) => (
+                                                        <div
+                                                            key={lesson.id}
+                                                            className={`flex items-center gap-3 p-3 rounded-xl transition-all ${lesson.is_locked
+                                                                    ? 'bg-gray-100 opacity-60'
+                                                                    : 'bg-white hover:shadow-md cursor-pointer'
+                                                                }`}
                                                         >
-                                                            <BookOpen className="h-3.5 w-3.5 text-blue-400" />
-                                                            <span>{mat.material_name}</span>
-                                                        </button>
+                                                            <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                {lesson.is_locked ? (
+                                                                    <Lock className="h-4 w-4 text-gray-400" />
+                                                                ) : (
+                                                                    <PlayCircle className="h-4 w-4 text-blue-600" />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="font-semibold text-sm text-gray-900 truncate">
+                                                                    {lesson.lesson_name}
+                                                                </p>
+                                                                {lesson.course_materials && lesson.course_materials.length > 0 && (
+                                                                    <p className="text-xs text-gray-500">
+                                                                        {lesson.course_materials.length} materials
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {!lesson.is_locked && (
+                                                                <ChevronRight className="h-4 w-4 text-gray-400" />
+                                                            )}
+                                                        </div>
                                                     ))}
                                                 </div>
-                                            )}
-
-                                            {/* Lessons list */}
-                                            <AnimatePresence>
-                                                {expandedModules.includes(module.id) && (
-                                                    <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: "auto", opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="p-2 space-y-2">
-                                                            {module.lessons?.map((lesson) => (
-                                                                <div key={lesson.id} className={`p-4 rounded-xl transition-all ${lesson.is_locked ? 'bg-gray-100/30 grayscale-[50%]' : 'bg-gray-50/50 hover:bg-gray-50'}`}>
-                                                                    <div className="flex items-center justify-between mb-3">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <span className="text-xs font-bold text-blue-400 w-8">{lesson.lesson_number}</span>
-                                                                            <PlayCircle className={`h-5 w-5 ${lesson.is_locked ? 'text-gray-400' : 'text-blue-600'}`} />
-                                                                            <span className={`font-semibold ${lesson.is_locked ? 'text-gray-400' : 'text-gray-800'}`}>{lesson.lesson_name}</span>
-                                                                        </div>
-                                                                        {lesson.is_locked ? <Lock className="h-4 w-4 text-gray-400" /> : <CheckCircle className="h-4 w-4 text-gray-300" />}
-                                                                    </div>
-
-                                                                    {!lesson.is_locked && (
-                                                                        <div className="pl-8 space-y-2 border-l-2 border-gray-100 mt-2">
-                                                                            {lesson.course_materials?.map(mat => (
-                                                                                <div key={mat.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-50 shadow-sm hover:shadow-md transition-all cursor-pointer group">
-                                                                                    <div className="flex items-center gap-3">
-                                                                                        <FileText className="h-4 w-4 text-blue-500" />
-                                                                                        <span className="text-sm font-medium text-gray-700">{mat.material_name}</span>
-                                                                                    </div>
-                                                                                    <Button size="sm" variant="ghost" className="h-8 text-blue-600 font-bold text-[10px] uppercase tracking-tighter hover:bg-blue-50">
-                                                                                        Download
-                                                                                    </Button>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="space-y-6">
-                            {/* Attendance Controls */}
-                            {course.active_session && (
-                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-                                    <div className="bg-gradient-to-br from-blue-600 to-purple-700 p-6 rounded-[2rem] shadow-xl text-white">
-                                        <div className="flex items-start justify-between mb-6">
-                                            <div>
-                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold mb-3 border border-white/10">
-                                                    <span className="w-2 h-2 bg-green-400 rounded-full animate-ping" />
-                                                    Session Active Now
-                                                </div>
-                                                <h3 className="text-2xl font-bold">Class Attendance</h3>
-                                                <p className="text-white/70 text-sm mt-1">Please verify your presence to mark attendance.</p>
-                                            </div>
-                                            <Calendar className="h-10 w-10 text-white/20" />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4 mb-6">
-                                            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
-                                                <div className="flex items-center gap-2 text-white/60 text-xs mb-1">
-                                                    <Clock className="h-3 w-3" /> Start Window
-                                                </div>
-                                                <div className="text-lg font-bold">09:00 AM</div>
-                                            </div>
-                                            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
-                                                <div className="flex items-center gap-2 text-white/60 text-xs mb-1">
-                                                    <MapPin className="h-3 w-3" /> Location
-                                                </div>
-                                                <div className="text-lg font-bold">Campus Zone</div>
-                                            </div>
-                                        </div>
-
-                                        <Button
-                                            onClick={() => {
-                                                setActiveSessionToVerify(course.active_session || null);
-                                                setShowVerification(true);
-                                            }}
-                                            className="w-full bg-white text-blue-700 hover:bg-gray-100 h-14 rounded-2xl font-bold text-lg shadow-lg"
-                                        >
-                                            <Camera className="h-5 w-5 mr-3" />
-                                            Check-in Now
-                                        </Button>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {/* Attendance History */}
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-800 mb-4 ml-1">Attendance History</h3>
-                                <div className="space-y-3">
-                                    {attendance.length === 0 ? (
-                                        <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
-                                            <Calendar className="h-12 w-12 text-gray-200 mx-auto mb-3" />
-                                            <p className="text-gray-400 font-medium">No attendance records yet</p>
-                                        </div>
-                                    ) : (
-                                        attendance.map((record, idx) => (
-                                            <motion.div
-                                                key={record.id}
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: idx * 0.05 }}
-                                                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between"
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${record.status === 'PRESENT' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                        {record.status === 'PRESENT' ? <CheckCircle className="h-5 w-5" /> : <RefreshCw className="h-5 w-5" />}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-gray-800">{new Date(record.session?.session_date).toLocaleDateString()}</p>
-                                                        <p className="text-xs text-gray-500">{record.session?.session_type} Session</p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className={`text-sm font-bold ${record.status === 'PRESENT' ? 'text-green-600' : 'text-red-600'}`}>
-                                                        {record.status}
-                                                    </div>
-                                                    <p className="text-[10px] text-gray-400 font-medium mt-0.5">Verified via GPS</p>
-                                                </div>
                                             </motion.div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
+                                        )}
+                                    </AnimatePresence>
+                                </Card>
+                            ))}
                         </div>
                     )}
                 </div>
-            </div>
 
-            {/* Verification Modal */}
-            <AnimatePresence>
-                {showVerification && activeSessionToVerify && (
-                    <AttendanceVerification
-                        sessions={[activeSessionToVerify]}
-                        onSuccess={() => {
-                            setShowVerification(false);
-                            setActiveSessionToVerify(null);
-                            fetchAttendance();
-                            fetchCourseDetails();
-                        }}
-                        onClose={() => {
-                            setShowVerification(false);
-                            setActiveSessionToVerify(null);
-                        }}
-                    />
-                )}
-            </AnimatePresence>
+                {/* Achievement Badge */}
+                <Card className="border-0 shadow-md bg-gradient-to-r from-amber-50 to-orange-50">
+                    <CardContent className="p-5">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                                <Award className="h-6 w-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-gray-900 mb-1">Complete this course to earn a certificate!</h3>
+                                <p className="text-sm text-gray-600">Finish all lessons and assignments to unlock your achievement.</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
             <BottomNav />
         </div>

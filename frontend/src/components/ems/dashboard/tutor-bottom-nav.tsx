@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+    LayoutDashboard,
     BookOpen,
     FileText,
     Video,
@@ -14,12 +15,11 @@ import {
 import { cn } from "@/lib/utils";
 
 const navItems = [
+    { href: "/ems/tutor/dashboard", icon: LayoutDashboard, label: "Home" },
     { href: "/ems/tutor/courses", icon: BookOpen, label: "Courses" },
     { href: "/ems/tutor/assignments", icon: FileText, label: "Assignments" },
     { href: "/ems/tutor/live-classes", icon: Video, label: "Classes" },
-    { href: "/ems/tutor/materials", icon: Upload, label: "Materials" },
     { href: "/ems/tutor/grading", icon: CheckSquare, label: "Grading" },
-    { href: "/ems/tutor/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
 export function TutorBottomNav() {

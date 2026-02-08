@@ -265,215 +265,219 @@ export default function AttendancePage() {
                             >
                                 <Card className={`border-0 shadow-md transition-all hover:shadow-xl ${batch.session?.status === 'COMPLETED' ? 'bg-green-50/50' : 'bg-white'
                                     }`}>
-                                    <CardContent className="p-6 flex items-center gap-6">
-                                        {/* Time Column */}
-                                        <div className="flex flex-col items-center justify-center min-w-[80px] p-3 bg-purple-50 rounded-xl text-purple-700">
-                                            <span className="text-lg font-bold">
-                                                {batch.start_time ? batch.start_time.substring(0, 5) : '09:00'}
-                                            </span>
-                                            <span className="text-xs opacity-70">
-                                                {batch.end_time ? batch.end_time.substring(0, 5) : '10:00'}
-                                            </span>
-                                        </div>
-
-                                        {/* Details Column */}
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="text-lg font-bold text-gray-900">
-                                                    {batch.batch_name}
-                                                </h3>
-                                                {batch.session?.status === 'COMPLETED' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center gap-1">
-                                                        <CheckCircle className="h-3 w-3" />
-                                                        Completed
-                                                    </span>
-                                                )}
-                                                {batch.session?.status === 'SCHEDULED' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        Scheduled
-                                                    </span>
-                                                )}
-                                                {batch.session?.status === 'IDENTIFYING_ENTRY' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium flex items-center gap-1 animate-pulse">
-                                                        <MapPin className="h-3 w-3" />
-                                                        Entry Window Open
-                                                    </span>
-                                                )}
-                                                {batch.session?.status === 'IDENTIFYING_EXIT' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium flex items-center gap-1 animate-pulse">
-                                                        <MapPin className="h-3 w-3" />
-                                                        Exit Window Open
-                                                    </span>
-                                                )}
-                                                {batch.session?.status === 'IN_PROGRESS' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium flex items-center gap-1">
-                                                        <Users className="h-3 w-3" />
-                                                        In Progress
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="text-gray-600 mb-2 flex items-center gap-2 text-sm">
-                                                <span className="font-medium text-purple-600">{batch.course?.course_name}</span>
-                                                <span className="text-gray-300">•</span>
-                                                <span className="flex items-center gap-1">
-                                                    <MapPin className="h-3 w-3" /> Classroom A
+                                    <CardContent className="p-4 sm:p-6">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+                                            {/* Time Column */}
+                                            <div className="flex flex-col items-center justify-center w-full sm:min-w-[80px] sm:w-auto p-3 bg-purple-50 rounded-xl text-purple-700">
+                                                <span className="text-lg font-bold">
+                                                    {batch.start_time ? batch.start_time.substring(0, 5) : '09:00'}
                                                 </span>
-                                            </p>
+                                                <span className="text-xs opacity-70">
+                                                    {batch.end_time ? batch.end_time.substring(0, 5) : '10:00'}
+                                                </span>
+                                            </div>
 
-                                            {/* Class Mode & Verification Settings */}
-                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                                {/* Class Mode Badge */}
-                                                {batch.class_mode === 'ONLINE' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-200">
-                                                        🌐 Online Class
+                                            {/* Details Column */}
+                                            <div className="flex-1 w-full">
+                                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                    <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                                                        {batch.batch_name}
+                                                    </h3>
+                                                    {batch.session?.status === 'COMPLETED' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center gap-1">
+                                                            <CheckCircle className="h-3 w-3" />
+                                                            Completed
+                                                        </span>
+                                                    )}
+                                                    {batch.session?.status === 'SCHEDULED' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium flex items-center gap-1">
+                                                            <Clock className="h-3 w-3" />
+                                                            Scheduled
+                                                        </span>
+                                                    )}
+                                                    {batch.session?.status === 'IDENTIFYING_ENTRY' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium flex items-center gap-1 animate-pulse">
+                                                            <MapPin className="h-3 w-3" />
+                                                            Entry Window Open
+                                                        </span>
+                                                    )}
+                                                    {batch.session?.status === 'IDENTIFYING_EXIT' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium flex items-center gap-1 animate-pulse">
+                                                            <MapPin className="h-3 w-3" />
+                                                            Exit Window Open
+                                                        </span>
+                                                    )}
+                                                    {batch.session?.status === 'IN_PROGRESS' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium flex items-center gap-1">
+                                                            <Users className="h-3 w-3" />
+                                                            In Progress
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-gray-600 mb-2 flex flex-wrap items-center gap-2 text-sm">
+                                                    <span className="font-medium text-purple-600">{batch.course?.course_name}</span>
+                                                    <span className="text-gray-300 hidden sm:inline">•</span>
+                                                    <span className="flex items-center gap-1">
+                                                        <MapPin className="h-3 w-3" /> Classroom A
                                                     </span>
-                                                )}
-                                                {batch.class_mode === 'OFFLINE' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-gray-50 text-gray-700 text-xs font-medium border border-gray-200">
-                                                        🏫 Offline Class
-                                                    </span>
-                                                )}
-                                                {batch.class_mode === 'HYBRID' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium border border-purple-200">
-                                                        🔄 Hybrid Class
-                                                    </span>
-                                                )}
+                                                </p>
 
-                                                {/* Face Verification Badge */}
-                                                {batch.require_face_verification && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-200">
-                                                        👤 Face ON
-                                                    </span>
-                                                )}
-                                                {!batch.require_face_verification && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium border border-red-200">
-                                                        👤 Face OFF
-                                                    </span>
-                                                )}
+                                                {/* Class Mode & Verification Settings */}
+                                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                    {/* Class Mode Badge */}
+                                                    {batch.class_mode === 'ONLINE' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-200">
+                                                            🌐 Online Class
+                                                        </span>
+                                                    )}
+                                                    {batch.class_mode === 'OFFLINE' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-gray-50 text-gray-700 text-xs font-medium border border-gray-200">
+                                                            🏫 Offline Class
+                                                        </span>
+                                                    )}
+                                                    {batch.class_mode === 'HYBRID' && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium border border-purple-200">
+                                                            🔄 Hybrid Class
+                                                        </span>
+                                                    )}
+
+                                                    {/* Face Verification Badge */}
+                                                    {batch.require_face_verification && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-200">
+                                                            👤 Face ON
+                                                        </span>
+                                                    )}
+                                                    {!batch.require_face_verification && (
+                                                        <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium border border-red-200">
+                                                            👤 Face OFF
+                                                        </span>
+                                                    )}
 
 
-                                                {/* Location Verification Badge - Only for Online/Hybrid */}
-                                                {(batch.class_mode === 'ONLINE' || batch.class_mode === 'HYBRID') && (
-                                                    <>
-                                                        {batch.require_location_verification && (
-                                                            <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-200">
-                                                                📍 Location ON
-                                                            </span>
-                                                        )}
-                                                        {!batch.require_location_verification && (
-                                                            <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium border border-red-200">
-                                                                📍 Location OFF
-                                                            </span>
-                                                        )}
-                                                    </>
+                                                    {/* Location Verification Badge - Only for Online/Hybrid */}
+                                                    {(batch.class_mode === 'ONLINE' || batch.class_mode === 'HYBRID') && (
+                                                        <>
+                                                            {batch.require_location_verification && (
+                                                                <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-200">
+                                                                    📍 Location ON
+                                                                </span>
+                                                            )}
+                                                            {!batch.require_location_verification && (
+                                                                <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium border border-red-200">
+                                                                    📍 Location OFF
+                                                                </span>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {batch.session && (
+                                                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-500 mt-2">
+                                                        <span className="flex items-center gap-1 text-green-600">
+                                                            <Users className="h-3 w-3" /> {batch.session.present_count || 0}/{batch.total_students || 0} Present
+                                                        </span>
+                                                        <span className="flex items-center gap-1 text-red-600">
+                                                            <Users className="h-3 w-3" /> {batch.session.absent_count || 0}/{batch.total_students || 0} Absent
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
 
-                                            {batch.session && (
-                                                <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
-                                                    <span className="flex items-center gap-1 text-green-600">
-                                                        <Users className="h-3 w-3" /> {batch.session.present_count || 0}/{batch.total_students || 0} Present
-                                                    </span>
-                                                    <span className="flex items-center gap-1 text-red-600">
-                                                        <Users className="h-3 w-3" /> {batch.session.absent_count || 0}/{batch.total_students || 0} Absent
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Action Button & Controls */}
-                                        <div className="flex flex-col gap-2">
-                                            {batch.session ? (
-                                                <>
-                                                    <div className="flex gap-2">
-                                                        {batch.session.status === 'SCHEDULED' && (
-                                                            <>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => openEditModal(batch)}
-                                                                    className="text-[10px] h-8 font-bold border-blue-200 text-blue-600 hover:bg-blue-50"
-                                                                >
-                                                                    <Edit className="h-3 w-3 mr-1" />
-                                                                    Edit
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => openCancelModal(batch)}
-                                                                    className="text-[10px] h-8 font-bold border-red-200 text-red-600 hover:bg-red-50"
-                                                                >
-                                                                    <Trash2 className="h-3 w-3 mr-1" />
-                                                                    Cancel
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleUpdateStatus(batch.session!.id, 'IDENTIFYING_ENTRY')}
-                                                                    className="text-[10px] h-8 font-bold border-amber-200 text-amber-600 hover:bg-amber-50 flex-1"
-                                                                >
-                                                                    Open Entry
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                        {batch.session.status === 'IDENTIFYING_ENTRY' && (
-                                                            <div className="flex gap-1 w-full">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleUpdateStatus(batch.session!.id, 'IN_PROGRESS')}
-                                                                    className="text-[10px] h-8 font-bold text-gray-400 hover:bg-gray-50 flex-1"
-                                                                >
-                                                                    Close Window
-                                                                </Button>
+                                            {/* Action Button & Controls - Responsive */}
+                                            <div className="flex flex-col gap-2 w-full sm:w-auto sm:min-w-[180px]">
+                                                {batch.session ? (
+                                                    <>
+                                                        <div className="flex flex-col sm:flex-row gap-2">
+                                                            {batch.session.status === 'SCHEDULED' && (
+                                                                <>
+                                                                    <div className="flex gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            onClick={() => openEditModal(batch)}
+                                                                            className="text-[10px] h-8 font-bold border-blue-200 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none"
+                                                                        >
+                                                                            <Edit className="h-3 w-3 sm:mr-1" />
+                                                                            <span className="hidden sm:inline">Edit</span>
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            onClick={() => openCancelModal(batch)}
+                                                                            className="text-[10px] h-8 font-bold border-red-200 text-red-600 hover:bg-red-50 flex-1 sm:flex-none"
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3 sm:mr-1" />
+                                                                            <span className="hidden sm:inline">Cancel</span>
+                                                                        </Button>
+                                                                    </div>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleUpdateStatus(batch.session!.id, 'IDENTIFYING_ENTRY')}
+                                                                        className="text-[10px] h-8 font-bold border-amber-200 text-amber-600 hover:bg-amber-50 w-full"
+                                                                    >
+                                                                        Open Entry
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                            {batch.session.status === 'IDENTIFYING_ENTRY' && (
+                                                                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleUpdateStatus(batch.session!.id, 'IN_PROGRESS')}
+                                                                        className="text-[10px] h-8 font-bold text-gray-400 hover:bg-gray-50 flex-1"
+                                                                    >
+                                                                        Close Window
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleUpdateStatus(batch.session!.id, 'IDENTIFYING_EXIT')}
+                                                                        className="text-[10px] h-8 font-bold border-orange-200 text-orange-600 hover:bg-orange-50 flex-1"
+                                                                    >
+                                                                        Open Exit
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                            {batch.session.status === 'IN_PROGRESS' && (
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"
                                                                     onClick={() => handleUpdateStatus(batch.session!.id, 'IDENTIFYING_EXIT')}
-                                                                    className="text-[10px] h-8 font-bold border-orange-200 text-orange-600 hover:bg-orange-50 flex-1"
+                                                                    className="text-[10px] h-8 font-bold border-orange-200 text-orange-600 hover:bg-orange-50 w-full"
                                                                 >
                                                                     Open Exit
                                                                 </Button>
-                                                            </div>
-                                                        )}
-                                                        {batch.session.status === 'IN_PROGRESS' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleUpdateStatus(batch.session!.id, 'IDENTIFYING_EXIT')}
-                                                                className="text-[10px] h-8 font-bold border-orange-200 text-orange-600 hover:bg-orange-50 flex-1"
-                                                            >
-                                                                Open Exit
-                                                            </Button>
-                                                        )}
-                                                        {batch.session.status === 'IDENTIFYING_EXIT' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleUpdateStatus(batch.session!.id, 'COMPLETED')}
-                                                                className="text-[10px] h-8 font-bold border-purple-200 text-purple-600 hover:bg-purple-50 flex-1"
-                                                            >
-                                                                Mark Completed
-                                                            </Button>
-                                                        )}
-                                                    </div>
+                                                            )}
+                                                            {batch.session.status === 'IDENTIFYING_EXIT' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handleUpdateStatus(batch.session!.id, 'COMPLETED')}
+                                                                    className="text-[10px] h-8 font-bold border-purple-200 text-purple-600 hover:bg-purple-50 w-full"
+                                                                >
+                                                                    Mark Completed
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                        <Button
+                                                            onClick={() => router.push(`/ems/academic-manager/attendance/${batch.session!.id}`)}
+                                                            className="bg-white text-purple-600 border border-purple-200 hover:bg-purple-50 h-9 font-bold text-xs w-full"
+                                                        >
+                                                            View Full Summary
+                                                        </Button>
+                                                    </>
+                                                ) : (
                                                     <Button
-                                                        onClick={() => router.push(`/ems/academic-manager/attendance/${batch.session!.id}`)}
-                                                        className="bg-white text-purple-600 border border-purple-200 hover:bg-purple-50 h-9 font-bold text-xs"
+                                                        onClick={() => handleMarkAttendance(batch as any)}
+                                                        className="bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200 w-full sm:min-w-[140px]"
                                                     >
-                                                        View Full Summary
+                                                        Start Session
+                                                        <ChevronRight className="h-4 w-4 ml-2" />
                                                     </Button>
-                                                </>
-                                            ) : (
-                                                <Button
-                                                    onClick={() => handleMarkAttendance(batch as any)}
-                                                    className="bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200 min-w-[140px]"
-                                                >
-                                                    Start Session
-                                                    <ChevronRight className="h-4 w-4 ml-2" />
-                                                </Button>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>

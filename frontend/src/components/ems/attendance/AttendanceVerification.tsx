@@ -21,6 +21,7 @@ interface AttendanceVerificationProps {
 }
 
 export const AttendanceVerification = ({ sessions, onSuccess, onClose }: AttendanceVerificationProps) => {
+    console.log("AttendanceVerification component mounted", { sessions });
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -37,6 +38,7 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
     useEffect(() => {
         const load = async () => {
             try {
+                console.log("Loading face-api models...");
                 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -44,7 +46,11 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
                 ]);
                 setIsModelsLoaded(true);
-            } catch (err) { }
+                console.log("✅ Face models loaded successfully");
+            } catch (err) {
+                console.error("❌ Failed to load face models:", err);
+                // Don't toast here as it might be transient or not needed yet
+            }
         };
         load();
     }, []);
@@ -54,13 +60,18 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
         const checkEnrollment = async () => {
             try {
                 const { data } = await api.get("/ems/face-profile/register");
-                if (!data.data.is_enrolled) setStep("NEED_REGISTRATION");
-            } catch (err) { }
+                console.log("Enrollment status:", data);
+                if (data.success && data.data && !data.data.is_enrolled) {
+                    setStep("NEED_REGISTRATION");
+                }
+            } catch (err) {
+                console.error("Error checking enrollment:", err);
+            }
         };
         checkEnrollment();
     }, []);
 
-    const pendingSessions = sessions.filter(s => s.recommended_action !== 'COMPLETED');
+    const pendingSessions = (sessions || []).filter(s => s.recommended_action !== 'COMPLETED');
 
     // Auto-select if only one pending session
     useEffect(() => {

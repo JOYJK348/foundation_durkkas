@@ -276,12 +276,12 @@ export default function LiveClassesPage() {
         <div className="min-h-screen bg-gray-50 pb-24">
             <AcademicManagerTopNavbar />
 
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-8">
-                    <div className="group relative">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                {/* Header - Responsive */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+                    <div className="group relative w-full sm:w-auto">
                         {isEditingHeader ? (
-                            <div className="space-y-4 bg-white p-6 rounded-2xl shadow-xl border border-purple-100 min-w-[400px]">
+                            <div className="space-y-4 bg-white p-4 sm:p-6 rounded-2xl shadow-xl border border-purple-100 w-full sm:min-w-[400px]">
                                 <div className="space-y-2">
                                     <Label>Page Title</Label>
                                     <Input value={pageTitle} onChange={e => setPageTitle(e.target.value)} className="font-bold" />
@@ -297,13 +297,13 @@ export default function LiveClassesPage() {
                             </div>
                         ) : (
                             <>
-                                <h1 className="text-4xl font-black text-gray-900 flex items-center gap-4">
-                                    <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg shadow-purple-200">
-                                        <Video className="h-8 w-8 text-white" />
+                                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 flex items-center gap-3 sm:gap-4">
+                                    <div className="p-2 sm:p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl sm:rounded-2xl shadow-lg shadow-purple-200">
+                                        <Video className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="tracking-tight">{pageTitle}</span>
-                                        <span className="text-sm font-medium text-gray-400 italic mt-1">
+                                        <span className="text-xs sm:text-sm font-medium text-gray-400 italic mt-0.5 sm:mt-1">
                                             {pageSubtitle}
                                         </span>
                                     </div>
@@ -311,7 +311,7 @@ export default function LiveClassesPage() {
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => setIsEditingHeader(true)}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 rounded-full hover:bg-purple-50 text-purple-400"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 rounded-full hover:bg-purple-50 text-purple-400 hidden sm:flex"
                                     >
                                         <Edit className="h-4 w-4" />
                                     </Button>
@@ -336,32 +336,35 @@ export default function LiveClassesPage() {
                             });
                             setShowCreateModal(true);
                         }}
-                        className="bg-purple-600 hover:bg-purple-700 shadow-xl shadow-purple-200 h-12 px-6 rounded-xl font-bold"
+                        className="bg-purple-600 hover:bg-purple-700 shadow-xl shadow-purple-200 h-10 sm:h-12 px-4 sm:px-6 rounded-xl font-bold text-sm sm:text-base w-full sm:w-auto"
                     >
-                        <Plus className="h-5 w-5 mr-2" />
-                        Schedule New Class
+                        <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                        <span className="hidden sm:inline">Schedule New Class</span>
+                        <span className="sm:hidden">New Class</span>
                     </Button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex gap-4 mb-8 border-b border-gray-200">
+                {/* Tabs - Responsive */}
+                <div className="flex gap-2 sm:gap-4 mb-6 sm:mb-8 border-b border-gray-200 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('active')}
-                        className={`pb-4 px-4 font-bold text-sm transition-all relative ${activeTab === 'active' ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-3 sm:pb-4 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all relative whitespace-nowrap ${activeTab === 'active' ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
                     >
-                        <div className="flex items-center gap-2">
-                            <Video className="h-4 w-4" />
-                            Upcoming & Live
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Upcoming & Live</span>
+                            <span className="sm:hidden">Live</span>
                         </div>
                         {activeTab === 'active' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-purple-600 rounded-t-full" />}
                     </button>
                     <button
                         onClick={() => setActiveTab('recordings')}
-                        className={`pb-4 px-4 font-bold text-sm transition-all relative ${activeTab === 'recordings' ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-3 sm:pb-4 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all relative whitespace-nowrap ${activeTab === 'recordings' ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
                     >
-                        <div className="flex items-center gap-2">
-                            <Play className="h-4 w-4" />
-                            Class Recordings
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Class Recordings</span>
+                            <span className="sm:hidden">Recordings</span>
                         </div>
                         {activeTab === 'recordings' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-purple-600 rounded-t-full" />}
                     </button>
@@ -394,48 +397,79 @@ export default function LiveClassesPage() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.1 }}
                                 >
-                                    <Card className="border-0 shadow-md hover:shadow-xl transition-all overflow-hidden relative group">
-                                        <div className="absolute top-0 left-0 w-1 h-full bg-purple-600"></div>
-                                        <CardContent className="p-6">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-xs font-bold uppercase tracking-wider">
-                                                    {c.courses?.course_code || 'EMS'}
+                                    <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden relative group bg-white">
+                                        {/* Gradient Border Effect */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                                        {/* Top Gradient Bar */}
+                                        <div className="h-1.5 bg-gradient-to-r from-purple-500 via-purple-600 to-indigo-600"></div>
+
+                                        <CardContent className="p-6 relative">
+                                            {/* Header Section */}
+                                            <div className="flex justify-between items-start mb-5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="px-3 py-1.5 bg-gradient-to-r from-purple-50 to-indigo-50 text-purple-700 rounded-lg text-[10px] font-black uppercase tracking-widest border border-purple-100/50">
+                                                        {c.courses?.course_code || 'EMS'}
+                                                    </div>
                                                 </div>
-                                                <span className={`flex items-center gap-1 text-xs font-bold ${c.status === 'LIVE' ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
-                                                    {c.status === 'LIVE' && <span className="w-2 h-2 bg-red-500 rounded-full"></span>}
-                                                    {c.status}
-                                                </span>
+                                                {c.status === 'LIVE' ? (
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-200 rounded-full animate-pulse">
+                                                        <span className="w-2 h-2 bg-red-500 rounded-full animate-ping absolute"></span>
+                                                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                                                        <span className="text-[10px] font-black text-red-600 uppercase tracking-wider">LIVE</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2.5 py-1 bg-gray-50 rounded-full">
+                                                        {c.status}
+                                                    </span>
+                                                )}
                                             </div>
 
-                                            <h3 className="text-xl font-bold text-gray-900 mb-2 truncate">
+                                            {/* Title */}
+                                            <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-4 line-clamp-2 leading-tight tracking-tight">
                                                 {c.class_title}
                                             </h3>
 
-                                            <div className="space-y-3 mb-6">
-                                                <div className="flex items-center text-sm text-gray-500 gap-2">
-                                                    <Calendar className="h-4 w-4 text-purple-400" />
-                                                    {format(new Date(c.scheduled_date), "EEE, MMM do, yyyy")}
+                                            {/* Info Section with Better Spacing */}
+                                            <div className="space-y-3 mb-6 bg-gradient-to-br from-gray-50/50 to-purple-50/30 rounded-xl p-4 border border-gray-100/50">
+                                                <div className="flex items-center text-sm text-gray-600 gap-3 group/item">
+                                                    <div className="p-2 bg-white rounded-lg shadow-sm group-hover/item:shadow-md transition-shadow">
+                                                        <Calendar className="h-4 w-4 text-purple-500" />
+                                                    </div>
+                                                    <span className="font-semibold text-xs sm:text-sm">
+                                                        {format(new Date(c.scheduled_date), "EEE, MMM do, yyyy")}
+                                                    </span>
                                                 </div>
-                                                <div className="flex items-center text-sm text-gray-500 gap-2">
-                                                    <Clock className="h-4 w-4 text-purple-400" />
-                                                    {c.start_time.substring(0, 5)} - {c.end_time.substring(0, 5)}
+                                                <div className="flex items-center text-sm text-gray-600 gap-3 group/item">
+                                                    <div className="p-2 bg-white rounded-lg shadow-sm group-hover/item:shadow-md transition-shadow">
+                                                        <Clock className="h-4 w-4 text-indigo-500" />
+                                                    </div>
+                                                    <span className="font-semibold text-xs sm:text-sm">
+                                                        {c.start_time.substring(0, 5)} - {c.end_time.substring(0, 5)}
+                                                    </span>
                                                 </div>
-                                                <div className="flex items-center text-sm text-gray-500 gap-2">
-                                                    <Users className="h-4 w-4 text-purple-400" />
-                                                    Tutor: {c.tutors?.first_name} {c.tutors?.last_name}
+                                                <div className="flex items-center text-sm text-gray-600 gap-3 group/item">
+                                                    <div className="p-2 bg-white rounded-lg shadow-sm group-hover/item:shadow-md transition-shadow">
+                                                        <Users className="h-4 w-4 text-purple-500" />
+                                                    </div>
+                                                    <span className="font-semibold text-xs sm:text-sm truncate">
+                                                        {c.tutors?.first_name} {c.tutors?.last_name}
+                                                    </span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-col gap-2 pt-2 border-t border-gray-50">
+                                            {/* Action Buttons */}
+                                            <div className="flex flex-col gap-2.5 pt-4 border-t border-gray-100">
                                                 {activeTab === 'active' ? (
-                                                    <div className="flex flex-col gap-2">
-                                                        <div className="grid grid-cols-2 gap-2">
+                                                    <div className="flex flex-col gap-2.5">
+                                                        <div className="grid grid-cols-2 gap-2.5">
                                                             <Button
                                                                 onClick={() => joinClass(c)}
-                                                                className="bg-purple-600 hover:bg-purple-700 shadow-md font-bold"
+                                                                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 font-bold text-xs sm:text-sm h-10 sm:h-11 rounded-xl transition-all duration-300 group/btn"
                                                             >
-                                                                Join
-                                                                <ExternalLink className="h-4 w-4 ml-2" />
+                                                                <span className="hidden sm:inline">Join Class</span>
+                                                                <span className="sm:hidden">Join</span>
+                                                                <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1.5 sm:ml-2 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                                                             </Button>
                                                             <Button
                                                                 variant="outline"
@@ -443,29 +477,30 @@ export default function LiveClassesPage() {
                                                                     setShowRecordingModal(c);
                                                                     setRecordingUrl(c.recording_url || "");
                                                                 }}
-                                                                className="border-purple-200 text-purple-600 hover:bg-purple-50 font-bold"
+                                                                className="border-2 border-purple-200 text-purple-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50 hover:border-purple-300 font-bold text-xs sm:text-sm h-10 sm:h-11 rounded-xl transition-all duration-300 group/btn"
                                                             >
-                                                                Record
-                                                                <Play className="h-4 w-4 ml-2" />
+                                                                <span className="hidden sm:inline">Record</span>
+                                                                <span className="sm:hidden">Rec</span>
+                                                                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1.5 sm:ml-2 group-hover/btn:scale-110 transition-transform" />
                                                             </Button>
                                                         </div>
-                                                        <div className="grid grid-cols-2 gap-2">
+                                                        <div className="grid grid-cols-2 gap-2.5">
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => handleEditButtonClick(c)}
-                                                                className="text-gray-400 hover:text-purple-600 hover:bg-purple-50 h-8 font-bold"
+                                                                className="text-gray-500 hover:text-purple-700 hover:bg-purple-50 h-9 font-semibold text-xs rounded-lg transition-all duration-200 group/btn"
                                                             >
-                                                                <Edit className="h-4 w-4 mr-1.5" />
+                                                                <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 group-hover/btn:rotate-12 transition-transform" />
                                                                 Edit
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => handleDeleteClass(c.id)}
-                                                                className="text-gray-400 hover:text-red-600 hover:bg-red-50 h-8 font-bold"
+                                                                className="text-gray-500 hover:text-red-600 hover:bg-red-50 h-9 font-semibold text-xs rounded-lg transition-all duration-200 group/btn"
                                                             >
-                                                                <Trash2 className="h-4 w-4 mr-1.5" />
+                                                                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 group-hover/btn:scale-110 transition-transform" />
                                                                 Delete
                                                             </Button>
                                                         </div>
@@ -473,10 +508,10 @@ export default function LiveClassesPage() {
                                                 ) : (
                                                     <Button
                                                         onClick={() => window.open(c.recording_url, '_blank')}
-                                                        className="w-full bg-red-600 hover:bg-red-700 shadow-lg font-bold"
+                                                        className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-300 font-bold text-xs sm:text-sm h-10 sm:h-11 rounded-xl transition-all duration-300 group/btn"
                                                     >
+                                                        <Play className="h-4 w-4 mr-2 fill-current group-hover/btn:scale-110 transition-transform" />
                                                         Watch on YouTube
-                                                        <Play className="h-4 w-4 ml-2 fill-current" />
                                                     </Button>
                                                 )}
                                             </div>
@@ -530,7 +565,7 @@ export default function LiveClassesPage() {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Course *</Label>
                                         <select
@@ -564,7 +599,7 @@ export default function LiveClassesPage() {
                                             ) : tutors.map(t => <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>)}
                                         </select>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 sm:col-span-2">
                                         <Label className={!formData.course_id ? 'opacity-50' : ''}>Target Batch *</Label>
                                         <select
                                             required

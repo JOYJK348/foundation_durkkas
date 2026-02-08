@@ -347,163 +347,163 @@ export default function MaterialsPage() {
 
                 {viewMode === 'LIST' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        {/* Filters & search Bar */}
-                        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center mb-8">
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                                    <LayoutList className="w-5 h-5" />
-                                </div>
-                                <h2 className="text-lg font-black text-slate-800 tracking-tight">Data Library</h2>
+                        {/* Search Bar */}
+                        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-8">
+                            <div>
+                                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Materials Library</h2>
+                                <p className="text-gray-600 mt-1">Manage your course resources</p>
                             </div>
 
-                            <div className="relative w-full lg:w-96">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <Input
-                                    placeholder="Search repository..."
-                                    className="pl-11 h-12 bg-white border-slate-200 rounded-2xl focus:ring-indigo-500 text-sm font-medium"
+                            <div className="relative w-full sm:w-96">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <input
+                                    type="search"
+                                    placeholder="Search materials..."
+                                    className="w-full h-11 pl-11 pr-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
                         </div>
 
-                        {/* List View - Professional Table */}
-                        <div className="bg-white rounded-[2rem] border border-slate-200/60 overflow-hidden shadow-sm">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="border-b border-slate-100 bg-slate-50/50">
-                                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Resource</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">Type</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Active Status</th>
-                                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {loading ? (
-                                            <tr>
-                                                <td colSpan={5} className="py-20 text-center">
-                                                    <div className="flex flex-col items-center gap-3">
-                                                        <div className="w-8 h-8 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin" />
-                                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Library...</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ) : filteredMaterials.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="py-32 text-center">
-                                                    <div className="flex flex-col items-center gap-4">
-                                                        <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center">
-                                                            <Folder className="w-10 h-10 text-slate-200" />
-                                                        </div>
-                                                        <h3 className="text-xl font-bold text-slate-800">No resources found</h3>
-                                                        <p className="text-sm text-slate-500 max-w-xs">Your search didn't match any library items. Try a different query or add an item.</p>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            filteredMaterials.map((material) => (
-                                                <tr key={material.id} className="group hover:bg-slate-50/80 transition-colors">
-                                                    <td className="px-6 py-5">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shrink-0 ${material.material_type === 'PDF' ? 'bg-rose-50 text-rose-600' :
-                                                                material.material_type === 'VIDEO' ? 'bg-indigo-50 text-indigo-600' :
-                                                                    material.material_type === 'CONTENT' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'
-                                                                }`}>
-                                                                {getFileIcon(material.material_type)}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <h4 className="text-sm font-black text-slate-900 leading-tight mb-1 truncate max-w-[200px] sm:max-w-[400px]">{material.material_name}</h4>
-                                                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
-                                                                    <Clock className="w-3 h-3" />
-                                                                    <span className="truncate">Course: {material.course?.course_code || 'General'}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-5">
-                                                        <div className="flex flex-col items-start gap-1.5">
-                                                            <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${material.handbook_type === 'STUDENT_HANDBOOK' ? 'bg-blue-50 text-blue-700' :
-                                                                material.handbook_type === 'TUTOR_HANDBOOK' ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'
-                                                                }`}>
-                                                                {material.handbook_type === 'STUDENT_HANDBOOK' && <><GraduationCap size={14} /> Students</>}
-                                                                {material.handbook_type === 'TUTOR_HANDBOOK' && <><UserCog size={14} /> Tutors</>}
-                                                                {material.handbook_type === 'GENERAL_RESOURCE' && <><Globe size={14} /> Everyone</>}
-                                                            </span>
-
-                                                            {/* Scope Context */}
-                                                            <div className="flex flex-col gap-1 ml-1">
-                                                                {material.course ? (
-                                                                    <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
-                                                                        <BookOpen size={12} className="text-slate-400" />
-                                                                        {material.course.course_code}
-                                                                        {material.batch_id && (
-                                                                            <>
-                                                                                <span className="text-slate-300">•</span>
-                                                                                <Users size={12} className="text-slate-400" />
-                                                                                <span className="text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded-md">
-                                                                                    {batchMap[material.batch_id] || material.batch?.batch_name || `Batch #${material.batch_id}`}
-                                                                                </span>
-                                                                            </>
-                                                                        )}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-[10px] font-bold text-slate-400 italic pl-1">Global Organization</span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-5 hidden md:table-cell">
-                                                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-lg uppercase tracking-widest">
-                                                            {material.delivery_method}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-5 text-center">
-                                                        <div className={`mx-auto w-fit flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase ${material.is_active ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700 italic border border-rose-200'}`}>
-                                                            {material.is_active ? (
-                                                                <><CheckCircle2 className="w-3 h-3" /> Active</>
-                                                            ) : (
-                                                                <><X className="w-3 h-3" /> Hidden</>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-5">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setSelectedMaterial(material);
-                                                                    setPreviewSectionIdx(0);
-                                                                    setViewMode('PREVIEW');
-                                                                }}
-                                                                className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
-                                                                title="Immersive Preview"
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleEdit(material)}
-                                                                className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-50"
-                                                                title="Modify Configuration"
-                                                            >
-                                                                <Settings2 className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(material.id)}
-                                                                className="w-10 h-10 rounded-xl flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm shadow-rose-50"
-                                                                title="Remove Asset"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
+                        {/* Card Grid View */}
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                                <div className="w-10 h-10 border-4 border-gray-200 border-t-purple-600 rounded-full animate-spin mb-4" />
+                                <p className="font-semibold">Loading materials...</p>
                             </div>
-                        </div>
+                        ) : filteredMaterials.length === 0 ? (
+                            <Card className="border-0 shadow-lg p-12 text-center">
+                                <Folder className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">No Materials Found</h3>
+                                <p className="text-gray-600 mb-6">Your search didn't match any materials. Try a different query or add a new resource.</p>
+                            </Card>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredMaterials.map((material, idx) => (
+                                    <motion.div
+                                        key={material.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.05 }}
+                                    >
+                                        <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group h-full flex flex-col">
+                                            {/* Header with Gradient */}
+                                            <div className={`relative h-32 overflow-hidden ${material.material_type === 'PDF' ? 'bg-gradient-to-br from-rose-400 to-rose-600' :
+                                                    material.material_type === 'VIDEO' ? 'bg-gradient-to-br from-indigo-400 to-indigo-600' :
+                                                        material.material_type === 'CONTENT' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' :
+                                                            'bg-gradient-to-br from-purple-400 to-purple-600'
+                                                }`}>
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+
+                                                {/* Status Badge */}
+                                                <div className="absolute top-3 right-3">
+                                                    {material.is_active ? (
+                                                        <div className="bg-green-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider">
+                                                            <CheckCircle2 className="h-3 w-3" />
+                                                            Active
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider">
+                                                            <X className="h-3 w-3" />
+                                                            Hidden
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Icon */}
+                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform group-hover:scale-110 transition-transform">
+                                                    <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30">
+                                                        {material.material_type === 'PDF' && <FileText className="h-8 w-8 text-white" />}
+                                                        {material.material_type === 'VIDEO' && <VideoIcon className="h-8 w-8 text-white" />}
+                                                        {material.material_type === 'CONTENT' && <BookOpen className="h-8 w-8 text-white" />}
+                                                        {!['PDF', 'VIDEO', 'CONTENT'].includes(material.material_type) && <Folder className="h-8 w-8 text-white" />}
+                                                    </div>
+                                                </div>
+
+                                                {/* Title Overlay */}
+                                                <div className="absolute bottom-3 left-3 right-3">
+                                                    <h3 className="text-white font-bold text-base line-clamp-1">{material.material_name}</h3>
+                                                    <p className="text-white/80 text-xs">{material.course?.course_code || 'General'}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Content */}
+                                            <CardContent className="p-5 flex-1 flex flex-col">
+                                                {/* Target Audience Badge */}
+                                                <div className="mb-4">
+                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${material.handbook_type === 'STUDENT_HANDBOOK' ? 'bg-blue-50 text-blue-700' :
+                                                            material.handbook_type === 'TUTOR_HANDBOOK' ? 'bg-amber-50 text-amber-700' :
+                                                                'bg-green-50 text-green-700'
+                                                        }`}>
+                                                        {material.handbook_type === 'STUDENT_HANDBOOK' && <><GraduationCap size={12} /> Students</>}
+                                                        {material.handbook_type === 'TUTOR_HANDBOOK' && <><UserCog size={12} /> Tutors</>}
+                                                        {material.handbook_type === 'GENERAL_RESOURCE' && <><Globe size={12} /> Everyone</>}
+                                                    </span>
+                                                </div>
+
+                                                {/* Course & Batch Info */}
+                                                <div className="mb-4 flex-1">
+                                                    {material.course && (
+                                                        <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                                                            <BookOpen className="h-3.5 w-3.5 text-gray-400" />
+                                                            <span className="font-semibold">{material.course.course_name}</span>
+                                                        </div>
+                                                    )}
+                                                    {material.batch_id && (
+                                                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                                                            <Users className="h-3.5 w-3.5 text-gray-400" />
+                                                            <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-bold">
+                                                                {batchMap[material.batch_id] || material.batch?.batch_name || `Batch #${material.batch_id}`}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {!material.course && (
+                                                        <p className="text-xs text-gray-400 italic">Global Resource</p>
+                                                    )}
+                                                </div>
+
+                                                {/* Type Badge */}
+                                                <div className="mb-4">
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                                                        {material.delivery_method}
+                                                    </span>
+                                                </div>
+
+                                                {/* Action Buttons */}
+                                                <div className="grid grid-cols-3 gap-2 mt-auto">
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedMaterial(material);
+                                                            setPreviewSectionIdx(0);
+                                                            setViewMode('PREVIEW');
+                                                        }}
+                                                        className="h-10 rounded-xl flex items-center justify-center bg-gray-100 text-gray-600 hover:bg-gray-900 hover:text-white transition-all font-semibold text-xs"
+                                                        title="Preview"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEdit(material)}
+                                                        className="h-10 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600 hover:bg-purple-600 hover:text-white transition-all font-semibold text-xs"
+                                                        title="Edit"
+                                                    >
+                                                        <Settings2 className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(material.id)}
+                                                        className="h-10 rounded-xl flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all font-semibold text-xs"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
                     </motion.div>
                 )}
 
