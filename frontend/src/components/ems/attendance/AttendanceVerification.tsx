@@ -7,7 +7,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
-import * as faceapi from "@vladmandic/face-api";
+
+// Remove static import to fix build error: TypeError: this.util.TextEncoder is not a constructor
+// We will load faceapi lazily inside the component
+let faceapi: any = null;
 
 const FaceRegistration = dynamic(
     () => import("./FaceRegistration").then(mod => mod.FaceRegistration),
@@ -39,6 +42,12 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
         const load = async () => {
             try {
                 console.log("Loading face-api models...");
+
+                // Dynamically load face-api only on the client side
+                if (!faceapi) {
+                    faceapi = await import("@vladmandic/face-api");
+                }
+
                 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -49,7 +58,6 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                 console.log("✅ Face models loaded successfully");
             } catch (err) {
                 console.error("❌ Failed to load face models:", err);
-                // Don't toast here as it might be transient or not needed yet
             }
         };
         load();

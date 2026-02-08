@@ -18,8 +18,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
-import * as faceapi from "face-api.js";
 import { useEffect } from "react";
+
+// Remove static import to fix build error: TypeError: this.util.TextEncoder is not a constructor
+// We will load faceapi lazily inside the component
+let faceapi: any = null;
 
 export default function RegisterFacePage() {
     const [loading, setLoading] = useState(true);
@@ -39,7 +42,13 @@ export default function RegisterFacePage() {
         const loadModels = async () => {
             try {
                 setLoading(true);
-                const MODEL_URL = "/models";
+
+                // Dynamically load face-api only on the client side
+                if (!faceapi) {
+                    faceapi = await import("@vladmandic/face-api");
+                }
+
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
