@@ -44,6 +44,8 @@ interface Material {
     material_type: string;
     visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
     file_url: string;
+    handbook_type: string;
+    target_audience: string;
 }
 
 interface Lesson {
@@ -59,6 +61,7 @@ interface Module {
     module_name: string;
     module_number: number;
     visibility: 'PUBLIC' | 'PRIVATE' | 'ENROLLED';
+    course_materials?: Material[];
     lessons: Lesson[];
 }
 
@@ -67,6 +70,7 @@ interface CourseDetails {
     course_name: string;
     course_code: string;
     course_description: string;
+    course_materials?: Material[];
     course_modules: Module[];
 }
 
@@ -95,7 +99,14 @@ export default function CourseDetailsPage() {
     const [formData, setFormData] = useState({
         module: { name: "", description: "", visibility: "ENROLLED" as const },
         lesson: { name: "", description: "", type: "VIDEO", visibility: "ENROLLED" as const },
-        material: { name: "", type: "DOCUMENT", url: "", visibility: "ENROLLED" as const }
+        material: {
+            name: "",
+            type: "DOCUMENT",
+            url: "",
+            visibility: "ENROLLED" as const,
+            handbook_type: "STUDENT_HANDBOOK",
+            target_audience: "STUDENTS"
+        }
     });
 
     const [submitting, setSubmitting] = useState(false);
@@ -206,11 +217,14 @@ export default function CourseDetailsPage() {
             setSubmitting(true);
             const response = await api.post("/ems/materials", {
                 course_id: parseInt(params.id as string),
+                module_id: creatorConfig.selectedModuleId,
                 lesson_id: creatorConfig.selectedLessonId,
                 material_name: formData.material.name,
                 material_type: formData.material.type,
                 file_url: formData.material.url,
-                visibility: formData.material.visibility
+                visibility: formData.material.visibility,
+                handbook_type: formData.material.handbook_type,
+                target_audience: formData.material.target_audience
             });
 
             if (response.data.success) {
@@ -218,7 +232,17 @@ export default function CourseDetailsPage() {
                 await fetchCourseDetails();
 
                 // Allow adding more materials or finish
-                setFormData(prev => ({ ...prev, material: { name: "", type: "DOCUMENT", url: "", visibility: "ENROLLED" } }));
+                setFormData(prev => ({
+                    ...prev,
+                    material: {
+                        name: "",
+                        type: "DOCUMENT",
+                        url: "",
+                        visibility: "ENROLLED",
+                        handbook_type: "STUDENT_HANDBOOK",
+                        target_audience: "STUDENTS"
+                    }
+                }));
                 toast.info("You can add another material or close the window.", { duration: 5000 });
             }
         } catch (error: any) {
@@ -304,16 +328,54 @@ export default function CourseDetailsPage() {
                     <Card className="border-0 shadow-sm overflow-hidden bg-white/50 backdrop-blur-sm">
                         <CardHeader className="bg-white border-b border-gray-100 flex flex-row items-center justify-between">
                             <CardTitle className="text-lg font-semibold text-gray-800">Course Curriculum</CardTitle>
-                            <Button
-                                size="sm"
-                                className="bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-100 transition-all hover:scale-105"
-                                onClick={() => openCreator('module')}
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add Module
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                                    onClick={() => openCreator('material')}
+                                >
+                                    <FilePlus className="h-4 w-4 mr-2" />
+                                    Add Course Material
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    className="bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-100"
+                                    onClick={() => openCreator('module')}
+                                >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Module
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent className="p-0">
+                            {/* Course Level Materials */}
+                            {course.course_materials && course.course_materials.length > 0 && (
+                                <div className="p-4 bg-purple-50/10 border-b border-gray-100">
+                                    <h4 className="text-[10px] font-black uppercase text-purple-400 tracking-widest mb-3 flex items-center gap-2">
+                                        <BookOpen className="h-3 w-3" />
+                                        Main Course Handbooks & Resources
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {course.course_materials.map(mat => (
+                                            <div key={mat.id} className="flex items-center gap-2 bg-white border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm group">
+                                                <FileText className={`h-3.5 w-3.5 ${mat.handbook_type === 'TUTOR_HANDBOOK' ? 'text-amber-500' : 'text-blue-500'}`} />
+                                                <span className="text-xs font-bold text-gray-700">{mat.material_name}</span>
+                                                <span className="text-[10px] font-black text-gray-300 uppercase px-1.5 bg-gray-50 rounded-md">
+                                                    {mat.handbook_type === 'TUTOR_HANDBOOK' ? 'TUTOR' : 'STUDENT'}
+                                                </span>
+                                                <Button
+                                                    variant="ghost"
+                                                    className="h-6 w-6 p-0 rounded-lg hover:bg-purple-50"
+                                                    onClick={() => handleToggleVisibility('material', mat.id, mat.visibility)}
+                                                >
+                                                    {mat.visibility === 'PRIVATE' ? <EyeOff className="h-3 w-3 text-gray-300" /> : <Eye className="h-3 w-3 text-purple-400" />}
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             {!course.course_modules || course.course_modules.length === 0 ? (
                                 <div className="p-16 text-center">
                                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -353,6 +415,15 @@ export default function CourseDetailsPage() {
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
+                                                        className="h-8 w-8 p-0 text-purple-600 hover:bg-purple-50 rounded-lg"
+                                                        title="Add Material to Module"
+                                                        onClick={() => openCreator('material', module.id, undefined, module.module_name)}
+                                                    >
+                                                        <FilePlus className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
                                                         className={`h-8 gap-2 px-3 text-xs font-bold transition-all ${module.visibility === 'PUBLIC' ? 'text-blue-600 hover:bg-blue-50' :
                                                             module.visibility === 'ENROLLED' ? 'text-green-600 hover:bg-green-50' :
                                                                 'text-gray-400 hover:bg-gray-50'
@@ -370,6 +441,25 @@ export default function CourseDetailsPage() {
                                                     </Button>
                                                 </div>
                                             </div>
+
+                                            {/* Module Materials */}
+                                            {expandedModules.includes(module.id) && module.course_materials && module.course_materials.length > 0 && (
+                                                <div className="px-10 py-2 bg-gray-50/50 flex flex-wrap gap-2 border-b border-gray-50">
+                                                    {module.course_materials.map(mat => (
+                                                        <div key={mat.id} className="flex items-center gap-2 bg-white border border-gray-100 px-3 py-1 rounded-xl group/mat shadow-sm text-[11px] font-bold text-gray-600">
+                                                            <FileText className={`h-3 w-3 ${mat.handbook_type === 'TUTOR_HANDBOOK' ? 'text-amber-500' : 'text-blue-500'}`} />
+                                                            <span>{mat.material_name}</span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                className="h-5 w-5 p-0"
+                                                                onClick={() => handleToggleVisibility('material', mat.id, mat.visibility)}
+                                                            >
+                                                                {mat.visibility === 'PRIVATE' ? <EyeOff className="h-2.5 w-2.5 text-gray-300" /> : <Eye className="h-2.5 w-2.5 text-purple-400" />}
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
 
                                             {/* Lessons List */}
                                             <AnimatePresence>
@@ -623,8 +713,34 @@ export default function CourseDetailsPage() {
                                         className="h-11 bg-gray-50 border-gray-100 focus:bg-white"
                                     />
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700 font-bold">Category</Label>
+                                        <select
+                                            className="w-full h-11 px-3 rounded-md border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
+                                            value={formData.material.handbook_type}
+                                            onChange={e => setFormData({ ...formData, material: { ...formData.material, handbook_type: e.target.value } })}
+                                        >
+                                            <option value="STUDENT_HANDBOOK">Student Handbook</option>
+                                            <option value="TUTOR_HANDBOOK">Tutor Handbook</option>
+                                            <option value="GENERAL_RESOURCE">General Resource</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-gray-700 font-bold">Audience</Label>
+                                        <select
+                                            className="w-full h-11 px-3 rounded-md border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
+                                            value={formData.material.target_audience}
+                                            onChange={e => setFormData({ ...formData, material: { ...formData.material, target_audience: e.target.value } })}
+                                        >
+                                            <option value="STUDENTS">Students Only</option>
+                                            <option value="TUTORS">Tutors Only</option>
+                                            <option value="BOTH">Everyone</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div className="space-y-2">
-                                    <Label className="text-gray-700 font-bold">Visibility</Label>
+                                    <Label className="text-gray-700 font-bold">Visibility Status</Label>
                                     <select
                                         className="w-full h-11 px-3 rounded-md border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
                                         value={formData.material.visibility}

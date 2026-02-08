@@ -56,6 +56,7 @@ interface DashboardData {
     upcoming_quizzes: any[];
     upcoming_live_classes: any[];
     active_attendance_sessions: any[];
+    recent_materials: any[];
 }
 
 export default function StudentDashboard() {
@@ -365,6 +366,63 @@ export default function StudentDashboard() {
                                             </Link>
                                         </div>
                                     </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </motion.div>
+
+                {/* Recent Materials - MATERIAL BASED NAVIGATION */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.65 }}
+                    className="mb-8"
+                >
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-2xl font-bold text-gray-900">Recent Study Materials</h2>
+                        <Link href="/ems/student/materials">
+                            <Button variant="ghost" size="sm">
+                                View Library
+                                <ArrowRight className="h-4 w-4 ml-2" />
+                            </Button>
+                        </Link>
+                    </div>
+                    {(!dashboardData.recent_materials || dashboardData.recent_materials.length === 0) ? (
+                        <Card className="border-0 shadow-md">
+                            <CardContent className="p-12 text-center border-2 border-dashed border-gray-100 rounded-3xl">
+                                <Folder className="h-12 w-12 text-gray-200 mx-auto mb-4" />
+                                <p className="text-gray-500 font-medium">No materials shared yet</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {dashboardData.recent_materials.map((mat: any, idx: number) => (
+                                <Card key={mat.id} className="border-0 shadow-sm hover:shadow-xl transition-all group overflow-hidden bg-white rounded-2xl">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
+                                                <FileText className="h-6 w-6 text-blue-600 group-hover:text-white transition-colors duration-300" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-900 truncate pr-4">{mat.material_name}</h3>
+                                                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mt-1">{mat.course?.course_name}</p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-black uppercase">{mat.material_type}</span>
+                                                    <span className="text-[10px] text-gray-400 font-medium">{new Date(mat.created_at).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => window.open(mat.file_url, '_blank')}
+                                                className="rounded-full hover:bg-blue-50 text-blue-600 shrink-0"
+                                            >
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                    <div className="h-1 w-0 bg-blue-600 group-hover:w-full transition-all duration-500" />
                                 </Card>
                             ))}
                         </div>

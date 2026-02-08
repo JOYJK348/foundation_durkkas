@@ -24,7 +24,7 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    const [step, setStep] = useState<"SELECT_SESSION" | "SCANNING" | "VERIFYING" | "SUCCESS" | "ERROR" | "NEED_REGISTRATION">("SELECT_SESSION");
+    const [step, setStep] = useState<"SELECT_SESSION" | "CONFIRM" | "SCANNING" | "VERIFYING" | "SUCCESS" | "ERROR" | "NEED_REGISTRATION">("SELECT_SESSION");
     const [selectedSession, setSelectedSession] = useState<any | null>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -99,53 +99,20 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
         setSelectedSession(session);
         setError(null);
 
-        // If face verification is NO LONGER required for this session, skip the camera step
+        // If face verification is explicitly disabled (false), we skip camera
+        // Default to TRUE (require face) for undefined/null/true
         const requireFace = session.require_face_verification !== false;
 
         if (!requireFace) {
-            setStep("VERIFYING");
+            setStep("CONFIRM");
             if (!location) getPreciseLocation();
-
-            // Proactively hit the mark attendance API without face data
-            try {
-                // Wait for location if not yet available
-                let loc = location;
-                if (!loc) {
-                    toast.loading("Getting location...");
-                    await new Promise(resolve => {
-                        navigator.geolocation.getCurrentPosition(
-                            pos => {
-                                loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                                setLocation(loc);
-                                resolve(true);
-                            },
-                            () => resolve(false),
-                            { timeout: 5000 }
-                        );
-                    });
-                    toast.dismiss();
-                }
-
-                const response = await api.post("/ems/attendance?mode=student-mark", {
-                    session_id: session.id,
-                    location: loc ? { latitude: loc.lat, longitude: loc.lng } : null,
-                    verification_type: session.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING'
-                });
-
-                if (response.data.success) {
-                    setStep("SUCCESS");
-                    setTimeout(() => onSuccess(selectedSession), 1500);
-                } else {
-                    setError(response.data.message || "Attendance failed");
-                    setStep("ERROR");
-                }
-            } catch (err: any) {
-                setError(err.message || "Failed to mark attendance");
-                setStep("ERROR");
-            }
             return;
         }
 
+        startCameraVerification();
+    };
+
+    const startCameraVerification = async () => {
         setStep("SCANNING");
 
         // Only look for location if we don't have it yet
@@ -158,6 +125,51 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
             setStream(mediaStream);
         } catch (err: any) {
             setError("Camera access required for face verification.");
+            setStep("ERROR");
+        }
+    };
+
+    const handleConfirmAttendance = async () => {
+        if (!selectedSession) return;
+
+        setStep("VERIFYING");
+
+        try {
+            // Wait for location if not yet available
+            let loc = location;
+            if (!loc) {
+                toast.loading("Getting location...");
+                try {
+                    loc = await new Promise<{ lat: number, lng: number }>((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(
+                            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                            err => reject(err),
+                            { timeout: 5000, enableHighAccuracy: true }
+                        );
+                    });
+                    setLocation(loc);
+                } catch (e) {
+                    // Proceed without precise location if it fails, let backend decide policy
+                    console.warn("Location failed in confirm", e);
+                }
+                toast.dismiss();
+            }
+
+            const response = await api.post("/ems/attendance?mode=student-mark", {
+                session_id: selectedSession.id,
+                location: loc ? { latitude: loc.lat, longitude: loc.lng } : null,
+                verification_type: selectedSession.recommended_action === 'PUNCH_OUT' ? 'CLOSING' : 'OPENING'
+            });
+
+            if (response.data.success) {
+                setStep("SUCCESS");
+                setTimeout(() => onSuccess(selectedSession), 1500);
+            } else {
+                setError(response.data.message || "Attendance failed");
+                setStep("ERROR");
+            }
+        } catch (err: any) {
+            setError(err.message || "Failed to mark attendance");
             setStep("ERROR");
         }
     };
@@ -417,6 +429,61 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                             </div>
                         )}
 
+                        {step === "CONFIRM" && (
+                            <div className="flex flex-col h-full">
+                                <div className="text-center py-8 px-4 space-y-4 flex-1 flex flex-col items-center justify-center">
+                                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-4 relative">
+                                        <MapPin className="h-10 w-10 text-blue-600" />
+                                        {location && (
+                                            <div className="absolute top-0 right-0 bg-green-500 rounded-full p-1 border-2 border-white">
+                                                <CheckCircle2 className="h-3 w-3 text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <h3 className="text-xl font-black text-gray-900">Confirm Attendance</h3>
+                                    <p className="text-gray-500 text-sm">
+                                        Mark your presence for <br />
+                                        <span className="font-bold text-blue-600 text-lg">{selectedSession?.course?.course_name}</span>
+                                    </p>
+
+                                    <div className={`mt-6 p-4 rounded-2xl w-full max-w-xs border ${location ? 'bg-green-50 border-green-100 text-green-700' : 'bg-yellow-50 border-yellow-100 text-yellow-700'
+                                        }`}>
+                                        <div className="flex items-center justify-center gap-2 text-sm font-bold">
+                                            {location ? (
+                                                <>
+                                                    <MapPin className="h-4 w-4" />
+                                                    <span>Location Acquired</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    <span>Acquiring Location...</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-gray-50/50 space-y-3">
+                                    <Button
+                                        onClick={handleConfirmAttendance}
+                                        disabled={!location}
+                                        className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2"
+                                    >
+                                        Mark Attendance
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setStep("SELECT_SESSION")}
+                                        className="w-full text-gray-400 font-bold"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
                         {step === "ERROR" && (
                             <div className="text-center py-8 space-y-6">
                                 <AlertCircle className="h-12 w-12 text-red-500 mx-auto animate-bounce" />
@@ -426,7 +493,13 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                                 </div>
                                 <div className="flex flex-col gap-3">
                                     <Button
-                                        onClick={() => setStep("SCANNING")}
+                                        onClick={() => {
+                                            if (selectedSession?.require_face_verification === false) {
+                                                setStep("CONFIRM");
+                                            } else {
+                                                setStep("SCANNING");
+                                            }
+                                        }}
                                         className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold uppercase shadow-lg"
                                     >
                                         <RefreshCw className="h-4 w-4 mr-2" />

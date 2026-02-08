@@ -13,7 +13,11 @@ import {
     Lock,
     Unlock,
     Camera,
-    MapPin
+    MapPin,
+    FileText,
+    Download,
+    ExternalLink,
+    RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
@@ -36,6 +40,16 @@ interface LiveClass {
     meeting_id: string;
     meeting_platform: string;
     courses: { course_name: string; course_code: string };
+    lessons?: {
+        id: number;
+        lesson_name: string;
+        materials?: {
+            id: number;
+            material_name: string;
+            material_type: string;
+            file_url: string;
+        }[];
+    };
 }
 
 export default function StudentLiveClasses() {
@@ -180,6 +194,34 @@ export default function StudentLiveClasses() {
                                                                 {c.start_time} - {c.end_time}
                                                             </div>
                                                         </div>
+
+                                                        {/* Integrated Class Materials */}
+                                                        {c.lessons?.materials && c.lessons.materials.length > 0 && (
+                                                            <div className="mt-8 pt-8 border-t border-gray-100">
+                                                                <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-4 flex items-center gap-2">
+                                                                    <FileText className="h-3 w-3" />
+                                                                    Related Study Materials
+                                                                </h4>
+                                                                <div className="flex flex-wrap gap-3">
+                                                                    {c.lessons.materials.map(mat => (
+                                                                        <button
+                                                                            key={mat.id}
+                                                                            onClick={() => window.open(mat.file_url, '_blank')}
+                                                                            className="flex items-center gap-3 bg-gray-50 hover:bg-white hover:shadow-md border border-gray-100 px-4 py-2.5 rounded-xl transition-all group"
+                                                                        >
+                                                                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                                                <FileText className="h-4 w-4" />
+                                                                            </div>
+                                                                            <div className="text-left">
+                                                                                <p className="text-xs font-bold text-gray-800 line-clamp-1">{mat.material_name}</p>
+                                                                                <p className="text-[10px] text-gray-400 font-medium uppercase">{mat.material_type}</p>
+                                                                            </div>
+                                                                            <Download className="h-3 w-3 text-gray-300 group-hover:text-blue-600 ml-2" />
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Right Section - Verification Status */}

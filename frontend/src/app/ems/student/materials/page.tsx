@@ -40,6 +40,7 @@ interface Material {
         course_name: string;
         course_code: string;
     };
+    handbook_type?: 'STUDENT_HANDBOOK' | 'TUTOR_HANDBOOK' | 'GENERAL_RESOURCE';
     created_at: string;
 }
 
@@ -47,6 +48,7 @@ export default function StudentMaterialsPage() {
     const [materials, setMaterials] = useState<Material[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTab, setSelectedTab] = useState<'ALL' | 'HANDBOOK' | 'RESOURCE'>('ALL');
     const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
 
     useEffect(() => {
@@ -68,10 +70,17 @@ export default function StudentMaterialsPage() {
         }
     };
 
-    const filteredMaterials = (materials || []).filter(m =>
-        m.material_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.course?.course_name?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredMaterials = (materials || []).filter(m => {
+        const matchesSearch = m.material_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            m.course?.course_name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        if (selectedTab === 'HANDBOOK') return m.handbook_type === 'STUDENT_HANDBOOK';
+        if (selectedTab === 'RESOURCE') return m.handbook_type === 'GENERAL_RESOURCE' || !m.handbook_type;
+
+        return true;
+    });
 
     const getFileIcon = (type: string) => {
         switch (type.toUpperCase()) {
@@ -131,9 +140,9 @@ export default function StudentMaterialsPage() {
                     </p>
                 </motion.div>
 
-                {/* Search */}
-                <div className="mb-6">
-                    <div className="relative">
+                {/* Search & Tabs */}
+                <div className="flex flex-col md:flex-row gap-4 mb-8">
+                    <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <Input
                             type="search"
@@ -142,6 +151,21 @@ export default function StudentMaterialsPage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-10 h-12 bg-white border-0 shadow-sm focus-visible:ring-indigo-500 rounded-xl"
                         />
+                    </div>
+                    <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 shrink-0">
+                        {[
+                            { id: 'ALL', label: 'All Resources' },
+                            { id: 'HANDBOOK', label: 'Handbooks' },
+                            { id: 'RESOURCE', label: 'Lesson Notes' }
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setSelectedTab(tab.id as any)}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${selectedTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 

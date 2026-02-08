@@ -48,6 +48,7 @@ interface Module {
     id: number;
     module_name: string;
     module_number: number;
+    course_materials?: Material[];
     lessons: Lesson[];
 }
 
@@ -56,6 +57,7 @@ interface CourseDetails {
     course_name: string;
     course_code: string;
     course_description: string;
+    course_materials?: Material[];
     course_modules: Module[];
     active_session?: {
         id: number;
@@ -208,6 +210,28 @@ export default function StudentCourseDetailsPage() {
                                 </Card>
                             ) : (
                                 <div className="space-y-4">
+                                    {/* Course Level Materials (Official Handbooks) */}
+                                    {course.course_materials && course.course_materials.length > 0 && (
+                                        <div className="bg-blue-50/30 rounded-2xl p-4 border border-blue-100/50 mb-6">
+                                            <h3 className="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-3 flex items-center gap-2">
+                                                <BookOpen className="h-3 w-3" />
+                                                Official Course Handbooks
+                                            </h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {course.course_materials.map(mat => (
+                                                    <button
+                                                        key={mat.id}
+                                                        onClick={() => window.open(mat.file_url, '_blank')}
+                                                        className="flex items-center gap-3 bg-white hover:bg-blue-50 border border-blue-50 px-4 py-2.5 rounded-xl transition-all shadow-sm group"
+                                                    >
+                                                        <FileText className="h-4 w-4 text-blue-500" />
+                                                        <span className="text-sm font-bold text-gray-700">{mat.material_name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {course.course_modules.map((module) => (
                                         <div key={module.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                                             {/* Module Header */}
@@ -223,6 +247,22 @@ export default function StudentCourseDetailsPage() {
                                                 </div>
                                                 <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedModules.includes(module.id) ? 'rotate-180' : ''}`} />
                                             </div>
+
+                                            {/* Module Level Materials */}
+                                            {expandedModules.includes(module.id) && module.course_materials && module.course_materials.length > 0 && (
+                                                <div className="px-5 py-3 bg-gray-50 flex flex-wrap gap-2 border-b border-gray-100">
+                                                    {module.course_materials.map(mat => (
+                                                        <button
+                                                            key={mat.id}
+                                                            onClick={(e) => { e.stopPropagation(); window.open(mat.file_url, '_blank'); }}
+                                                            className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-xl hover:border-blue-300 transition-all shadow-sm text-xs font-bold text-gray-600"
+                                                        >
+                                                            <BookOpen className="h-3.5 w-3.5 text-blue-400" />
+                                                            <span>{mat.material_name}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
 
                                             {/* Lessons list */}
                                             <AnimatePresence>
@@ -365,9 +405,7 @@ export default function StudentCourseDetailsPage() {
             <AnimatePresence>
                 {showVerification && activeSessionToVerify && (
                     <AttendanceVerification
-                        sessionId={activeSessionToVerify.id}
-                        verificationType="OPENING"
-                        courseName={course.course_name}
+                        sessions={[activeSessionToVerify]}
                         onSuccess={() => {
                             setShowVerification(false);
                             setActiveSessionToVerify(null);

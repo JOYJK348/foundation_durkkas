@@ -105,8 +105,10 @@ export class CourseService {
         let query = ems.courses()
             .select(`
                 *,
+                course_materials (*),
                 course_modules (
                     *,
+                    course_materials (*),
                     lessons (
                         *,
                         course_materials (*)
@@ -159,12 +161,40 @@ export class CourseService {
             // Sort modules first
             data.course_modules.sort((a: any, b: any) => (a.module_order || 0) - (b.module_order || 0));
 
+            // Helper to process materials based on role
+            const processMaterials = (materials: any[] | undefined) => {
+                if (!materials) return [];
+
+                return materials.filter(mat => {
+                    // Managers see everything
+                    if (emsProfile?.profileType === 'manager') return true;
+                    // Tutors see everything
+                    if (emsProfile?.profileType === 'tutor') return true;
+
+                    // Students: Only see active materials + target audience match
+                    if (emsProfile?.profileType === 'student') {
+                        const isStudentAudience = mat.target_audience === 'STUDENTS' || mat.target_audience === 'BOTH';
+                        return mat.is_active && isStudentAudience;
+                    }
+
+                    return mat.is_active;
+                }).map((mat: any) => ({
+                    ...mat,
+                    visibility: mat.is_active ? 'ENROLLED' : 'PRIVATE'
+                }));
+            };
+
+            // Process Course Level Materials
+            data.course_materials = processMaterials(data.course_materials);
+
             data.course_modules = data.course_modules.map((module: any, mIdx: number) => {
                 const moduleNumber = mIdx + 1;
 
                 // COMPUTE VISIBILITY FOR MODULE
-                // Default to ENROLLED if active, PRIVATE if not. (Modules don't support PUBLIC yet)
                 module.visibility = module.is_active ? 'ENROLLED' : 'PRIVATE';
+
+                // Process Module Level Materials
+                module.course_materials = processMaterials(module.course_materials);
 
                 // Sort lessons within module
                 const lessons = (module.lessons || []).sort((a: any, b: any) => (a.lesson_order || 0) - (b.lesson_order || 0));
@@ -182,13 +212,8 @@ export class CourseService {
 
                         const isLocked = emsProfile?.profileType === 'student' && lesson.visibility === 'ENROLLED' && !isEnrolled;
 
-                        // Process materials visibility
-                        if (lesson.course_materials) {
-                            lesson.course_materials = lesson.course_materials.map((mat: any) => ({
-                                ...mat,
-                                visibility: mat.is_active ? 'ENROLLED' : 'PRIVATE' // Materials simplified to active/inactive
-                            }));
-                        }
+                        // Process Lesson Level Materials
+                        lesson.course_materials = processMaterials(lesson.course_materials);
 
                         return {
                             ...lesson,

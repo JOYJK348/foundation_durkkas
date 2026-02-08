@@ -261,6 +261,34 @@ export async function GET(req: NextRequest) {
             logDiagnostic('Attendance fetch error', { message: e.message });
         }
 
+        // 7. Recent Materials
+        let recentMaterials: any[] = [];
+        logDiagnostic('Fetching recent materials...');
+        try {
+            const courseIds = (enrollments as any[])?.map((e: any) => e.course_id) || [];
+            if (courseIds.length > 0) {
+                const { data: materialsData } = await ems.courseMaterials()
+                    .select(`
+                        id,
+                        material_name,
+                        material_type,
+                        file_url,
+                        created_at,
+                        course:courses(id, course_name)
+                    `)
+                    .in('course_id', courseIds)
+                    .eq('company_id', companyId)
+                    .eq('is_active', true)
+                    .or('target_audience.eq.STUDENTS,target_audience.eq.BOTH,target_audience.is.null')
+                    .order('created_at', { ascending: false })
+                    .limit(6) as any;
+                recentMaterials = materialsData || [];
+                logDiagnostic('Recent materials fetched', { count: recentMaterials.length });
+            }
+        } catch (e: any) {
+            logDiagnostic('Materials fetch error', { message: e.message });
+        }
+
         // Calculate average progress
         const totalProgress = enrollments.reduce((acc: number, curr: any) => acc + (curr.completion_percentage || 0), 0);
         const averageProgress = enrollments.length > 0 ? totalProgress / enrollments.length : 0;
@@ -284,7 +312,8 @@ export async function GET(req: NextRequest) {
             pending_assignments: assignmentsWithStatus,
             upcoming_quizzes: quizzesWithStatus,
             upcoming_live_classes: liveClasses,
-            active_attendance_sessions: activeSessions
+            active_attendance_sessions: activeSessions,
+            recent_materials: recentMaterials
         };
 
         logDiagnostic('Request complete, sending successResponse');

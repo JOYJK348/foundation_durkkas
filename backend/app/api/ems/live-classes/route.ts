@@ -21,7 +21,12 @@ export async function GET(req: NextRequest) {
             .select(`
                 *,
                 courses:course_id (course_name, course_code),
-                batches:batch_id (batch_name)
+                batches:batch_id (batch_name),
+                lessons:lesson_id (
+                    id,
+                    lesson_name,
+                    materials:course_materials(*)
+                )
             `)
             .eq('company_id', scope.companyId)
             .is('deleted_at', null)

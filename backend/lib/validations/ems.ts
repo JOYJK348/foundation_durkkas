@@ -95,6 +95,7 @@ export const courseMaterialSchema = z.object({
     course_id: z.coerce.number().optional().nullable(),
     batch_id: z.coerce.number().optional().nullable(),
     menu_id: z.coerce.number().optional().nullable(),
+    module_id: z.coerce.number().optional().nullable(),
     lesson_id: z.coerce.number().optional().nullable(),
     material_name: z.string().min(1, 'Material name is required'),
     material_description: z.string().optional().nullable(),
