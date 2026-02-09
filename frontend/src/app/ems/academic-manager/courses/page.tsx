@@ -297,7 +297,7 @@ export default function CoursesPage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                     <div>
                         <Link href="/ems/academic-manager/dashboard">
                             <Button variant="ghost" size="sm" className="mb-2">
@@ -305,7 +305,7 @@ export default function CoursesPage() {
                                 Back
                             </Button>
                         </Link>
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-wrap items-center gap-4">
                             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
                                 Courses Management
                             </h1>
@@ -345,7 +345,7 @@ export default function CoursesPage() {
                             });
                             setShowCreateForm(true);
                         }}
-                        className="bg-purple-600 hover:bg-purple-700"
+                        className="bg-purple-600 hover:bg-purple-700 w-full md:w-auto"
                     >
                         <Plus className="h-4 w-4 mr-2" />
                         Create Course
@@ -355,7 +355,7 @@ export default function CoursesPage() {
                 {/* Search and Filter */}
                 <Card className="mb-6 border-0 shadow-md">
                     <CardContent className="p-4">
-                        <div className="flex gap-4">
+                        <div className="flex flex-col sm:flex-row gap-4">
                             <div className="flex-1 relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input
@@ -366,7 +366,7 @@ export default function CoursesPage() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            <Button variant="outline">
+                            <Button variant="outline" className="w-full sm:w-auto">
                                 <Filter className="h-4 w-4 mr-2" />
                                 Filter
                             </Button>
@@ -652,8 +652,8 @@ export default function CoursesPage() {
                                 {/* Thumbnail Upload Section */}
                                 <div className="space-y-4 p-4 bg-purple-50/50 rounded-2xl border-2 border-dashed border-purple-100 relative group">
                                     <Label className="text-purple-900 font-bold uppercase tracking-widest text-[10px]">Course Display Banner</Label>
-                                    <div className="flex items-center gap-6">
-                                        <div className="relative w-40 h-24 rounded-xl overflow-hidden bg-white shadow-inner border border-purple-100 flex items-center justify-center shrink-0">
+                                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                                        <div className="relative w-full sm:w-40 h-40 sm:h-24 rounded-xl overflow-hidden bg-white shadow-inner border border-purple-100 flex items-center justify-center shrink-0">
                                             {formData.thumbnail_url ? (
                                                 <img src={formData.thumbnail_url} className="w-full h-full object-cover" alt="Preview" />
                                             ) : (
@@ -665,7 +665,7 @@ export default function CoursesPage() {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex-1 space-y-2">
+                                        <div className="flex-1 space-y-2 w-full">
                                             <p className="text-xs text-purple-700 font-medium">Upload a professional thumbnail for your course. Ideal size: 800x450px.</p>
                                             <div className="relative">
                                                 <input
@@ -690,7 +690,7 @@ export default function CoursesPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="course_code">Course Code *</Label>
                                         <Input
@@ -738,7 +738,7 @@ export default function CoursesPage() {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="course_category">Category</Label>
                                         <select
@@ -772,7 +772,7 @@ export default function CoursesPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="duration_hours">Duration (Hours)</Label>
                                         <Input
@@ -785,7 +785,7 @@ export default function CoursesPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="price">Price (₹)</Label>
                                         <Input
@@ -809,20 +809,20 @@ export default function CoursesPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-3 pt-4">
+                                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        className="flex-1"
+                                        className="w-full sm:flex-1"
                                         onClick={() => setShowCreateForm(false)}
                                     >
                                         Cancel
                                     </Button>
                                     <Button
                                         type="submit"
-                                        className="flex-1 bg-purple-600 hover:bg-purple-700"
+                                        className="w-full sm:flex-1 bg-purple-600 hover:bg-purple-700"
                                     >
-                                        Create Course
+                                        {selectedCourse ? 'Update Course' : 'Create Course'}
                                     </Button>
                                 </div>
                             </form>
