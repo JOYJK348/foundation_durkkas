@@ -70,22 +70,26 @@ export async function POST(req: NextRequest) {
             console.log('[BatchesRoute] Batch created successfully:', batch.id);
 
             // 🚀 INVALIDATE CACHE
-            const scope = await getUserTenantScope(userId);
-            const cacheKey = `ems_batches:${scope.companyId}`;
-            dataCache.invalidate(cacheKey);
-            console.log('[BatchesRoute] Cache invalidated with pattern:', cacheKey);
+            try {
+                const scope = await getUserTenantScope(userId);
+                const cacheKey = `ems_batches:${scope.companyId}`;
+                dataCache.invalidate(cacheKey);
+                console.log('[BatchesRoute] Cache invalidated with pattern:', cacheKey);
+            } catch (cacheErr) {
+                console.warn('[BatchesRoute] Cache invalidation failed (non-critical):', cacheErr);
+            }
 
             return successResponse(batch, 'Batch created successfully', 201);
         } catch (valErr: any) {
             if (valErr.name === 'ZodError') {
                 console.error('[BatchesRoute] Validation Error:', valErr.errors);
-                return errorResponse(valErr.errors, 'Validation failed', 400);
+                return errorResponse('VALIDATION_ERROR', valErr.errors[0]?.message || 'Validation failed', 400, valErr.errors);
             }
             throw valErr;
         }
 
     } catch (error: any) {
-        console.error('[BatchesRoute] Fatal Error:', error);
-        return errorResponse(null, error.message || 'Failed to create batch');
+        console.error('[BatchesRoute] Fatal Error:', error.message, error.stack);
+        return errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Failed to create batch', 500);
     }
 }

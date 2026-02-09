@@ -42,37 +42,62 @@ export class BatchService {
     }
 
     static async createBatch(batchData: Partial<Batch>) {
-        console.log('[BatchService] Creating batch with data:', batchData);
+        console.log('[BatchService] Creating batch starting...', { code: batchData.batch_code, name: batchData.batch_name });
+
+        // Sanitize data - Remove any fields that might not exist in the DB to avoid undefined_column errors
+        const sanitizePayload = (payload: any) => {
+            const clean = { ...payload };
+            // Ensure basic numeric fields are actually numbers
+            if (clean.max_students) clean.max_students = Number(clean.max_students);
+            if (clean.course_id) clean.course_id = Number(clean.course_id);
+            if (clean.company_id) clean.company_id = Number(clean.company_id);
+            if (clean.branch_id) clean.branch_id = Number(clean.branch_id);
+
+            // Remove known non-DB fields that might be in the schema but not in the table
+            delete clean.schedule_details;
+            return clean;
+        };
+
         try {
+            const payload = sanitizePayload({
+                ...batchData,
+                current_strength: 0,
+                approval_status: 'PENDING'
+            });
+
+            console.log('[BatchService] Attempting insert with payload:', payload);
+
             const { data, error } = await ems.batches()
-                .insert({
-                    ...batchData,
-                    current_strength: 0,
-                    approval_status: 'PENDING'
-                })
+                .insert(payload)
                 .select()
                 .single();
 
             if (error) {
-                console.error('[BatchService] Supabase Error:', error);
+                console.error('[BatchService] Supabase Error (Initial):', error);
 
                 // Handle duplicate key error
                 if (error.code === '23505') {
                     throw new Error('A batch with this code already exists for your company.');
                 }
 
-                // If approval_status is missing, try without it
+                // If approval_status is the issue, retry without it
                 if (error.message?.includes('approval_status') || error.code === '42703') {
-                    console.warn('[BatchService] approval_status column missing, retrying without it...');
+                    console.warn('[BatchService] approval_status Column missing, retrying WITHOUT it...');
+
+                    const secondaryPayload = sanitizePayload({
+                        ...batchData,
+                        current_strength: 0
+                    });
+                    // Explicitly remove approval_status in case it was in batchData
+                    delete (secondaryPayload as any).approval_status;
+
                     const { data: retryData, error: retryError } = await ems.batches()
-                        .insert({
-                            ...batchData,
-                            current_strength: 0
-                        })
+                        .insert(secondaryPayload)
                         .select()
                         .single();
 
                     if (retryError) {
+                        console.error('[BatchService] Supabase Error (Retry):', retryError);
                         if (retryError.code === '23505') {
                             throw new Error('A batch with this code already exists for your company.');
                         }
@@ -84,7 +109,7 @@ export class BatchService {
             }
             return data as Batch;
         } catch (err: any) {
-            console.error('[BatchService] Catch Error:', err);
+            console.error('[BatchService] Final Catch Error:', err.message, err.stack);
             throw err;
         }
     }

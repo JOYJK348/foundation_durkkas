@@ -127,6 +127,7 @@ export const batchSchema = z.object({
     end_time: z.string().transform(v => v === "" ? null : v).optional().nullable(),
     max_students: z.coerce.number().optional().nullable(),
     status: z.string().default('PLANNED'),
+    schedule_details: z.string().optional().nullable(),
 });
 
 export const enrollmentSchema = z.object({

@@ -126,7 +126,10 @@ export default function BatchesPage() {
             }
         } catch (error: any) {
             console.error("Error creating batch:", error);
-            const errMsg = error.response?.data?.message || error.message || "An unexpected error occurred";
+            // Try to extract the most descriptive error message
+            const serverMessage = error.response?.data?.error?.message;
+            const apiMessage = error.response?.data?.message;
+            const errMsg = serverMessage || apiMessage || error.message || "An unexpected error occurred";
             toast.error(errMsg);
         } finally {
             setIsSubmitting(false);
