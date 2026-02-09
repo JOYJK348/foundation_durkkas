@@ -42,17 +42,51 @@ export class BatchService {
     }
 
     static async createBatch(batchData: Partial<Batch>) {
-        const { data, error } = await ems.batches()
-            .insert({
-                ...batchData,
-                current_strength: 0,
-                approval_status: 'PENDING'
-            })
-            .select()
-            .single();
+        console.log('[BatchService] Creating batch with data:', batchData);
+        try {
+            const { data, error } = await ems.batches()
+                .insert({
+                    ...batchData,
+                    current_strength: 0,
+                    approval_status: 'PENDING'
+                })
+                .select()
+                .single();
 
-        if (error) throw error;
-        return data as Batch;
+            if (error) {
+                console.error('[BatchService] Supabase Error:', error);
+
+                // Handle duplicate key error
+                if (error.code === '23505') {
+                    throw new Error('A batch with this code already exists for your company.');
+                }
+
+                // If approval_status is missing, try without it
+                if (error.message?.includes('approval_status') || error.code === '42703') {
+                    console.warn('[BatchService] approval_status column missing, retrying without it...');
+                    const { data: retryData, error: retryError } = await ems.batches()
+                        .insert({
+                            ...batchData,
+                            current_strength: 0
+                        })
+                        .select()
+                        .single();
+
+                    if (retryError) {
+                        if (retryError.code === '23505') {
+                            throw new Error('A batch with this code already exists for your company.');
+                        }
+                        throw retryError;
+                    }
+                    return retryData as Batch;
+                }
+                throw error;
+            }
+            return data as Batch;
+        } catch (err: any) {
+            console.error('[BatchService] Catch Error:', err);
+            throw err;
+        }
     }
 
     static async getBatchById(id: number, companyId: number) {

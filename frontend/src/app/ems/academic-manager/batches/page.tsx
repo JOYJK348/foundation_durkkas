@@ -95,9 +95,12 @@ export default function BatchesPage() {
         }
     };
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const handleCreateBatch = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            setIsSubmitting(true);
             const response = await api.post("/ems/batches", {
                 ...formData,
                 course_id: parseInt(formData.course_id),
@@ -105,6 +108,7 @@ export default function BatchesPage() {
             });
 
             if (response.data.success) {
+                toast.success("Batch created successfully!");
                 setShowCreateForm(false);
                 fetchBatches();
                 // Reset form
@@ -117,9 +121,15 @@ export default function BatchesPage() {
                     end_date: "",
                     schedule_details: "",
                 });
+            } else {
+                toast.error(response.data.message || "Failed to create batch");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating batch:", error);
+            const errMsg = error.response?.data?.message || error.message || "An unexpected error occurred";
+            toast.error(errMsg);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -237,13 +247,13 @@ export default function BatchesPage() {
                                             <div className="flex items-center gap-2 text-sm">
                                                 <Users className="h-4 w-4 text-gray-400" />
                                                 <span className="text-gray-600">
-                                                    {batch.enrolled_count || 0} / {batch.max_students} students
+                                                    {batch.enrolled_count || 0} / {batch.max_students || 'No limit'} students
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm">
                                                 <Calendar className="h-4 w-4 text-gray-400" />
                                                 <span className="text-gray-600">
-                                                    {new Date(batch.start_date).toLocaleDateString()}
+                                                    {batch.start_date ? new Date(batch.start_date).toLocaleDateString() : 'Not set'}
                                                 </span>
                                             </div>
                                         </div>
@@ -253,14 +263,17 @@ export default function BatchesPage() {
                                             <div className="flex justify-between text-xs text-gray-600 mb-1">
                                                 <span>Enrollment</span>
                                                 <span>
-                                                    {Math.round(((batch.enrolled_count || 0) / batch.max_students) * 100)}%
+                                                    {batch.max_students
+                                                        ? `${Math.round(((batch.enrolled_count || 0) / batch.max_students) * 100)}%`
+                                                        : 'N/A'
+                                                    }
                                                 </span>
                                             </div>
                                             <div className="w-full bg-gray-200 rounded-full h-2">
                                                 <div
                                                     className="bg-purple-600 h-2 rounded-full transition-all"
                                                     style={{
-                                                        width: `${Math.min(((batch.enrolled_count || 0) / batch.max_students) * 100, 100)}%`
+                                                        width: `${batch.max_students ? Math.min(((batch.enrolled_count || 0) / batch.max_students) * 100, 100) : 0}%`
                                                     }}
                                                 />
                                             </div>
@@ -423,8 +436,9 @@ export default function BatchesPage() {
                                     <Button
                                         type="submit"
                                         className="flex-1 bg-purple-600 hover:bg-purple-700"
+                                        disabled={isSubmitting}
                                     >
-                                        Create Batch
+                                        {isSubmitting ? "Creating..." : "Create Batch"}
                                     </Button>
                                 </div>
                             </form>

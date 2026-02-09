@@ -51,23 +51,41 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    console.log('[BatchesRoute] POST request received');
     try {
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
         let data = await req.json();
+        console.log('[BatchesRoute] Raw payload:', data);
+
         data = await autoAssignCompany(userId, data);
+        console.log('[BatchesRoute] Payload after autoAssignCompany:', data);
 
-        const validatedData = batchSchema.parse(data);
+        try {
+            const validatedData = batchSchema.parse(data);
+            console.log('[BatchesRoute] Validation successful');
 
-        const batch = await BatchService.createBatch(validatedData);
+            const batch = await BatchService.createBatch(validatedData);
+            console.log('[BatchesRoute] Batch created successfully:', batch.id);
 
-        return successResponse(batch, 'Batch created successfully', 201);
+            // 🚀 INVALIDATE CACHE
+            const scope = await getUserTenantScope(userId);
+            const cacheKey = `ems_batches:${scope.companyId}`;
+            dataCache.invalidate(cacheKey);
+            console.log('[BatchesRoute] Cache invalidated with pattern:', cacheKey);
+
+            return successResponse(batch, 'Batch created successfully', 201);
+        } catch (valErr: any) {
+            if (valErr.name === 'ZodError') {
+                console.error('[BatchesRoute] Validation Error:', valErr.errors);
+                return errorResponse(valErr.errors, 'Validation failed', 400);
+            }
+            throw valErr;
+        }
 
     } catch (error: any) {
-        if (error.name === 'ZodError') {
-            return errorResponse(error.errors, 'Validation failed', 400);
-        }
+        console.error('[BatchesRoute] Fatal Error:', error);
         return errorResponse(null, error.message || 'Failed to create batch');
     }
 }
