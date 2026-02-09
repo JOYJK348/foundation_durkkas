@@ -6,7 +6,10 @@
 import { ems, core } from '@/lib/supabase';
 
 function logToFile(msg: string, data?: any) {
-    console.log(`[AttendanceService] ${msg}`, data ? JSON.stringify(data) : '');
+    const safeData = data ? JSON.stringify(data, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    ) : '';
+    console.log(`[AttendanceService] ${msg}`, safeData);
 }
 
 export interface FaceVerificationData {
@@ -54,6 +57,8 @@ export class AttendanceService {
         endTime: string;
         classMode?: string;
         requireFaceVerification?: boolean;
+        requireLocationVerification?: boolean;
+        liveClassId?: number | null;
     }) {
         logToFile('Creating Session (Simplified) - Input:', sessionData);
         try {
@@ -63,16 +68,21 @@ export class AttendanceService {
                 batch_id: sessionData.batchId,
                 session_date: sessionData.sessionDate,
                 session_type: sessionData.sessionType,
-                status: 'SCHEDULED',
-                approval_status: 'PENDING'
+                status: 'SCHEDULED'
             };
 
-            // Add optional fields if provided
+            // Safely add optional fields
+            if (sessionData.liveClassId !== undefined) {
+                insertPayload.live_class_id = sessionData.liveClassId;
+            }
             if (sessionData.classMode) {
                 insertPayload.class_mode = sessionData.classMode;
             }
             if (sessionData.requireFaceVerification !== undefined) {
                 insertPayload.require_face_verification = sessionData.requireFaceVerification;
+            }
+            if (sessionData.requireLocationVerification !== undefined) {
+                insertPayload.require_location_verification = sessionData.requireLocationVerification;
             }
 
             logToFile('Insert Payload:', insertPayload);
@@ -83,13 +93,21 @@ export class AttendanceService {
                 .single();
 
             if (error) {
-                logToFile('Database Error:', error);
+                logToFile('Create Session Error:', error);
+                try {
+                    const fs = require('fs');
+                    fs.appendFileSync('backend/session_error.log', `[${new Date().toISOString()}] Create Session Error: ${JSON.stringify(error, null, 2)}\nPayload: ${JSON.stringify(insertPayload, null, 2)}\n`);
+                } catch (e) { }
                 throw error;
             }
             logToFile('Session Created Successfully:', data);
             return data;
         } catch (err: any) {
-            logToFile('Catch Error in createSession:', { message: err.message, stack: err.stack });
+            logToFile('createSession Catch Error:', { message: err.message, stack: err.stack });
+            try {
+                const fs = require('fs');
+                fs.appendFileSync('backend/session_error.log', `[${new Date().toISOString()}] Catch Error: ${err.message}\nStack: ${err.stack}\n`);
+            } catch (e) { }
             throw err;
         }
     }
@@ -334,9 +352,7 @@ export class AttendanceService {
     static async getDailySchedule(companyId: number, date: string) {
         logToFile('getDailySchedule - Input:', { companyId, date });
 
-        // STRATEGY: Fetch only attendance_sessions for this date, then join batch/course data
-        // This ensures we ONLY show classes that were explicitly scheduled, not all active batches
-
+        // 1. Fetch attendance_sessions for this date
         const { data: sessions, error: sessionError } = await ems.attendanceSessions()
             .select(`
                 id, 
@@ -361,58 +377,113 @@ export class AttendanceService {
             throw sessionError;
         }
 
-        if (!sessions || sessions.length === 0) {
-            logToFile('getDailySchedule: No sessions found for date:', date);
-            return [];
+        // 2. Fetch live_classes for this date to catch sessions that haven't been "Started" yet
+        const { data: liveClasses, error: liveError } = await ems.liveClasses()
+            .select(`
+                id,
+                batch_id,
+                course_id,
+                scheduled_date,
+                start_time,
+                end_time,
+                class_title,
+                batch:batches(id, batch_name, batch_code, start_time, end_time),
+                course:courses(id, course_name, course_code)
+            `)
+            .eq('company_id', companyId)
+            .eq('scheduled_date', date)
+            .is('deleted_at', null);
+
+        if (liveError) {
+            logToFile('getDailySchedule Live Class Error:', liveError);
+        }
+
+        // 3. Merge: Identify Live Classes that don't have an attendance session record yet
+        const existingSessionLiveClassIds = (sessions || []).map(s => s.live_class_id && s.live_class_id.toString()).filter(Boolean);
+        const pendingLiveClasses = (liveClasses || []).filter(lc => !existingSessionLiveClassIds.includes(lc.id.toString()));
+
+        // Combine existing sessions and "virtual" sessions from live classes
+        const allItems: any[] = (sessions || []) as any[];
+
+        pendingLiveClasses.forEach(lc => {
+            const defaultMode = 'ONLINE'; // Live classes are usually online
+            allItems.push({
+                id: null, // Virtual session
+                batch_id: lc.batch_id,
+                course_id: lc.course_id,
+                session_date: lc.scheduled_date,
+                session_type: 'LECTURE',
+                status: 'SCHEDULED',
+                class_mode: defaultMode,
+                live_class_id: lc.id,
+                batch: lc.batch,
+                course: lc.course,
+                is_virtual: true,
+                start_time: lc.start_time,
+                end_time: lc.end_time,
+                // Default verification to TRUE for Online classes
+                require_face_verification: true,
+                require_location_verification: true
+            });
+        });
+
+        if (allItems.length === 0) {
+            logToFile('getDailySchedule: No sessions or live classes found for date:', date);
+            return { count: 0, schedule: [] };
         }
 
         // Get batch IDs to fetch enrollment counts
-        const batchIds = sessions.map(s => s.batch_id).filter(Boolean);
+        const allBatchIds = allItems.map(item => item.batch_id).filter(Boolean);
 
         // Get total students per batch (enrolled)
         const { data: enrollments } = await ems.enrollments()
             .select('batch_id')
-            .in('batch_id', batchIds)
+            .in('batch_id', allBatchIds)
             .eq('enrollment_status', 'ACTIVE');
 
-        // Get attendance counts for these sessions
-        const sessionIds = sessions.map(s => s.id);
-        const { data: attendanceRecords } = await ems.attendanceRecords()
-            .select('session_id, status')
-            .in('session_id', sessionIds);
+        // Get attendance counts for existing sessions
+        const sessionIds = sessions?.map(s => s.id).filter(Boolean) || [];
+        const { data: attendanceRecords } = sessionIds.length > 0
+            ? await ems.attendanceRecords().select('session_id, status').in('session_id', sessionIds)
+            : { data: [] };
 
         // Transform to match frontend expectations
-        const schedule = sessions.map(session => {
-            const batchData = Array.isArray(session.batch) ? session.batch[0] : session.batch;
-            const courseData = Array.isArray(session.course) ? session.course[0] : session.course;
+        const schedule = allItems.map(item => {
+            const batchData = Array.isArray(item.batch) ? item.batch[0] : item.batch;
+            const courseData = Array.isArray(item.course) ? item.course[0] : item.course;
 
+            const totalStudents = enrollments?.filter(e => e.batch_id === item.batch_id).length || 0;
+            const sessionRecords = item.id ? (attendanceRecords?.filter(r => r.session_id === item.id) || []) : [];
 
-            const totalStudents = enrollments?.filter(e => e.batch_id === session.batch_id).length || 0;
-            const sessionRecords = attendanceRecords?.filter(r => r.session_id === session.id) || [];
+            // Business Rule: Online classes must have Face & Location ON
+            const isOnline = item.class_mode === 'ONLINE' || item.class_mode === 'HYBRID';
+            const requireFace = item.require_face_verification ?? (isOnline ? true : false);
+            const requireLoc = item.require_location_verification ?? (isOnline ? true : false);
 
             return {
-                id: session.batch_id,
+                id: item.batch_id,
                 batch_name: batchData?.batch_name || 'Unknown Batch',
                 batch_code: batchData?.batch_code || '',
-                start_time: batchData?.start_time || '09:00',
-                end_time: batchData?.end_time || '10:00',
-                course: courseData || { id: session.course_id, course_name: 'Unknown Course', course_code: '' },
+                start_time: item.start_time || batchData?.start_time || '09:00',
+                end_time: item.end_time || batchData?.end_time || '10:00',
+                course: courseData || { id: item.course_id, course_name: 'Unknown Course', course_code: '' },
                 total_students: totalStudents,
-                class_mode: session.class_mode || 'OFFLINE',
-                require_face_verification: session.require_face_verification || false,
-                require_location_verification: session.require_location_verification || false,
+                class_mode: item.class_mode || 'OFFLINE',
+                require_face_verification: requireFace,
+                require_location_verification: requireLoc,
 
-                session: {
-                    id: session.id,
-                    status: session.status,
+                session: item.id ? {
+                    id: item.id,
+                    status: item.status,
                     present_count: sessionRecords.filter(r => r.status === 'PRESENT').length,
                     absent_count: sessionRecords.filter(r => r.status === 'ABSENT').length
-                },
-                status: session.status
+                } : null,
+                status: item.status || 'SCHEDULED',
+                live_class_id: item.live_class_id
             };
         });
 
-        logToFile('getDailySchedule - Result:', { count: schedule.length, schedule });
+        logToFile('getDailySchedule - Result Summary:', { count: schedule.length });
         return {
             count: schedule.length,
             schedule
@@ -457,7 +528,8 @@ export class AttendanceService {
                         id, company_id, course_id, batch_id, session_date, session_type, status,
                         class_mode, require_face_verification, require_location_verification, live_class_id,
                         course:courses(id, course_name, course_code),
-                        batch:batches(id, batch_name, batch_code, start_time, end_time)
+                        batch:batches(id, batch_name, batch_code, start_time, end_time),
+                        live_class:live_classes(id, meeting_link, class_status, meeting_platform)
                     `)
                     .eq('company_id', companyId)
                     .in('status', ['OPEN', 'IDENTIFYING_ENTRY', 'IDENTIFYING_EXIT', 'IN_PROGRESS', 'SCHEDULED'])

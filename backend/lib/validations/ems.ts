@@ -228,8 +228,10 @@ export const attendanceSessionSchema = z.object({
     session_type: z.string().default('REGULAR'),
     class_mode: z.enum(['ONLINE', 'OFFLINE', 'HYBRID']).default('OFFLINE'),
     require_face_verification: z.boolean().default(false),
+    require_location_verification: z.boolean().default(false),
     start_time: z.string().optional().nullable(),
     end_time: z.string().optional().nullable(),
+    live_class_id: z.coerce.number().optional().nullable(),
     taken_by: z.coerce.number().optional().nullable(),
     remarks: z.string().optional().nullable(),
 });

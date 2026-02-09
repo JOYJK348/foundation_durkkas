@@ -14,7 +14,10 @@ import { z } from 'zod';
 
 
 function logToFile(msg: string, data?: any) {
-    console.log(`[LOG] ${msg}`, data ? JSON.stringify(data) : '');
+    const safeData = data ? JSON.stringify(data, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    ) : '';
+    console.log(`[LOG] ${msg}`, safeData);
 }
 
 export async function GET(req: NextRequest) {
@@ -195,19 +198,34 @@ export async function POST(req: NextRequest) {
         data = await autoAssignCompany(userId, data);
 
         if (mode === 'session') {
-            const validatedData = attendanceSessionSchema.parse(data);
-            const session = await AttendanceService.createSession({
-                companyId: validatedData.company_id,
-                courseId: validatedData.course_id,
-                batchId: validatedData.batch_id!,
-                sessionDate: validatedData.session_date,
-                sessionType: validatedData.session_type,
-                startTime: validatedData.start_time || '09:00',
-                endTime: validatedData.end_time || '10:00',
-                classMode: validatedData.class_mode,
-                requireFaceVerification: validatedData.require_face_verification
-            });
-            return successResponse(session, 'Attendance session created successfully', 201);
+            logToFile('POST mode=session Payload:', data);
+            try {
+                console.log('[AttendanceRoute] Validating data with schema...');
+                const validatedData = attendanceSessionSchema.parse(data);
+                console.log('[AttendanceRoute] Validation successful. Calling AttendanceService.createSession...');
+                const session = await AttendanceService.createSession({
+                    companyId: validatedData.company_id,
+                    courseId: validatedData.course_id,
+                    batchId: validatedData.batch_id!,
+                    sessionDate: validatedData.session_date,
+                    sessionType: validatedData.session_type,
+                    startTime: validatedData.start_time || '09:00',
+                    endTime: validatedData.end_time || '10:00',
+                    classMode: validatedData.class_mode,
+                    requireFaceVerification: validatedData.require_face_verification,
+                    requireLocationVerification: (validatedData as any).require_location_verification,
+                    liveClassId: (validatedData as any).live_class_id
+                });
+                console.log('[AttendanceRoute] Session created successfully:', session?.id);
+                return successResponse(session, 'Attendance session created successfully', 201);
+            } catch (valErr: any) {
+                console.error('[AttendanceRoute] Error in mode=session:', valErr.message);
+                logToFile('Validation Error in mode=session:', valErr);
+                if (valErr instanceof z.ZodError) {
+                    return errorResponse('VALIDATION_ERROR', valErr.errors[0].message, 400, valErr.errors);
+                }
+                throw valErr;
+            }
         } else if (mode === 'session-status') {
             const scope = await getUserTenantScope(userId);
             const { session_id, status } = data;

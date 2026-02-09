@@ -79,7 +79,9 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
         checkEnrollment();
     }, []);
 
-    const pendingSessions = (sessions || []).filter(s => s.recommended_action !== 'COMPLETED');
+    // We show all sessions but visually distinguish completed ones
+    const availableSessions = (sessions || []);
+    const pendingSessions = availableSessions.filter(s => s.recommended_action !== 'COMPLETED');
 
     // Auto-select if only one pending session
     useEffect(() => {
@@ -343,58 +345,63 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                                     </p>
                                 </div>
                                 <div className="space-y-4">
-                                    {pendingSessions.map((session, idx) => {
+                                    {availableSessions.map((session, idx) => {
                                         const isExit = session.recommended_action === 'PUNCH_OUT';
+                                        const isCompleted = session.recommended_action === 'COMPLETED';
+
                                         return (
                                             <motion.div
                                                 key={session.id}
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: idx * 0.1 }}
-                                                onClick={() => startVerification(session)}
-                                                className={`group relative p-6 rounded-[2.5rem] border-2 transition-all cursor-pointer shadow-lg active:scale-95 ${isExit
-                                                    ? "bg-orange-50/50 border-orange-100 hover:bg-orange-600 hover:border-orange-400"
-                                                    : "bg-green-50/50 border-green-100 hover:bg-green-600 hover:border-green-400"
+                                                onClick={() => !isCompleted && startVerification(session)}
+                                                className={`group relative p-6 rounded-[2.5rem] border-2 transition-all shadow-lg ${isCompleted
+                                                    ? "bg-gray-50 border-gray-100 cursor-not-allowed opacity-75"
+                                                    : isExit
+                                                        ? "bg-orange-50/50 border-orange-100 hover:bg-orange-600 hover:border-orange-400 cursor-pointer active:scale-95"
+                                                        : "bg-green-50/50 border-green-100 hover:bg-green-600 hover:border-green-400 cursor-pointer active:scale-95"
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between pointer-events-none">
                                                     <div>
-                                                        <h4 className={`font-black text-lg ${isExit ? "text-orange-900 group-hover:text-white" : "text-green-900 group-hover:text-white"}`}>{session.course?.course_name}</h4>
-                                                        <p className={`text-xs font-bold uppercase tracking-wider ${isExit ? "text-orange-600 group-hover:text-orange-100" : "text-green-600 group-hover:text-green-100"}`}>{session.session_type}</p>
+                                                        <h4 className={`font-black text-lg ${isCompleted ? "text-gray-400" : isExit ? "text-orange-900 group-hover:text-white" : "text-green-900 group-hover:text-white"}`}>{session.course?.course_name}</h4>
+                                                        <p className={`text-xs font-bold uppercase tracking-wider ${isCompleted ? "text-gray-300" : isExit ? "text-orange-600 group-hover:text-orange-100" : "text-green-600 group-hover:text-green-100"}`}>{session.session_type}</p>
                                                     </div>
-                                                    <div className={`p-3 rounded-full ${isExit ? "bg-orange-100 group-hover:bg-white/20" : "bg-green-100 group-hover:bg-white/20"}`}>
-                                                        {isExit ? <User className="h-6 w-6 text-orange-600 group-hover:text-white" /> : <ShieldCheck className="h-6 w-6 text-green-600 group-hover:text-white" />}
+                                                    <div className={`p-3 rounded-full ${isCompleted ? "bg-gray-100" : isExit ? "bg-orange-100 group-hover:bg-white/20" : "bg-green-100 group-hover:bg-white/20"}`}>
+                                                        {isCompleted ? <CheckCircle2 className="h-6 w-6 text-gray-300" /> : isExit ? <User className="h-6 w-6 text-orange-600 group-hover:text-white" /> : <ShieldCheck className="h-6 w-6 text-green-600 group-hover:text-white" />}
                                                     </div>
                                                 </div>
 
                                                 {/* Class Mode Indicator */}
                                                 <div className="mt-3 flex items-center gap-2">
-                                                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${session.class_mode === 'ONLINE' ? 'bg-purple-100 text-purple-700' :
+                                                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${isCompleted ? 'bg-gray-100 text-gray-400' : session.class_mode === 'ONLINE' ? 'bg-purple-100 text-purple-700' :
                                                         session.class_mode === 'HYBRID' ? 'bg-blue-100 text-blue-700' :
                                                             'bg-gray-100 text-gray-700'
                                                         }`}>
                                                         {session.class_mode || 'OFFLINE'}
                                                     </span>
                                                 </div>
+
                                                 {/* Action Badge */}
                                                 <div className="mt-4 flex items-center justify-between">
-                                                    <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+                                                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
                                                         Batch: {session.batch?.batch_name || "Regular"}
                                                     </div>
-                                                    <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${isExit
-                                                        ? "bg-orange-500 text-white border-orange-400"
-                                                        : session.recommended_action === 'COMPLETED'
-                                                            ? "bg-gray-400 text-white border-gray-300"
+                                                    <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${isCompleted
+                                                        ? "bg-gray-100 text-gray-400 border-gray-200"
+                                                        : isExit
+                                                            ? "bg-orange-500 text-white border-orange-400"
                                                             : "bg-green-600 text-white border-green-500"
                                                         }`}>
-                                                        {isExit ? "Exit Attendance" : (session.recommended_action === 'COMPLETED' ? "Done" : "Entry Attendance")}
+                                                        {isCompleted ? "Already Marked" : isExit ? "Exit Attendance" : "Entry Attendance"}
                                                     </div>
                                                 </div>
                                             </motion.div>
                                         );
                                     })}
 
-                                    {pendingSessions.length === 0 && (
+                                    {availableSessions.length === 0 && (
                                         <div className="py-12 text-center bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100 flex flex-col items-center justify-center">
                                             <div className="w-20 h-20 bg-white rounded-[2rem] shadow-sm flex items-center justify-center mb-4">
                                                 <Calendar className="h-10 w-10 text-gray-200" />
@@ -411,8 +418,11 @@ export const AttendanceVerification = ({ sessions, onSuccess, onClose }: Attenda
                                         </div>
                                     )}
                                 </div>
-                                {pendingSessions.length > 0 && (
+                                {availableSessions.length > 0 && pendingSessions.length > 0 && (
                                     <p className="text-center text-[10px] text-gray-400 font-black uppercase tracking-widest pt-4 italic">Select your active session to proceed with biometric scan</p>
+                                )}
+                                {availableSessions.length > 0 && pendingSessions.length === 0 && (
+                                    <p className="text-center text-[10px] text-gray-500 font-black uppercase tracking-widest pt-4">All today's sessions are marked for now. Check back during exit time.</p>
                                 )}
                             </div>
                         )}

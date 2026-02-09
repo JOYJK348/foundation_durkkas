@@ -139,6 +139,7 @@ export default function StudentDashboard() {
 
     // Get the primary course for hero card
     const primaryCourse = dashboardData.enrolled_courses[0];
+    const pendingAttendance = dashboardData.active_attendance_sessions.filter((s: any) => s.recommended_action !== 'COMPLETED');
 
     // Quick actions for mobile
     const quickActions = [
@@ -311,37 +312,118 @@ export default function StudentDashboard() {
                     </div>
                 )}
 
-                {/* Upcoming Live Class */}
-                {dashboardData.upcoming_live_classes.length > 0 && (
+                {/* Active Attendance Banner - Only if something to do */}
+                {pendingAttendance.length > 0 && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mx-4 sm:mx-6 mb-6"
+                        initial={{ opacity: 0, x: -50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleAttendanceClick}
+                        className="mx-4 sm:mx-6 mb-6 pt-2 cursor-pointer group"
                     >
-                        <Card className="border-0 shadow-lg overflow-hidden">
-                            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 text-white">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                                        <span className="text-sm font-bold uppercase tracking-wider">Next Live Class</span>
-                                    </div>
-                                    <Video className="h-5 w-5" />
+                        <div className="w-full bg-gradient-to-r from-emerald-500 to-green-600 p-4 rounded-2xl shadow-lg border-2 border-green-400/30 flex items-center justify-between text-white transition-all group-hover:shadow-emerald-500/20">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center animate-pulse group-hover:bg-white/30 transition-colors">
+                                    <Camera className="h-6 w-6" />
                                 </div>
-                                <h3 className="text-xl font-bold mb-2">{dashboardData.upcoming_live_classes[0].class_title}</h3>
-                                <p className="text-sm text-white/80 mb-4">
-                                    {new Date(dashboardData.upcoming_live_classes[0].scheduled_date).toLocaleDateString()} at {dashboardData.upcoming_live_classes[0].start_time}
-                                </p>
-                                {dashboardData.upcoming_live_classes[0].meeting_link && (
-                                    <Link href={dashboardData.upcoming_live_classes[0].meeting_link} target="_blank">
-                                        <Button className="bg-white text-purple-700 hover:bg-gray-100 font-semibold">
-                                            Join Class
-                                            <ArrowRight className="h-4 w-4 ml-2" />
-                                        </Button>
-                                    </Link>
-                                )}
+                                <div className="text-left">
+                                    <h4 className="font-bold text-lg leading-tight tracking-tight">Active Attendance Session!</h4>
+                                    <p className="text-green-50 text-xs font-medium">Click anywhere to mark your presence now</p>
+                                </div>
                             </div>
-                        </Card>
+                            <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                                <ArrowRight className="h-5 w-5" />
+                            </div>
+                        </div>
                     </motion.div>
+                )}
+
+                {/* Upcoming Live Classes Section */}
+                {dashboardData.upcoming_live_classes.length > 0 && (
+                    <div className="mb-8 px-4 sm:px-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                                <Video className="h-5 w-5 text-blue-600" />
+                                Live Classes
+                            </h3>
+                            {dashboardData.upcoming_live_classes.length > 1 && (
+                                <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-1 rounded-lg">
+                                    {dashboardData.upcoming_live_classes.length} SCHEDULED
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="space-y-4">
+                            {dashboardData.upcoming_live_classes.slice(0, 3).map((liveClass, idx) => (
+                                <motion.div
+                                    key={liveClass.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    whileHover={{ scale: 1.01 }}
+                                    whileTap={{ scale: 0.99 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                >
+                                    {(liveClass.meeting_link || liveClass.external_link) ? (
+                                        <Link href={liveClass.meeting_link || liveClass.external_link} target="_blank">
+                                            <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-700 to-purple-800 text-white overflow-hidden relative cursor-pointer hover:brightness-110 transition-all">
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+                                                <CardContent className="p-5">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${liveClass.class_status === 'LIVE' || liveClass.class_status === 'IN_PROGRESS'
+                                                                    ? 'bg-red-500 text-white animate-pulse'
+                                                                    : 'bg-white/20 text-white/90'
+                                                                    }`}>
+                                                                    {liveClass.class_status || 'SCHEDULED'}
+                                                                </span>
+                                                                <span className="text-[10px] text-white/60 font-medium">
+                                                                    {new Date(liveClass.scheduled_date).toLocaleDateString()} • {liveClass.start_time}
+                                                                </span>
+                                                            </div>
+                                                            <h4 className="font-bold text-lg mb-1">{liveClass.class_title}</h4>
+                                                            <p className="text-white/70 text-xs line-clamp-1">{liveClass.course?.course_name}</p>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2">
+                                                            <Button className="w-full sm:w-auto bg-white text-indigo-700 hover:bg-gray-100 font-bold border-0 shadow-xl pointer-events-none">
+                                                                <Video className="h-4 w-4 mr-2" />
+                                                                Join Class
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </Link>
+                                    ) : (
+                                        <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-700 to-purple-800 text-white overflow-hidden relative opacity-75">
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+                                            <CardContent className="p-5">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter bg-white/20 text-white/90">
+                                                                {liveClass.class_status || 'SCHEDULED'}
+                                                            </span>
+                                                            <span className="text-[10px] text-white/60 font-medium">
+                                                                {new Date(liveClass.scheduled_date).toLocaleDateString()} • {liveClass.start_time}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className="font-bold text-lg mb-1">{liveClass.class_title}</h4>
+                                                        <p className="text-white/70 text-xs line-clamp-1">{liveClass.course?.course_name}</p>
+                                                    </div>
+                                                    <Button disabled className="w-full sm:w-auto bg-white/10 text-white/40 border-0">
+                                                        Link Pending
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
                 )}
 
                 {/* Quick Actions Grid */}

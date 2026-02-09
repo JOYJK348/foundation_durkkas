@@ -33,6 +33,7 @@ export default function AttendancePage() {
     const [mounted, setMounted] = useState(false);
     const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
     const [activeSessions, setActiveSessions] = useState<any[]>([]);
+    const [pendingCount, setPendingCount] = useState(0);
     const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
     const [stats, setStats] = useState({
         total: 0,
@@ -81,6 +82,10 @@ export default function AttendancePage() {
                 const sessions = response.data.data.active_attendance_sessions;
                 console.log("Setting active sessions:", sessions);
                 setActiveSessions(sessions);
+
+                // Also set a specifically 'pending' count for the UI
+                const pending = sessions.filter((s: any) => s.recommended_action !== 'COMPLETED');
+                setPendingCount(pending.length);
             } else {
                 console.warn("No active sessions data found in response");
             }
@@ -228,62 +233,57 @@ export default function AttendancePage() {
 
                 {/* Mark Attendance Button */}
                 <div className="mb-6">
-                    <Card
-                        onClick={() => {
-                            console.log("Attendance Card Parent Clicked");
-                            handleAttendanceClick();
-                        }}
-                        className={`border-0 shadow-lg overflow-hidden transition-all active:scale-[0.98] cursor-pointer ${activeSessions.length > 0
-                            ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:shadow-green-200/50"
-                            : "bg-gray-100 opacity-80"
-                            }`}>
-                        <CardContent className="p-5" onClick={(e) => {
-                            console.log("Attendance CardContent Clicked");
-                        }}>
-                            <div className="flex items-center justify-between pointer-events-none">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${activeSessions.length > 0
-                                        ? "bg-white/20 backdrop-blur-sm"
-                                        : "bg-gray-200"
-                                        }`}>
-                                        <Fingerprint className={`h-7 w-7 ${activeSessions.length > 0 ? "text-white" : "text-gray-400"
-                                            }`} />
+                    <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full"
+                    >
+                        <Card
+                            onClick={handleAttendanceClick}
+                            className={`border-0 shadow-lg overflow-hidden transition-all group ${pendingCount > 0
+                                ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:shadow-green-200/50 cursor-pointer"
+                                : "bg-gray-100 opacity-80"
+                                }`}>
+                            <CardContent className="p-5">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${pendingCount > 0
+                                            ? "bg-white/20 backdrop-blur-sm group-hover:bg-white/30"
+                                            : "bg-gray-200"
+                                            }`}>
+                                            <Fingerprint className={`h-7 w-7 ${pendingCount > 0 ? "text-white" : "text-gray-400"
+                                                }`} />
+                                        </div>
+                                        <div>
+                                            <h3 className={`font-bold text-lg ${pendingCount > 0 ? "text-white" : "text-gray-900"
+                                                }`}>
+                                                {pendingCount > 0 ? "Active Session Available" : "All Caught Up!"}
+                                            </h3>
+                                            <p className={`text-sm ${pendingCount > 0 ? "text-white/90" : "text-gray-600"
+                                                }`}>
+                                                {pendingCount > 0
+                                                    ? `${pendingCount} session(s) waiting for attendance`
+                                                    : "You've marked all pending attendance for today."
+                                                }
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className={`font-bold text-lg ${activeSessions.length > 0 ? "text-white" : "text-gray-900"
-                                            }`}>
-                                            {activeSessions.length > 0 ? "Active Session Available" : "No Active Sessions"}
-                                        </h3>
-                                        <p className={`text-sm ${activeSessions.length > 0 ? "text-white/90" : "text-gray-600"
-                                            }`}>
-                                            {activeSessions.length > 0
-                                                ? `${activeSessions.length} session(s) waiting for attendance`
-                                                : "Check back during class hours"
-                                            }
-                                        </p>
+                                    <div className="hidden sm:block">
+                                        <div className={`p-2 rounded-full transition-colors ${pendingCount > 0 ? "bg-white/20 group-hover:bg-white/30" : "bg-gray-200"}`}>
+                                            <ArrowLeft className={`h-6 w-6 rotate-180 ${pendingCount > 0 ? "text-white" : "text-gray-400"}`} />
+                                        </div>
+                                    </div>
+                                    <div className="sm:hidden">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${pendingCount > 0 ? "bg-white/20 group-hover:bg-white/30" : "bg-gray-200"}`}>
+                                            <ArrowLeft className={`h-5 w-5 rotate-180 ${pendingCount > 0 ? "text-white" : "text-gray-400"}`} />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="pointer-events-auto">
-                                    <Button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            console.log("Attendance API Button Clicked");
-                                            handleAttendanceClick();
-                                        }}
-                                        disabled={activeSessions.length === 0}
-                                        size="lg"
-                                        className={`${activeSessions.length > 0
-                                            ? "bg-white text-green-700 hover:bg-gray-100 shadow-lg"
-                                            : "bg-gray-300 text-gray-500"
-                                            } font-bold`}
-                                    >
-                                        <Camera className="h-5 w-5 mr-2" />
-                                        Mark Attendance
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
                 </div>
 
                 {/* Warning Card */}

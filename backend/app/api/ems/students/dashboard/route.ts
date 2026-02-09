@@ -204,8 +204,8 @@ export async function GET(req: NextRequest) {
             const courseIds = (enrollments as any[])?.map((e: any) => e.course_id) || [];
             const batchIds = (enrollments as any[])?.map((e: any) => e.batch_id).filter(Boolean) || [];
 
-            if (courseIds.length > 0 || batchIds.length > 0) {
-                // Construct a robust query that finds classes by Course OR specific Batch
+            if (courseIds.length > 0) {
+                // Construct a robust query that finds classes by Course
                 let query = ems.liveClasses()
                     .select(`
                         id, 
@@ -214,20 +214,24 @@ export async function GET(req: NextRequest) {
                         start_time, 
                         batch_id,
                         course_id,
+                        meeting_link,
+                        meeting_platform,
+                        class_status,
                         course:courses(id, course_name),
                         batch:batches(id, batch_name)
                     `)
                     .eq('company_id', companyId)
+                    .in('course_id', courseIds)
                     .gte('scheduled_date', new Date().toISOString().split('T')[0])
                     .is('deleted_at', null);
 
-                // Build the OR filter string
-                const filters = [];
-                if (courseIds.length > 0) filters.push(`course_id.in.(${courseIds.join(',')})`);
-                if (batchIds.length > 0) filters.push(`batch_id.in.(${batchIds.join(',')})`);
-
-                if (filters.length > 0) {
-                    query = query.or(filters.join(','));
+                // Filter by batch logic:
+                // If the class has a batch_id, student must be in that batch.
+                // If it's null, it's for everyone in the course.
+                if (batchIds.length > 0) {
+                    query = query.or(`batch_id.in.(${batchIds.join(',')}),batch_id.is.null`);
+                } else {
+                    query = query.is('batch_id', null);
                 }
 
                 const { data: rawLiveClasses, error: liveError } = await query
@@ -236,18 +240,13 @@ export async function GET(req: NextRequest) {
 
                 if (liveError) throw liveError;
 
-                // Final filtering: Ensure student has access to this specific combination
-                // Rule: If batch_id is set, student MUST be in that batch.
-                // If batch_id is NULL, student must be in the course.
-                liveClasses = (rawLiveClasses || []).filter((lc: any) => {
-                    const studentInBatch = lc.batch_id && batchIds.includes(lc.batch_id);
-                    const studentInCourse = lc.course_id && courseIds.includes(lc.course_id);
+                liveClasses = (rawLiveClasses || []).map(lc => ({
+                    ...lc,
+                    status: lc.class_status || 'SCHEDULED', // Map for frontend convenience
+                    external_link: lc.meeting_link // Map for frontend convenience
+                })).slice(0, 5);
 
-                    if (lc.batch_id) return studentInBatch;
-                    return studentInCourse;
-                }).slice(0, 5);
-
-                logDiagnostic('Live classes filtered', { count: liveClasses.length });
+                logDiagnostic('Live classes fetched and mapped', { count: liveClasses.length });
             }
         } catch (e: any) {
             logDiagnostic('Live classes fetch error', { message: e.message });

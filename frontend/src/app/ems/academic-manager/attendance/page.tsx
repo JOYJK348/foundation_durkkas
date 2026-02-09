@@ -51,6 +51,7 @@ interface ScheduledBatch {
         absent_count: number;
     } | null;
     status: string;
+    live_class_id?: number | null;
 }
 
 export default function AttendancePage() {
@@ -125,7 +126,11 @@ export default function AttendancePage() {
                 session_date: selectedDate,
                 session_type: "REGULAR",
                 start_time: batch.start_time || "09:00",
-                end_time: batch.end_time || "10:00"
+                end_time: batch.end_time || "10:00",
+                live_class_id: batch.live_class_id,
+                class_mode: batch.class_mode || 'OFFLINE',
+                require_face_verification: batch.require_face_verification || false,
+                require_location_verification: batch.require_location_verification || false
             });
 
             toast.dismiss();
