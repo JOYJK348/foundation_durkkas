@@ -19,7 +19,8 @@ import {
     Clock,
     Download,
     Eye,
-    Award
+    Award,
+    Zap
 } from "lucide-react";
 import { TopNavbar } from "@/components/ems/dashboard/top-navbar";
 import { BottomNav } from "@/components/ems/dashboard/bottom-nav";
@@ -66,10 +67,21 @@ export default function StudentCourseDetailsPage() {
     const [course, setCourse] = useState<CourseDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [expandedModules, setExpandedModules] = useState<number[]>([]);
+    const [allocations, setAllocations] = useState<any[]>([]);
 
     useEffect(() => {
         fetchCourseDetails();
+        fetchAllocations();
     }, [params.id]);
+
+    const fetchAllocations = async () => {
+        try {
+            const response = await api.get('/ems/practice/student/status');
+            if (response.data.success) {
+                setAllocations(response.data.data || []);
+            }
+        } catch (err) { }
+    };
 
     const fetchCourseDetails = async () => {
         try {
@@ -129,6 +141,7 @@ export default function StudentCourseDetailsPage() {
     const totalLessons = course.course_modules.reduce((acc, mod) => acc + mod.lessons.length, 0);
     const completedLessons = 0; // This would come from API
     const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+    const courseAllocation = allocations.find(a => a.course_id === parseInt(params.id as string));
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
@@ -194,6 +207,35 @@ export default function StudentCourseDetailsPage() {
                         </div>
                     </div>
                 </motion.div>
+
+                {/* Practice Lab Contextual Access */}
+                {courseAllocation && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-6"
+                    >
+                        <Link href={`/ems/student/practice-lab?courseId=${course.id}`}>
+                            <Card className="border-0 shadow-lg bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:shadow-xl transition-all cursor-pointer group overflow-hidden relative">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-colors" />
+                                <CardContent className="p-5 flex items-center justify-between relative z-10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-inner border border-white/30">
+                                            <Zap className="h-6 w-6 text-white animate-pulse" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-black text-lg leading-tight uppercase tracking-tight">Launch Finance Lab</h3>
+                                            <p className="text-white/80 text-xs font-medium italic">Simulate real GST/TDS scenarios for this course</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/35 transition-all">
+                                        <ChevronRight className="h-5 w-5" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    </motion.div>
+                )}
 
                 {/* Course Description */}
                 {course.course_description && (
@@ -308,8 +350,8 @@ export default function StudentCourseDetailsPage() {
                                                         <div
                                                             key={lesson.id}
                                                             className={`flex items-center gap-3 p-3 rounded-xl transition-all ${lesson.is_locked
-                                                                    ? 'bg-gray-100 opacity-60'
-                                                                    : 'bg-white hover:shadow-md cursor-pointer'
+                                                                ? 'bg-gray-100 opacity-60'
+                                                                : 'bg-white hover:shadow-md cursor-pointer'
                                                                 }`}
                                                         >
                                                             <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">

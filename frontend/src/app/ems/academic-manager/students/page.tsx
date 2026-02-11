@@ -25,6 +25,9 @@ import {
     ShieldCheck,
     Key,
     Lock,
+    Zap,
+    TrendingUp,
+    RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -66,6 +69,9 @@ export default function StudentsPage() {
     const [generatedCredentials, setGeneratedCredentials] = useState<any>(null);
     const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [showPracticeModal, setShowPracticeModal] = useState(false);
+    const [allocating, setAllocating] = useState(false);
+    const [studentAllocations, setStudentAllocations] = useState<any[]>([]);
 
     const [studentFormData, setStudentFormData] = useState({
         student_code: "",
@@ -180,10 +186,63 @@ export default function StudentsPage() {
                     batch_id: "",
                     payment_status: "PENDING",
                 });
+                toast.success("Student enrolled successfully!");
             }
         } catch (error) {
             console.error("Error enrolling student:", error);
+            toast.error("Failed to enroll student");
         }
+    };
+
+    const handleAllocatePractice = async (studentId: number, moduleType: string) => {
+        try {
+            setAllocating(true);
+            const response = await api.post("/ems/practice/allocate", {
+                studentId,
+                moduleType,
+                courseId: enrollFormData.course_id || 1, // Fallback if needed, but ideally we know the course
+            });
+
+            if (response.data.success) {
+                toast.success(`${moduleType} Lab allocated successfully!`);
+                fetchStudentAllocations(studentId);
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Failed to allocate lab");
+        } finally {
+            setAllocating(false);
+        }
+    };
+
+    const handleResetPractice = async (allocationId: number) => {
+        try {
+            setAllocating(true);
+            const response = await api.post('/ems/practice/manager/reset', { allocationId });
+            if (response.data.success) {
+                toast.success("Practice limit reset!");
+                if (selectedStudent) fetchStudentAllocations(selectedStudent.id);
+            }
+        } catch (error) {
+            toast.error("Failed to reset limit");
+        } finally {
+            setAllocating(false);
+        }
+    };
+
+    const fetchStudentAllocations = async (studentId: number) => {
+        try {
+            // This is a custom endpoint we should have or we can filter from /api/ems/practice/dashboard results
+            const response = await api.get(`/ems/practice/student/status?student_id=${studentId}`);
+            if (response.data.success) {
+                setStudentAllocations(response.data.data || []);
+            }
+        } catch (err) { }
+    };
+
+    const openPracticeModal = (studentId: number) => {
+        setSelectedStudent(studentId);
+        fetchStudentAllocations(studentId);
+        setShowPracticeModal(true);
     };
 
     const openEnrollForm = (studentId: number) => {
@@ -318,6 +377,14 @@ export default function StudentsPage() {
                                             >
                                                 <UserPlus className="h-4 w-4 mr-1" />
                                                 Enroll
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100"
+                                                onClick={() => openPracticeModal(student.id)}
+                                            >
+                                                <Zap className="h-4 w-4" />
                                             </Button>
                                             <Button size="sm" variant="outline">
                                                 <Eye className="h-4 w-4" />
@@ -700,6 +767,96 @@ export default function StudentsPage() {
                                         </Button>
                                     </div>
                                 </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+
+            {/* Practice Lab Modal */}
+            <AnimatePresence>
+                {showPracticeModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4"
+                        onClick={() => setShowPracticeModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="bg-gradient-to-br from-orange-500 to-red-600 px-6 py-6 text-center text-white relative">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full"
+                                    onClick={() => setShowPracticeModal(false)}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-4 backdrop-blur-md">
+                                    <Zap className="h-8 w-8 text-white" />
+                                </div>
+                                <h2 className="text-xl font-bold">Practical Lab Allocation</h2>
+                                <p className="text-orange-50/80 text-xs">Assign simulation modules to student</p>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                {['GST', 'TDS', 'INCOME_TAX'].map((type) => {
+                                    const allocation = studentAllocations.find(a => a.module_type === type);
+
+                                    return (
+                                        <div key={type} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                            <div>
+                                                <p className="font-bold text-gray-900">{type} Practice Lab</p>
+                                                <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">
+                                                    {allocation ? `Used: ${allocation.used_count}/5` : 'Not Allocated'}
+                                                </p>
+                                            </div>
+                                            {allocation ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Active</span>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-blue-400 hover:text-blue-600"
+                                                        onClick={() => handleResetPractice(allocation.id)}
+                                                    >
+                                                        <RotateCcw className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-red-500">
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    disabled={allocating}
+                                                    onClick={() => selectedStudent && handleAllocatePractice(selectedStudent, type)}
+                                                    className="bg-orange-500 hover:bg-orange-600 rounded-xl text-[10px] font-black uppercase h-8"
+                                                >
+                                                    {allocating ? 'Wait...' : 'Allocate'}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="px-6 pb-6 mt-2">
+                                <Button
+                                    variant="ghost"
+                                    className="w-full text-gray-400 text-xs font-bold py-4 h-auto"
+                                    onClick={() => setShowPracticeModal(false)}
+                                >
+                                    Dismiss
+                                </Button>
                             </div>
                         </motion.div>
                     </motion.div>

@@ -42,7 +42,7 @@ export const POST = asyncHandler(async (req: NextRequest) => {
 
     const validatedData = enrollmentSchema.parse(data);
 
-    const enrollment = await EnrollmentService.enrollStudent(validatedData);
+    const enrollment = await EnrollmentService.enrollStudent(validatedData, userId);
 
     return successResponse(enrollment, 'Student enrolled successfully', 201);
 });

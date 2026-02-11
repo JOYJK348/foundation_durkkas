@@ -119,7 +119,7 @@ export default function DoubtSessionsPage() {
                                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                                         <div className="flex items-start gap-4 flex-1">
                                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${session.type === "live" ? "bg-red-100" :
-                                                    session.type === "chat" ? "bg-blue-100" : "bg-orange-100"
+                                                session.type === "chat" ? "bg-blue-100" : "bg-orange-100"
                                                 }`}>
                                                 {session.type === "live" ? (
                                                     <Video className="h-6 w-6 text-red-600" />

@@ -67,6 +67,7 @@ interface Course {
     }>;
     studentCount?: number;
     thumbnail_url?: string;
+    enabled_practice_modules?: string[];
 }
 
 export default function CoursesPage() {
@@ -92,6 +93,7 @@ export default function CoursesPage() {
         enrollment_capacity: 30,
         tutor_id: "",
         thumbnail_url: "",
+        enabled_practice_modules: [] as string[],
     });
     const [uploading, setUploading] = useState(false);
 
@@ -254,6 +256,7 @@ export default function CoursesPage() {
                     enrollment_capacity: 30,
                     tutor_id: "",
                     thumbnail_url: "",
+                    enabled_practice_modules: [],
                 });
                 toast.success(selectedCourse ? 'Course updated successfully!' : 'Course created successfully!');
             }
@@ -276,6 +279,7 @@ export default function CoursesPage() {
             enrollment_capacity: course.enrollment_capacity,
             tutor_id: course.tutor ? course.tutor.id.toString() : "",
             thumbnail_url: course.thumbnail_url || "",
+            enabled_practice_modules: course.enabled_practice_modules || [],
         });
         setSelectedCourse(course);
         setShowCreateForm(true); // Reuse create form for editing
@@ -342,6 +346,7 @@ export default function CoursesPage() {
                                 enrollment_capacity: 30,
                                 tutor_id: "",
                                 thumbnail_url: "",
+                                enabled_practice_modules: [],
                             });
                             setShowCreateForm(true);
                         }}
@@ -404,6 +409,7 @@ export default function CoursesPage() {
                                         enrollment_capacity: 30,
                                         tutor_id: "",
                                         thumbnail_url: "",
+                                        enabled_practice_modules: [],
                                     });
                                     setShowCreateForm(true);
                                 }}
@@ -806,6 +812,38 @@ export default function CoursesPage() {
                                             value={formData.enrollment_capacity}
                                             onChange={(e) => setFormData({ ...formData, enrollment_capacity: parseInt(e.target.value) })}
                                         />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 p-6 bg-orange-50/50 rounded-2xl border-2 border-dashed border-orange-100">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="p-1.5 bg-orange-100 rounded-lg">
+                                            <TrendingUp className="h-4 w-4 text-orange-600" />
+                                        </div>
+                                        <Label className="text-orange-900 font-black uppercase tracking-widest text-[10px]">Practical Simulation Labs</Label>
+                                    </div>
+                                    <p className="text-xs text-orange-700 font-medium">Enable simulation modules for this course. Students will receive practice licenses upon allocation.</p>
+
+                                    <div className="flex flex-wrap gap-4">
+                                        {['GST', 'TDS', 'INCOME_TAX'].map((module) => (
+                                            <div key={module} className="flex items-center gap-2 bg-white px-4 py-3 rounded-xl border border-orange-100 shadow-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`module-${module}`}
+                                                    className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                                                    checked={formData.enabled_practice_modules.includes(module)}
+                                                    onChange={(e) => {
+                                                        const current = [...formData.enabled_practice_modules];
+                                                        if (e.target.checked) {
+                                                            setFormData({ ...formData, enabled_practice_modules: [...current, module] });
+                                                        } else {
+                                                            setFormData({ ...formData, enabled_practice_modules: current.filter(m => m !== module) });
+                                                        }
+                                                    }}
+                                                />
+                                                <Label htmlFor={`module-${module}`} className="text-sm font-bold text-gray-700 cursor-pointer">{module} Lab</Label>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 

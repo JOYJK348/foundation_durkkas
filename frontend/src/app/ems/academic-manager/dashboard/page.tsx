@@ -40,6 +40,14 @@ interface DashboardStats {
     completionRate: number;
 }
 
+interface PracticeQuota {
+    id: number;
+    module_type: 'GST' | 'TDS' | 'INCOME_TAX';
+    total_licenses: number;
+    used_licenses: number;
+    balance: number;
+}
+
 interface CourseMapping {
     courseId: number;
     courseCode: string;
@@ -70,10 +78,13 @@ export default function AcademicManagerDashboard() {
     const [companyName, setCompanyName] = useState("");
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [todayClasses, setTodayClasses] = useState<any[]>([]);
+    const [practiceQuotas, setPracticeQuotas] = useState<PracticeQuota[]>([]);
+    const [practiceLoading, setPracticeLoading] = useState(true);
 
     useEffect(() => {
         fetchDashboardStats();
         fetchCourseMappings();
+        fetchPracticeStats();
         // Get company name from cookies or storage
         const storedCompanyName = Cookies.get('company_name') || 'Your Institution';
         setCompanyName(storedCompanyName);
@@ -89,6 +100,25 @@ export default function AcademicManagerDashboard() {
                 setTodayClasses(Array.isArray(scheduleData) ? scheduleData : []);
             }
         } catch (err) { }
+    };
+
+    const fetchPracticeStats = async () => {
+        try {
+            setPracticeLoading(true);
+            const response = await api.get('/ems/practice/dashboard');
+            if (response.data.success) {
+                // Compute balance for each quota
+                const quotas = response.data.data.map((q: any) => ({
+                    ...q,
+                    balance: q.total_licenses - q.used_licenses
+                }));
+                setPracticeQuotas(quotas);
+            }
+        } catch (err) {
+            console.error("Error fetching practice stats:", err);
+        } finally {
+            setPracticeLoading(false);
+        }
     };
 
     const fetchDashboardStats = async () => {
@@ -209,7 +239,79 @@ export default function AcademicManagerDashboard() {
                     <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
                         Welcome Back, Academic Manager!
                     </h1>
-                    <p className="text-gray-600">Manage your institution's academic ecosystem</p>
+                    <p className="text-gray-600">Manage your institution's academic ecosystem and practical labs</p>
+                </motion.div>
+
+                {/* Practical Labs Overview - NEW SECTION */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-8"
+                >
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <Layers className="h-5 w-5 text-purple-600" />
+                            Practical Labs Quota
+                        </h2>
+                        <div className="px-3 py-1 bg-white rounded-full border border-gray-200 shadow-sm">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Subscription Status</span>
+                        </div>
+                    </div>
+
+                    {practiceLoading ? (
+                        <div className="flex items-center justify-center py-6 bg-white rounded-2xl border border-dashed border-gray-200">
+                            <Loader2 className="h-5 w-5 animate-spin text-purple-600 mr-2" />
+                            <span className="text-sm text-gray-500">Loading quota details...</span>
+                        </div>
+                    ) : practiceQuotas.length === 0 ? (
+                        <Card className="border-0 shadow-sm bg-gray-50 p-6 text-center italic text-gray-400">
+                            No practice modules active for this session.
+                        </Card>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {['GST', 'TDS', 'INCOME_TAX'].map((type) => {
+                                const quota = practiceQuotas.find(q => q.module_type === type);
+                                if (!quota) return null;
+
+                                return (
+                                    <Card key={type} className="border-0 shadow-md bg-white overflow-hidden group">
+                                        <CardContent className="p-5">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">
+                                                        {type} Student Lab
+                                                    </span>
+                                                    <h3 className="text-2xl font-black text-gray-900 leading-none">
+                                                        {quota.balance}
+                                                        <span className="text-sm font-medium text-gray-400 ml-1">/{quota.total_licenses}</span>
+                                                    </h3>
+                                                    <p className="text-[10px] font-bold text-gray-500 mt-2 uppercase tracking-tighter">
+                                                        {quota.used_licenses} licenses active
+                                                    </p>
+                                                </div>
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group-hover:rotate-12 ${type === 'GST' ? 'bg-blue-50 text-blue-600' :
+                                                    type === 'TDS' ? 'bg-orange-50 text-orange-600' :
+                                                        'bg-green-50 text-green-600'
+                                                    }`}>
+                                                    <TrendingUp className="h-6 w-6" />
+                                                </div>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-4 overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${(quota.used_licenses / quota.total_licenses) * 100}%` }}
+                                                    className={`h-full ${type === 'GST' ? 'bg-blue-500' :
+                                                        type === 'TDS' ? 'bg-orange-500' :
+                                                            'bg-green-500'
+                                                        }`}
+                                                />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Stats Grid */}

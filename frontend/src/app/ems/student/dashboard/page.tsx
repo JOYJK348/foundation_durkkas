@@ -65,6 +65,7 @@ export default function StudentDashboard() {
         upcoming_live_classes: [],
         active_attendance_sessions: []
     });
+    const [practiceStatus, setPracticeStatus] = useState<any[]>([]);
 
     useEffect(() => {
         const token = Cookies.get('access_token');
@@ -73,7 +74,17 @@ export default function StudentDashboard() {
             return;
         }
         fetchDashboardData();
+        fetchPracticeStatus();
     }, []);
+
+    const fetchPracticeStatus = async () => {
+        try {
+            const response = await api.get('/ems/practice/student/status');
+            if (response.data.success) {
+                setPracticeStatus(response.data.data || []);
+            }
+        } catch (err) { }
+    };
 
     const fetchDashboardData = async () => {
         try {
