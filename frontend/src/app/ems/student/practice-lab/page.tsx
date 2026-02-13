@@ -42,6 +42,17 @@ const MODULE_CONFIGS = {
         features: ['GSTIN Validation', 'CGST/SGST/IGST Auto-calculation', 'Inter-state Detection', 'Invoice Management'],
         path: '/ems/student/practice-lab/gst'
     },
+    GST_LAB: {
+        title: 'GST Finance Lab',
+        subtitle: 'Complete GST Simulation System',
+        description: 'Full GST workflow simulation: Company setup, Purchase/Sales entries, Ledger management, Monthly returns (GSTR-3B), Challan generation, and Payment simulation.',
+        icon: TrendingUp,
+        gradient: 'from-emerald-500 to-teal-600',
+        bgGradient: 'from-emerald-50 to-teal-50',
+        accentColor: 'emerald',
+        features: ['Mock Company Setup', 'ITC & Output GST Tracking', 'Electronic Ledgers', 'GSTR-3B Returns', 'PMT-06 Challan', 'Payment Simulation'],
+        path: '/ems/student/practice-lab/gst-lab'
+    },
     TDS: {
         title: 'TDS Practice Lab',
         subtitle: 'Master Tax Deducted at Source',

@@ -42,7 +42,7 @@ interface DashboardStats {
 
 interface PracticeQuota {
     id: number;
-    module_type: 'GST' | 'TDS' | 'INCOME_TAX';
+    module_type: 'GST' | 'GST_LAB' | 'TDS' | 'INCOME_TAX';
     total_licenses: number;
     used_licenses: number;
     balance: number;
@@ -269,7 +269,7 @@ export default function AcademicManagerDashboard() {
                         </Card>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {['GST', 'TDS', 'INCOME_TAX'].map((type) => {
+                            {['GST', 'GST_LAB', 'TDS', 'INCOME_TAX'].map((type) => {
                                 const quota = practiceQuotas.find(q => q.module_type === type);
                                 if (!quota) return null;
 
@@ -290,8 +290,9 @@ export default function AcademicManagerDashboard() {
                                                     </p>
                                                 </div>
                                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group-hover:rotate-12 ${type === 'GST' ? 'bg-blue-50 text-blue-600' :
-                                                    type === 'TDS' ? 'bg-orange-50 text-orange-600' :
-                                                        'bg-green-50 text-green-600'
+                                                    type === 'GST_LAB' ? 'bg-emerald-50 text-emerald-600' :
+                                                        type === 'TDS' ? 'bg-orange-50 text-orange-600' :
+                                                            'bg-green-50 text-green-600'
                                                     }`}>
                                                     <TrendingUp className="h-6 w-6" />
                                                 </div>
@@ -301,8 +302,9 @@ export default function AcademicManagerDashboard() {
                                                     initial={{ width: 0 }}
                                                     animate={{ width: `${(quota.used_licenses / quota.total_licenses) * 100}%` }}
                                                     className={`h-full ${type === 'GST' ? 'bg-blue-500' :
-                                                        type === 'TDS' ? 'bg-orange-500' :
-                                                            'bg-green-500'
+                                                        type === 'GST_LAB' ? 'bg-emerald-500' :
+                                                            type === 'TDS' ? 'bg-orange-500' :
+                                                                'bg-green-500'
                                                         }`}
                                                 />
                                             </div>

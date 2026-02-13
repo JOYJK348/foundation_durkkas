@@ -825,7 +825,7 @@ export default function CoursesPage() {
                                     <p className="text-xs text-orange-700 font-medium">Enable simulation modules for this course. Students will receive practice licenses upon allocation.</p>
 
                                     <div className="flex flex-wrap gap-4">
-                                        {['GST', 'TDS', 'INCOME_TAX'].map((module) => (
+                                        {['GST', 'GST_LAB', 'TDS', 'INCOME_TAX'].map((module) => (
                                             <div key={module} className="flex items-center gap-2 bg-white px-4 py-3 rounded-xl border border-orange-100 shadow-sm">
                                                 <input
                                                     type="checkbox"
@@ -841,7 +841,7 @@ export default function CoursesPage() {
                                                         }
                                                     }}
                                                 />
-                                                <Label htmlFor={`module-${module}`} className="text-sm font-bold text-gray-700 cursor-pointer">{module} Lab</Label>
+                                                <Label htmlFor={`module-${module}`} className="text-sm font-bold text-gray-700 cursor-pointer">{module === 'GST_LAB' ? 'GST Finance Lab' : module + ' Lab'}</Label>
                                             </div>
                                         ))}
                                     </div>
