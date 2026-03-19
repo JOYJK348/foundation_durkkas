@@ -253,8 +253,8 @@ export default function AssignmentsPage() {
                                         size="sm"
                                         onClick={() => setFilter(f)}
                                         className={`whitespace-nowrap ${filter === f
-                                                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                                : "hover:bg-gray-100"
+                                            ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                            : "hover:bg-gray-100"
                                             }`}
                                     >
                                         {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -337,8 +337,8 @@ export default function AssignmentsPage() {
                                                         {/* Submission Mode */}
                                                         <span
                                                             className={`px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${assignment.submission_mode === "ONLINE"
-                                                                    ? "bg-emerald-100 text-emerald-700"
-                                                                    : "bg-amber-100 text-amber-700"
+                                                                ? "bg-emerald-100 text-emerald-700"
+                                                                : "bg-amber-100 text-amber-700"
                                                                 }`}
                                                         >
                                                             {assignment.submission_mode}

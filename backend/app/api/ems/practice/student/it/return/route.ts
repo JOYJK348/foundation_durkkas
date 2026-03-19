@@ -1,0 +1,23 @@
+import { NextRequest } from 'next/server';
+import { successResponse, errorResponse } from '@/lib/errorHandler';
+import { getUserIdFromToken } from '@/lib/jwt';
+import { getUserTenantScope } from '@/middleware/tenantFilter';
+import { PracticeService } from '@/lib/services/PracticeService';
+
+export async function POST(req: NextRequest) {
+    try {
+        const userId = await getUserIdFromToken(req);
+        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+
+        const { allocationId, ...entryData } = await req.json();
+
+        if (!allocationId) return errorResponse(null, 'Missing allocationId', 400);
+
+        const entry = await PracticeService.saveItReturn(parseInt(allocationId), entryData);
+
+        return successResponse(entry, 'IT Return submitted to lab successfully');
+
+    } catch (error: any) {
+        return errorResponse(null, error.message || 'Failed to submit IT return');
+    }
+}

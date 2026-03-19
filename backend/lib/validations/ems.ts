@@ -63,6 +63,7 @@ export const courseSchema = z.object({
     end_date: z.string().optional().nullable(),
     is_published: z.boolean().default(false),
     status: z.string().default('DRAFT'),
+    enabled_practice_modules: z.array(z.string()).optional().default([]),
 });
 
 export const courseModuleSchema = z.object({

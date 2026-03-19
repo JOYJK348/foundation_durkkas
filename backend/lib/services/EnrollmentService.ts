@@ -1,6 +1,7 @@
 import { ems } from '@/lib/supabase';
 import { StudentEnrollment, LessonProgress } from '@/types/database';
 import { BatchService } from './BatchService';
+import { PracticeService } from './PracticeService';
 
 /**
  * Service for Student Enrollment & Progress Tracking
@@ -11,7 +12,7 @@ export class EnrollmentService {
     // 1. ENROLLMENT OPERATIONS
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    static async enrollStudent(enrollmentData: Partial<StudentEnrollment>) {
+    static async enrollStudent(enrollmentData: Partial<StudentEnrollment>, enrolledBy?: number) {
         console.log('🚀 [EnrollmentService] Enrolling student:', enrollmentData);
 
         // Check if already enrolled
@@ -29,7 +30,7 @@ export class EnrollmentService {
 
         // Get course details for lesson count
         const { data: course, error: courseError } = await ems.courses()
-            .select('total_lessons')
+            .select('total_lessons, enabled_practice_modules')
             .eq('id', enrollmentData.course_id!)
             .single();
 
@@ -62,6 +63,35 @@ export class EnrollmentService {
                 console.log('📈 [EnrollmentService] Batch strength updated for batch:', data.batch_id);
             } catch (batchError: any) {
                 console.warn('⚠️ [EnrollmentService] Failed to update batch strength:', batchError.message);
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // AUTOMATIC PRACTICE LAB ALLOCATION
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if (course?.enabled_practice_modules && Array.isArray(course.enabled_practice_modules)) {
+            const modules = course.enabled_practice_modules as string[];
+            if (modules.length > 0) {
+                console.log(`🧪 [EnrollmentService] Auto-allocating practice modules for student ${enrollmentData.student_id}:`, modules);
+
+                // Process allocations in background to not block response
+                // using array map for parallel execution
+                Promise.allSettled(modules.map(async (moduleType) => {
+                    try {
+                        await PracticeService.allocateModule(
+                            enrollmentData.student_id!,
+                            enrollmentData.course_id!,
+                            moduleType as any,
+                            enrollmentData.company_id!,
+                            enrolledBy || 1 // Fallback to system admin if not provided
+                        );
+                        console.log(`✅ [EnrollmentService] Allocated ${moduleType} to student ${enrollmentData.student_id}`);
+                    } catch (err: any) {
+                        console.warn(`⚠️ [EnrollmentService] Failed to allocate ${moduleType}:`, err.message);
+                        // We don't throw here to avoid rolling back enrollment
+                        // The manager can manually allocate later if quota was full
+                    }
+                }));
             }
         }
 
