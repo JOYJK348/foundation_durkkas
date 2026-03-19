@@ -1,0 +1,119 @@
+{
+  "courses": [
+    {
+      "course": "Full Stack Development Bootcamp",
+      "tutor_emp_id": 111,
+      "tutor_email": "rajesh.kumar@durkkas.com",
+      "tutor_user_id": 427,
+      "auth_email": "rajesh.kumar@durkkas.com"
+    },
+    {
+      "course": "Full Stack Web Development Bootcamp",
+      "tutor_emp_id": 63,
+      "tutor_email": "dr.ramesh@durkkasedu.in",
+      "tutor_user_id": 235,
+      "auth_email": "dr.ramesh@durkkasedu.in"
+    },
+    {
+      "course": "Data Science & Machine Learning",
+      "tutor_emp_id": 63,
+      "tutor_email": "dr.ramesh@durkkasedu.in",
+      "tutor_user_id": 235,
+      "auth_email": "dr.ramesh@durkkasedu.in"
+    },
+    {
+      "course": "Digital Marketing Masterclass",
+      "tutor_emp_id": 64,
+      "tutor_email": "meena.mdu@durkkasedu.in",
+      "tutor_user_id": 236,
+      "auth_email": "meena.mdu@durkkasedu.in"
+    },
+    {
+      "course": "Data Science & AI Mastery",
+      "tutor_emp_id": 119,
+      "tutor_email": "arun.patel@durkkas.com",
+      "tutor_user_id": 3,
+      "auth_email": "platform.admin@durkkas.com"
+    },
+    {
+      "course": "Professional UI/UX Designnn",
+      "tutor_emp_id": 113,
+      "tutor_email": "amit.patel@durkkas.com",
+      "tutor_user_id": 429,
+      "auth_email": "amit.patel@durkkas.com"
+    }
+  ],
+  "junctions": [
+    {
+      "courseId": 2,
+      "tutor_emp_id": 63,
+      "tutor_email": "dr.ramesh@durkkasedu.in",
+      "auth_email": "dr.ramesh@durkkasedu.in"
+    },
+    {
+      "courseId": 2,
+      "tutor_emp_id": 64,
+      "tutor_email": "meena.mdu@durkkasedu.in",
+      "auth_email": "meena.mdu@durkkasedu.in"
+    },
+    {
+      "courseId": 2,
+      "tutor_emp_id": 88,
+      "tutor_email": "jk4444@gmail.com",
+      "auth_email": "jk4444@gmail.com"
+    },
+    {
+      "courseId": 2,
+      "tutor_emp_id": 111,
+      "tutor_email": "rajesh.kumar@durkkas.com",
+      "auth_email": "rajesh.kumar@durkkas.com"
+    }
+  ],
+  "all_tutors_in_auth": [
+    {
+      "id": 223,
+      "email": "jayakumarfirstjune@gmail.com",
+      "first_name": "Jayyyyy"
+    },
+    {
+      "id": 224,
+      "email": "rajesh.chen@durkkas.in",
+      "first_name": "Rajesh"
+    },
+    {
+      "id": 225,
+      "email": "priya.chen@durkkas.in",
+      "first_name": "Priya"
+    },
+    {
+      "id": 226,
+      "email": "arun.chen@durkkas.in",
+      "first_name": "Arun"
+    },
+    {
+      "id": 237,
+      "email": "kumar.admin@durkkasedu.in",
+      "first_name": "Kumar"
+    },
+    {
+      "id": 254,
+      "email": "rajesh.sharma@student.dipl.edu",
+      "first_name": "Rajesh"
+    },
+    {
+      "id": 427,
+      "email": "rajesh.kumar@durkkas.com",
+      "first_name": "Rajesh"
+    },
+    {
+      "id": 428,
+      "email": "priya.sharma@durkkas.com",
+      "first_name": "Priya"
+    },
+    {
+      "id": 222,
+      "email": "jayakumarjunefirst@gmail.com",
+      "first_name": "Ja"
+    }
+  ]
+}

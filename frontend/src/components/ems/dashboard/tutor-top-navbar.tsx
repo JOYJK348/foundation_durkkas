@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
     Bell,
     User,
@@ -10,40 +10,57 @@ import {
     BookOpen,
     LogOut,
     FileText,
-    ClipboardCheck,
+    CheckSquare,
     Users,
     TrendingUp,
     Calendar,
     LayoutDashboard,
     Video,
+    Upload,
     GraduationCap,
+    Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useRouter } from "next/navigation";
-import Cookie from "js-cookie";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import NotificationPanel from "@/components/notifications/NotificationPanel";
 
 export function TutorTopNavbar() {
     const pathname = usePathname();
     const router = useRouter();
     const { user, logout } = useAuthStore();
+    const { unreadCount, fetchNotifications } = useNotificationStore();
     const [showSearch, setShowSearch] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
+    const notificationRef = useRef<HTMLDivElement>(null);
 
-    const quickActions = [
-        { label: "Dashboard", href: "/branch/dashboard", icon: LayoutDashboard },
-        { label: "My Courses", href: "/branch/courses", icon: BookOpen },
-        { label: "Students", href: "/branch/students", icon: GraduationCap },
-        { label: "Batches", href: "/branch/batches", icon: Calendar },
-        { label: "Assignments", href: "/branch/assignments", icon: FileText },
-        { label: "Live Classes", href: "/branch/live-classes", icon: Video },
-        { label: "Analytics", href: "/branch/analytics", icon: TrendingUp },
+    const navigationLinks = [
+        { label: "Dashboard", href: "/ems/tutor/dashboard", icon: LayoutDashboard },
+        { label: "My Courses", href: "/ems/tutor/courses", icon: BookOpen },
+        { label: "Batches", href: "/ems/tutor/batches", icon: Layers },
+        { label: "Assignments", href: "/ems/tutor/assignments", icon: FileText },
+        { label: "Quizzes", href: "/ems/tutor/quizzes", icon: GraduationCap },
+        { label: "Live Classes", href: "/ems/tutor/live-classes", icon: Video },
+        { label: "Grading", href: "/ems/tutor/grading", icon: CheckSquare },
+        { label: "Attendance", href: "/ems/tutor/attendance", icon: Calendar },
+        { label: "Materials", href: "/ems/tutor/materials", icon: Upload },
+        { label: "Students", href: "/ems/tutor/students", icon: Users },
     ];
 
     useEffect(() => {
+        // Initial fetch
+        fetchNotifications();
+
+        // Professional Polling: Fetch notifications every 30 seconds
+        const pollInterval = setInterval(() => {
+            fetchNotifications();
+        }, 30000);
+
         function handleClickOutside(event: MouseEvent) {
             if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
                 setShowProfileMenu(false);
@@ -51,32 +68,24 @@ export function TutorTopNavbar() {
         }
 
         document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            clearInterval(pollInterval);
+        };
     }, []);
-
-    const handleLogout = () => {
-        Cookie.remove("access_token");
-        Cookie.remove("user_role");
-        Cookie.remove("user_role_level");
-        Cookie.remove("user_display_name");
-        Cookie.remove("x-company-id");
-        Cookie.remove("x-branch-id");
-        logout();
-        router.push("/login");
-    };
 
     return (
         <nav className="sticky top-0 z-40 w-full bg-white border-b border-gray-200 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
-                    <Link href="/branch/dashboard" className="flex items-center gap-2 group">
+                    <Link href="/ems/tutor/dashboard" className="flex items-center gap-2 group">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
                             <BookOpen className="h-5 w-5 text-white" />
                         </div>
                         <div className="hidden sm:block">
-                            <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-                                DURKKAS EMS
+                            <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent uppercase tracking-tight">
+                                Tutor Portal
                             </span>
                         </div>
                     </Link>
@@ -87,7 +96,7 @@ export function TutorTopNavbar() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input
                                 type="search"
-                                placeholder="Search courses, students..."
+                                placeholder="Search courses, students, sessions..."
                                 className="w-full h-9 pl-9 text-sm border-gray-300 focus:border-blue-600 focus:ring-blue-600"
                             />
                         </div>
@@ -106,16 +115,30 @@ export function TutorTopNavbar() {
                         </Button>
 
                         {/* Notifications */}
-                        <Link href="/branch/notifications">
+                        <div className="relative" ref={notificationRef}>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-9 w-9 relative"
+                                onClick={() => {
+                                    setShowNotifications(!showNotifications);
+                                    if (!showNotifications) fetchNotifications();
+                                }}
                             >
                                 <Bell className="h-5 w-5 text-gray-600" />
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-sm shadow-blue-500/50"></span>
+                                )}
                             </Button>
-                        </Link>
+
+                            <AnimatePresence>
+                                {showNotifications && (
+                                    <div className="absolute right-0 mt-2">
+                                        <NotificationPanel onClose={() => setShowNotifications(false)} />
+                                    </div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
                         {/* Profile Menu */}
                         <div className="relative" ref={profileMenuRef}>
@@ -139,21 +162,21 @@ export function TutorTopNavbar() {
                                         className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
                                     >
                                         {/* User Info */}
-                                        <div className="px-4 py-3 border-b border-gray-200">
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {user?.display_name || "Tutor"}
-                                            </p>
-                                            <p className="text-xs text-gray-500 truncate">
-                                                {user?.email || "tutor@durkkas.com"}
-                                            </p>
+                                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/50">
+                                            <p className="text-sm font-semibold text-gray-900 line-clamp-1">{user?.display_name || "Tutor"}</p>
+                                            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                            <div className="mt-1 flex items-center gap-1.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Faculty Portal</span>
+                                            </div>
                                         </div>
 
                                         {/* Quick Actions */}
                                         <div className="py-2">
                                             <div className="px-3 py-1.5">
-                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Actions</p>
+                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Navigation</p>
                                             </div>
-                                            {quickActions.map((action) => {
+                                            {navigationLinks.map((action) => {
                                                 const Icon = action.icon;
                                                 return (
                                                     <Link
@@ -169,10 +192,10 @@ export function TutorTopNavbar() {
                                             })}
                                         </div>
 
-                                        {/* Profile Link */}
+                                        {/* Settings Link */}
                                         <div className="border-t border-gray-200 py-1">
                                             <Link
-                                                href="/branch/profile"
+                                                href="/ems/tutor/profile"
                                                 onClick={() => setShowProfileMenu(false)}
                                                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                                             >
@@ -186,9 +209,10 @@ export function TutorTopNavbar() {
                                             <button
                                                 onClick={() => {
                                                     setShowProfileMenu(false);
-                                                    handleLogout();
+                                                    logout();
+                                                    router.push("/login");
                                                 }}
-                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                             >
                                                 <LogOut className="h-4 w-4" />
                                                 <span className="font-medium">Logout</span>

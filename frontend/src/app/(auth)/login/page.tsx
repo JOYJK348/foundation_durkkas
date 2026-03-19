@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, Mail, Eye, EyeOff, Building2, Server } from "lucide-react";
@@ -26,20 +26,22 @@ export default function LoginPage() {
             ? `${user.firstName} ${user.lastName}`
             : user.display_name || "User";
 
-        // Store tokens and user info in Cookies (for server-side/middleware)
-        Cookie.set("access_token", tokens.accessToken, { expires: 1 });
-        Cookie.set("user_role", selectedRole.name || "GUEST");
-        Cookie.set("user_role_level", (selectedRole.level ?? 0).toString());
-        Cookie.set("user_display_name", displayName);
+        // Store tokens and user info in Cookies (with explicit path and domain safety)
+        const cookieOptions = { expires: 1, path: '/', sameSite: 'Lax' as const };
+
+        Cookie.set("access_token", tokens.accessToken, cookieOptions);
+        Cookie.set("user_role", selectedRole.name || "GUEST", cookieOptions);
+        Cookie.set("user_role_level", (selectedRole.level ?? 0).toString(), cookieOptions);
+        Cookie.set("user_display_name", displayName, cookieOptions);
 
         // CRITICAL: Store active branch ID and Company ID for middleware and hydration
         if (selectedRole.company_id) {
-            Cookie.set("x-company-id", selectedRole.company_id.toString(), { expires: 1 });
+            Cookie.set("x-company-id", selectedRole.company_id.toString(), cookieOptions);
         }
         if (selectedRole.branch_id) {
-            Cookie.set("x-branch-id", selectedRole.branch_id.toString(), { expires: 1 });
+            Cookie.set("x-branch-id", selectedRole.branch_id.toString(), cookieOptions);
         } else {
-            Cookie.remove("x-branch-id");
+            Cookie.remove("x-branch-id", { path: '/' });
         }
 
         // Set User in Zustand Store
@@ -70,41 +72,84 @@ export default function LoginPage() {
         const roleLevel = selectedRole.level ?? 0;
         const roleName = selectedRole.name || "";
 
-        // Check for Student role first (regardless of level)
+        // ========================================
+        // EMS ROLE-SPECIFIC REDIRECTS (Priority)
+        // ========================================
         if (roleName === "STUDENT") {
-            router.push("/ems/student");
-        } else if (roleLevel >= 5) {
+            router.push("/ems/student/dashboard");
+        } else if (roleName === "TUTOR") {
+            router.push("/ems/tutor/dashboard");
+        } else if (roleName === "ACADEMIC_MANAGER") {
+            router.push("/ems/academic-manager/dashboard");
+        } else if (roleName === "EMPLOYEE") {
+            router.push("/hrms/employee/dashboard");
+        }
+        // ========================================
+        // GENERIC LEVEL-BASED REDIRECTS
+        // ========================================
+        else if (roleLevel >= 5) {
             router.push("/platform/dashboard");
         } else if (roleLevel >= 4) {
             router.push("/workspace/dashboard");
         } else if (roleLevel >= 1 || roleLevel === 0) {
-            router.push("/branch/dashboard");
+            router.push("/ems/academic-manager/dashboard");
         } else {
             router.push("/dashboard");
         }
     };
 
     const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        console.log("🚀 [Login] Submit triggered");
         setIsLoading(true);
         setError("");
 
         try {
+            console.log("📡 [Login] Sending request to:", api.defaults.baseURL + '/auth/login');
             // Use the centralized api instance instead of hardcoded fetch
             const response = await api.post('/auth/login', { email, password });
             const data = response.data;
+            console.log("📥 [Login] Response received:", data.success ? "Success" : "Failure");
+
+            if (!data.success) {
+                throw new Error(data.error?.message || "Login failed - check credentials");
+            }
 
             const { user, tokens } = data.data;
-            if (!user) throw new Error("Invalid response from server");
+            if (!user || !tokens) throw new Error("Invalid response from server - missing data");
 
-            const roles = user.roles || [];
-            // Roles are pre-sorted by level descending in the backend lib
-            const primaryRole = roles[0] || { name: "GUEST", level: 0 };
+            const roles = user.roles || user.user_roles || [];
+            // Handle different roles structures
+            const primaryRole = Array.isArray(roles) && roles.length > 0
+                ? (roles[0].roles || roles[0])
+                : { name: "GUEST", level: 0 };
 
-            completeLogin(user, tokens, primaryRole);
+            console.log("👤 [Login] Authenticated as:", user.email, "Role:", primaryRole.name);
+
+            // Double check student restriction
+            if (primaryRole.name === "STUDENT") {
+                setError("Students must login at /ems/student/login");
+                toast.error("Wrong Login Page", {
+                    description: "Students must use the dedicated student login page"
+                });
+                setIsLoading(false);
+                return;
+            }
+
+            completeLogin(user, tokens, {
+                ...primaryRole,
+                company_id: roles[0]?.company_id,
+                branch_id: roles[0]?.branch_id
+            });
         } catch (err: any) {
-            setError(err.message || "An error occurred");
-            toast.error("Login Failed", { description: err.message });
+            console.error("❌ [Login] Error:", err.message, err.response?.data);
+            const errorMessage = err.response?.data?.error?.message || err.message || "An unexpected error occurred during login";
+            setError(errorMessage);
+            toast.error("Login Failed", { description: errorMessage });
         } finally {
             setIsLoading(false);
         }
@@ -131,7 +176,11 @@ export default function LoginPage() {
                         <p className="text-muted-foreground text-sm mt-1">Please enter your credentials to access your workspace.</p>
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-4">
+                    <form
+                        method="POST"
+                        onSubmit={handleLogin}
+                        className="space-y-4"
+                    >
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-primary/70 ml-1">WORK EMAIL</label>
                             <div className="relative group">

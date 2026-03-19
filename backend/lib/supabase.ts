@@ -72,6 +72,7 @@ export const app_auth = {
     auditLogs: () => fromSchema(SCHEMAS.AUTH, 'audit_logs'),
     trustedDevices: () => fromSchema(SCHEMAS.AUTH, 'trusted_devices'),
     userPermissions: () => fromSchema(SCHEMAS.AUTH, 'user_permissions'),
+    notifications: () => fromSchema(SCHEMAS.AUTH, 'notifications'),
 };
 
 export const hrms = {
@@ -99,10 +100,18 @@ export const ems = {
     lessonProgress: () => fromSchema(SCHEMAS.EMS, 'lesson_progress'),
     quizzes: () => fromSchema(SCHEMAS.EMS, 'quizzes'),
     assignments: () => fromSchema(SCHEMAS.EMS, 'assignments'),
-    liveClasses: () => fromSchema(SCHEMAS.EMS, 'live_classes'),
     attendanceSessions: () => fromSchema(SCHEMAS.EMS, 'attendance_sessions'),
     attendanceRecords: () => fromSchema(SCHEMAS.EMS, 'attendance_records'),
+    liveClasses: () => fromSchema(SCHEMAS.EMS, 'live_classes'),
     quizAttempts: () => fromSchema(SCHEMAS.EMS, 'quiz_attempts'),
+    quizQuestions: () => fromSchema(SCHEMAS.EMS, 'quiz_questions'),
+    quizOptions: () => fromSchema(SCHEMAS.EMS, 'quiz_options'),
+    assignmentSubmissions: () => fromSchema(SCHEMAS.EMS, 'assignment_submissions'),
+    courseTutors: () => fromSchema(SCHEMAS.EMS, 'course_tutors'),
+    quizAssignments: () => fromSchema(SCHEMAS.EMS, 'quiz_assignments'),
+    faceVerifications: () => fromSchema(SCHEMAS.EMS, 'attendance_face_verifications'),
+    faceProfiles: () => fromSchema(SCHEMAS.EMS, 'student_face_profiles'),
+    institutionLocations: () => fromSchema(SCHEMAS.EMS, 'institution_locations'),
     supabase: supabase
 };
 

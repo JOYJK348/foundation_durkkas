@@ -85,11 +85,14 @@ export default function StudentLoginPage() {
             const roles = user.roles || [];
             const primaryRole = roles.find((r: any) => r.name === "STUDENT") || roles[0] || { name: "GUEST", level: 0 };
 
+            const displayName = `${user.firstName} ${user.lastName}` || user.display_name || "Student";
+            const cookieOptions = { expires: 1, path: '/', sameSite: 'Lax' as const };
+
             // Set user in store
             setUser({
                 id: user.id.toString(),
                 email: user.email,
-                display_name: `${user.firstName} ${user.lastName}` || user.display_name || "Student",
+                display_name: displayName,
                 role: {
                     name: primaryRole.name,
                     level: primaryRole.level
@@ -97,7 +100,13 @@ export default function StudentLoginPage() {
                 company_id: primaryRole.company_id?.toString()
             });
 
-            Cookie.set("access_token", tokens.accessToken, { expires: 1 });
+            // Set Essential Cookies
+            Cookie.set("access_token", tokens.accessToken, cookieOptions);
+            Cookie.set("user_display_name", displayName, cookieOptions);
+            Cookie.set("user_role", primaryRole.name, cookieOptions);
+            if (primaryRole.company_id) {
+                Cookie.set("x-company-id", primaryRole.company_id.toString(), cookieOptions);
+            }
 
             toast.success("Login Successful");
             router.push("/ems/student/dashboard");

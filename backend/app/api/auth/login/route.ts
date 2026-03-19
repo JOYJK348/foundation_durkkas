@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     let SecurityService: any;
     try {
         const body = await req.json();
+        console.log("🔑 [Auth] Login attempt for:", body.email);
         const validatedData = loginSchema.parse(body);
         const { email, password } = validatedData;
 

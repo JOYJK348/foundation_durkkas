@@ -1,8 +1,3 @@
-/**
- * EMS API - Single Student Operations
- * Route: /api/ems/students/[id]
- */
-
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
 import { getUserTenantScope } from '@/middleware/tenantFilter';
@@ -10,6 +5,10 @@ import { getUserIdFromToken } from '@/lib/jwt';
 import { studentSchema } from '@/lib/validations/ems';
 import { StudentService } from '@/lib/services/StudentService';
 
+/**
+ * GET /api/ems/students/[id]
+ * Fetch single student by ID
+ */
 export async function GET(
     req: NextRequest,
     { params }: { params: { id: string } }
@@ -18,22 +17,27 @@ export async function GET(
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        // Security check handled by StudentService or scoped query
-        const data = await StudentService.getStudentById(parseInt(params.id));
-
-        // Final security check: Ensure it belongs to the user's company
         const scope = await getUserTenantScope(userId);
-        if (data.company_id !== scope.companyId && scope.roleLevel < 5) {
-            return errorResponse(null, 'Forbidden', 403);
+        const studentId = parseInt(params.id);
+
+        const student = await StudentService.getStudentById(studentId, scope.companyId!);
+
+        if (!student) {
+            return errorResponse(null, 'Student not found', 404);
         }
 
-        return successResponse(data, 'Student fetched successfully');
+        return successResponse(student, 'Student fetched successfully');
+
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Student not found');
+        return errorResponse(null, error.message || 'Failed to fetch student');
     }
 }
 
-export async function PATCH(
+/**
+ * PUT /api/ems/students/[id]
+ * Update student details
+ */
+export async function PUT(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
@@ -41,26 +45,39 @@ export async function PATCH(
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const body = await req.json();
-        const validatedData = studentSchema.partial().parse(body);
-
-        // Security check
         const scope = await getUserTenantScope(userId);
-        const existing = await StudentService.getStudentById(parseInt(params.id));
+        const studentId = parseInt(params.id);
+        const data = await req.json();
 
-        if (existing.company_id !== scope.companyId && scope.roleLevel < 5) {
-            return errorResponse(null, 'Forbidden', 403);
+        // Validate input
+        const validatedData = studentSchema.partial().parse(data);
+
+        // Update student
+        const updatedStudent = await StudentService.updateStudent(
+            studentId,
+            scope.companyId!,
+            validatedData
+        );
+
+        if (!updatedStudent) {
+            return errorResponse(null, 'Student not found or update failed', 404);
         }
 
-        const student = await StudentService.updateStudent(parseInt(params.id), validatedData);
+        return successResponse(updatedStudent, 'Student updated successfully');
 
-        return successResponse(student, 'Student updated successfully');
     } catch (error: any) {
-        if (error.name === 'ZodError') return errorResponse(error.errors, 'Validation failed', 400);
+        console.error("Student Update Error:", error);
+        if (error.name === 'ZodError') {
+            return errorResponse(error.errors, 'Validation failed', 400);
+        }
         return errorResponse(null, error.message || 'Failed to update student');
     }
 }
 
+/**
+ * DELETE /api/ems/students/[id]
+ * Soft delete student (sets deleted_at timestamp)
+ */
 export async function DELETE(
     req: NextRequest,
     { params }: { params: { id: string } }
@@ -69,21 +86,21 @@ export async function DELETE(
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        // Security check
         const scope = await getUserTenantScope(userId);
-        const existing = await StudentService.getStudentById(parseInt(params.id));
+        const studentId = parseInt(params.id);
 
-        if (existing.company_id !== scope.companyId && scope.roleLevel < 5) {
-            return errorResponse(null, 'Forbidden', 403);
+        // Soft delete
+        const deleted = await StudentService.deleteStudent(studentId, scope.companyId!, userId);
+
+        if (!deleted) {
+            return errorResponse(null, 'Student not found or already deleted', 404);
         }
 
-        await StudentService.softDeleteStudent(
-            parseInt(params.id),
-            userId,
-            'Deleted via API'
+        return successResponse(
+            { id: studentId, deleted: true },
+            'Student removed successfully'
         );
 
-        return successResponse(null, 'Student deleted successfully');
     } catch (error: any) {
         return errorResponse(null, error.message || 'Failed to delete student');
     }

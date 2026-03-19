@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-02-03T16:29:36.596Z",
+  "tutors": [
+    {
+      "email": "priya.sharma@durkkas.com",
+      "userId": 428,
+      "employeeCount": 1,
+      "employeeIds": [
+        123
+      ],
+      "courses": [
+        "Full Stack Development Bootcamp",
+        "Data Science & AI Mastery"
+      ]
+    },
+    {
+      "email": "arun.patel@durkkas.com",
+      "userId": 465,
+      "employeeCount": 1,
+      "employeeIds": [
+        119
+      ],
+      "courses": [
+        "Data Science & AI Mastery"
+      ]
+    }
+  ]
+}

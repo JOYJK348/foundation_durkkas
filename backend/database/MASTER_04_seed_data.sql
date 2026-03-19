@@ -100,7 +100,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO app_auth.users (email, password_hash, first_name, last_name, display_name, is_active, is_verified) 
 VALUES (
     'admin@durkkas.com',
-    '$2a$10$ay7xaR5Qb5tFDC0V/f5bf.zpwu/RT5bNZPb.i9k890wolYXEyMeaq',
+    '$2a$10$VS71ar24fxQvfiEd9ps8FO2zaLytxqNdtbGX6PWxCjikllq3eHbM6',
     'Platform',
     'Administrator',
     'Durkkas Platform Admin',
@@ -118,6 +118,7 @@ ON CONFLICT DO NOTHING;
 
 -- ============================================================================
 -- SEED LOCATION DATA
+
 -- ============================================================================
 INSERT INTO core.countries (name, code, is_active) VALUES
 ('India', 'IN', TRUE),

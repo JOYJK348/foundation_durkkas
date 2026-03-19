@@ -19,13 +19,20 @@ const nextConfig = {
   },
   async rewrites() {
     return [
+      // API proxy to backend
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3000/api/:path*',
+      },
+      // Workspace routes
       {
         source: '/w/:slug/:path*',
         destination: '/workspace/:path*',
       },
+      // Branch admin routes
       {
         source: '/b/:slug/:path*',
-        destination: '/branch/:path*',
+        destination: '/ems/branch-admin/:path*',
       }
     ];
   },

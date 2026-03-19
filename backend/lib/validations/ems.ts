@@ -90,6 +90,26 @@ export const lessonSchema = z.object({
     is_mandatory: z.boolean().default(true),
 });
 
+export const courseMaterialSchema = z.object({
+    company_id: z.coerce.number(),
+    course_id: z.coerce.number().optional().nullable(),
+    batch_id: z.coerce.number().optional().nullable(),
+    menu_id: z.coerce.number().optional().nullable(),
+    module_id: z.coerce.number().optional().nullable(),
+    lesson_id: z.coerce.number().optional().nullable(),
+    material_name: z.string().min(1, 'Material name is required'),
+    material_description: z.string().optional().nullable(),
+    material_type: z.string().default('DOCUMENT'),
+    file_url: z.string().optional().nullable(),
+    delivery_method: z.enum(['FILE', 'CONTENT']).default('FILE'),
+    content_json: z.any().optional().nullable(),
+    file_size_mb: z.coerce.number().optional().nullable(),
+    handbook_type: z.enum(['TUTOR_HANDBOOK', 'STUDENT_HANDBOOK', 'GENERAL_RESOURCE']).default('STUDENT_HANDBOOK'),
+    target_audience: z.enum(['TUTORS', 'STUDENTS', 'BOTH']).default('STUDENTS'),
+    is_active: z.boolean().default(true),
+    is_downloadable: z.boolean().default(true),
+});
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 3. ACADEMIC OPERATIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -101,12 +121,13 @@ export const batchSchema = z.object({
     batch_code: z.string().min(1, 'Batch code is required'),
     batch_name: z.string().min(1, 'Batch name is required'),
     batch_type: z.string().optional().nullable(),
-    start_date: z.string().optional().nullable(),
-    end_date: z.string().optional().nullable(),
-    start_time: z.string().optional().nullable(),
-    end_time: z.string().optional().nullable(),
+    start_date: z.string().transform(v => v === "" ? null : v).optional().nullable(),
+    end_date: z.string().transform(v => v === "" ? null : v).optional().nullable(),
+    start_time: z.string().transform(v => v === "" ? null : v).optional().nullable(),
+    end_time: z.string().transform(v => v === "" ? null : v).optional().nullable(),
     max_students: z.coerce.number().optional().nullable(),
     status: z.string().default('PLANNED'),
+    schedule_details: z.string().optional().nullable(),
 });
 
 export const enrollmentSchema = z.object({
@@ -143,12 +164,14 @@ export const quizSchema = z.object({
 export const assignmentSchema = z.object({
     company_id: z.coerce.number(),
     course_id: z.coerce.number(),
+    batch_id: z.coerce.number().optional().nullable(),
     module_id: z.coerce.number().optional().nullable(),
     lesson_id: z.coerce.number().optional().nullable(),
     tutor_id: z.coerce.number().optional().nullable(),
     assignment_title: z.string().min(1, 'Assignment title is required'),
     assignment_description: z.string().optional().nullable(),
     assignment_type: z.string().optional().nullable(),
+    submission_mode: z.enum(['ONLINE', 'OFFLINE']).optional().nullable(),
     max_marks: z.coerce.number().optional().nullable(),
     passing_marks: z.coerce.number().optional().nullable(),
     deadline: z.string().optional().nullable(),
@@ -204,8 +227,12 @@ export const attendanceSessionSchema = z.object({
     lesson_id: z.coerce.number().optional().nullable(),
     session_date: z.string().default(() => new Date().toISOString().split('T')[0]),
     session_type: z.string().default('REGULAR'),
+    class_mode: z.enum(['ONLINE', 'OFFLINE', 'HYBRID']).default('OFFLINE'),
+    require_face_verification: z.boolean().default(false),
+    require_location_verification: z.boolean().default(false),
     start_time: z.string().optional().nullable(),
     end_time: z.string().optional().nullable(),
+    live_class_id: z.coerce.number().optional().nullable(),
     taken_by: z.coerce.number().optional().nullable(),
     remarks: z.string().optional().nullable(),
 });
@@ -218,5 +245,13 @@ export const attendanceRecordSchema = z.object({
     check_in_time: z.string().optional().nullable(),
     check_out_time: z.string().optional().nullable(),
     remarks: z.string().optional().nullable(),
+
+    // Verification Fields
+    latitude: z.coerce.number().optional().nullable(),
+    longitude: z.coerce.number().optional().nullable(),
+    location_accuracy: z.coerce.number().optional().nullable(),
+    device_id: z.string().optional().nullable(),
+    ip_address: z.string().optional().nullable(),
+    verification_method: z.string().optional().nullable(), // MANUAL, FACE, QR, GEOFENCE
 });
 

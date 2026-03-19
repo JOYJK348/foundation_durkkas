@@ -1,0 +1,36 @@
+{
+  "junction": [
+    {
+      "courseId": 2
+    },
+    {
+      "courseId": 2
+    },
+    {
+      "courseId": 2
+    },
+    {
+      "courseId": 2
+    }
+  ],
+  "legacy": [
+    {
+      "course": "Full Stack Development Bootcamp"
+    },
+    {
+      "course": "Full Stack Web Development Bootcamp"
+    },
+    {
+      "course": "Data Science & Machine Learning"
+    },
+    {
+      "course": "Digital Marketing Masterclass"
+    },
+    {
+      "course": "Data Science & AI Mastery"
+    },
+    {
+      "course": "Professional UI/UX Designnn"
+    }
+  ]
+}

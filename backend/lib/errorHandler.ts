@@ -105,7 +105,14 @@ export function successResponse<T = any>(
         ...(meta && { meta }),
     };
 
-    return NextResponse.json(response, { status: statusCode });
+    const jsonString = JSON.stringify(response, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    );
+
+    return new NextResponse(jsonString, {
+        status: statusCode,
+        headers: { 'Content-Type': 'application/json' }
+    });
 }
 
 /**
@@ -138,7 +145,14 @@ export function errorResponse(
         field,
     });
 
-    return NextResponse.json(response, { status: statusCode });
+    const jsonString = JSON.stringify(response, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    );
+
+    return new NextResponse(jsonString, {
+        status: statusCode,
+        headers: { 'Content-Type': 'application/json' }
+    });
 }
 
 /**

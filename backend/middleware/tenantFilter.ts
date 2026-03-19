@@ -22,10 +22,11 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { supabase, app_auth } from '@/lib/supabase';
+import { supabase, app_auth, core, ems } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { AppError } from '@/lib/errorHandler';
 import { headers, cookies } from 'next/headers';
+import { tenantCache } from '@/lib/cache/tenantCache';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -39,6 +40,12 @@ export interface TenantScope {
     companyId: number | null;
     branchId: number | null;
     isScoped: boolean; // True if scoped to a specific company
+    selectionReason?: string; // NEW: Explains WHY this role was selected
+    // EMS Profile Resolution (for role-based filtering)
+    emsProfile?: {
+        profileType: 'tutor' | 'student' | 'manager' | null;
+        profileId: number | null; // employee_id for tutor, student_id for student
+    };
 }
 
 export interface TenantFilterOptions {
@@ -67,6 +74,14 @@ export async function getUserTenantScope(
     preferredBranchId?: number | string,
     preferredCompanyId?: number | string
 ): Promise<TenantScope> {
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CACHE LAYER - ULTRA-FAST RESPONSE
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const cached = tenantCache.get(userId, preferredCompanyId, preferredBranchId);
+    if (cached) {
+        return cached;
+    }
+
     // NEW: Autonomic sensing of context from request environment if not explicitly provided
     let pBranch = preferredBranchId;
     let pCompany = preferredCompanyId;
@@ -82,14 +97,19 @@ export async function getUserTenantScope(
         }
     }
 
-    // Rerunning the logic with the correct schema accessor
     try {
-        // 1. Get User Roles
+        // 2. Fetch User Roles with joined Role Details (Atomic Fetch)
         const { data: userRoles, error: rolesError } = await app_auth.userRoles()
             .select(`
                 company_id,
                 branch_id,
-                role_id
+                is_active,
+                roles!inner (
+                    id,
+                    name,
+                    level,
+                    role_type
+                )
             `)
             .eq('user_id', userId)
             .eq('is_active', true);
@@ -101,55 +121,96 @@ export async function getUserTenantScope(
             throw new AppError('AUTHENTICATION_ERROR', 'User has no active role assignment.', 401);
         }
 
-        // 2. Get Role Details for all assigned roles
-        const roleIds = userRoles.map(ur => ur.role_id);
-        const { data: roles, error: roleDefError } = await app_auth.roles()
-            .select('id, name, level, role_type')
-            .in('id', roleIds);
+        // 3. Transform and Sort by Hierarchy
+        const combined = userRoles.map((ur: any) => ({
+            company_id: ur.company_id,
+            branch_id: ur.branch_id,
+            role_id: ur.roles.id,
+            role_level: Number(ur.roles.level || 0),
+            role_name: ur.roles.name,
+            role_type: ur.roles.role_type
+        })).sort((a: any, b: any) => b.role_level - a.role_level);
 
-        if (roleDefError) throw roleDefError;
+        logger.info('[TenantFilter] Scoping trace', { userId, roles: combined.map(r => r.role_name).join(', ') });
 
-        // 3. Merge and sort
-        const combined = userRoles.map(ur => {
-            const role = roles?.find(r => r.id === ur.role_id);
-            return {
-                ...ur,
-                role_level: role?.level || 0,
-                role_name: role?.name || 'Unknown',
-                role_type: role?.role_type || 'Custom'
-            };
-        }).sort((a, b) => b.role_level - a.role_level); // Highest level first
-
-        // 4. Select Role based on preference or highest level
+        // 4. Selection Strategy: Highest Authority in the current context
         let selectedRole = combined[0];
-
-        if (pBranch) {
-            const pref = combined.find(r => String(r.branch_id) === String(pBranch));
-            if (pref) {
-                selectedRole = pref;
-                logger.info('[TenantFilter] Using preferred branch scope', { userId, branchId: pBranch });
-            }
-        }
-
-        // 5. Scoping for Platform Admins (Level 5) or users with many roles
         let isScoped = false;
+        let selectionReason = 'Default High-Level';
+
+        // Filter roles matching the company context
         if (pCompany && !isNaN(Number(pCompany)) && Number(pCompany) !== 0) {
-            const companyRole = combined.find(r => String(r.company_id) === String(pCompany));
-            if (companyRole) {
-                selectedRole = companyRole;
+            const companyMatchedRoles = combined.filter(r =>
+                String(r.company_id) === String(pCompany) || r.company_id === null
+            );
+
+            if (companyMatchedRoles.length > 0) {
+                // companyMatchedRoles is already sorted by role_level
+                const highestInCompany = companyMatchedRoles[0];
+                selectedRole = highestInCompany;
                 isScoped = true;
-                logger.info('[TenantFilter] Scoped to specific company context', { userId, companyId: pCompany });
+                selectionReason = `Highest in Company ${pCompany}`;
+
+                // Refine by branch if provided, BUT only if it doesn't downgrade us
+                if (pBranch && !isNaN(Number(pBranch))) {
+                    const branchMatchedRole = companyMatchedRoles.find(r => String(r.branch_id) === String(pBranch));
+                    if (branchMatchedRole) {
+                        // Hierarchy Protection: Never downgrade from a Manager-tier role (L>=2) to a lower tier
+                        const isCurrentManager = selectedRole.role_level >= 2 || selectedRole.role_name === 'ACADEMIC_MANAGER';
+                        const isBranchManager = branchMatchedRole.role_level >= 2 || branchMatchedRole.role_name === 'ACADEMIC_MANAGER';
+
+                        if (branchMatchedRole.role_level >= selectedRole.role_level || (isBranchManager && !isCurrentManager)) {
+                            selectedRole = branchMatchedRole;
+                            selectionReason = `Branch Match for ${pBranch}`;
+                        } else {
+                            logger.info('[TenantFilter] Hierarchical Override: Ignored low-level branch role', {
+                                userId, branchPref: pBranch, selected: selectedRole.role_name, ignored: branchMatchedRole.role_name
+                            });
+                            selectionReason = `Hierarchy Protected (${highestInCompany.role_name} > ${branchMatchedRole.role_name})`;
+                        }
+                    }
+                }
             } else if (combined[0].role_level >= 5) {
-                // Platform admin can scope to ANY company even if not explicitly assigned
                 selectedRole = {
                     ...combined[0],
                     company_id: Number(pCompany),
                     branch_id: (pBranch && !isNaN(Number(pBranch))) ? Number(pBranch) : null
                 };
                 isScoped = true;
-                logger.info('[TenantFilter] Platform Admin scoped to specific company', { userId, companyId: pCompany });
+                selectionReason = 'Platform Admin Override';
             }
         }
+        else if (pBranch && !isNaN(Number(pBranch))) {
+            const branchMatchedRoles = combined.filter(r => String(r.branch_id) === String(pBranch) || r.branch_id === null);
+            if (branchMatchedRoles.length > 0) {
+                selectedRole = branchMatchedRoles[0];
+                selectionReason = `Branch Context ${pBranch}`;
+            }
+        }
+
+        // 4.1 GLOBAL HIERARCHY PROTECTION FAIL-SAFE (GOD MODE)
+        // Ensure we didn't miss a high-level role due to complex branch/preference filtering
+        const betterRole = combined.find(r =>
+            (String(r.company_id) === String(pCompany) || r.company_id === null) &&
+            r.role_level > selectedRole.role_level
+        );
+
+        if (betterRole) {
+            logger.warn('[TenantFilter] FALLBACK PROTECTION: Found better role in context', {
+                userId, rejected: selectedRole.role_name, promotedTo: betterRole.role_name
+            });
+            selectedRole = betterRole;
+            selectionReason = `Heuristic Promotion (${betterRole.role_name})`;
+        }
+
+        logger.info('[TenantFilter] Final selection', {
+            userId,
+            role: selectedRole.role_name,
+            level: selectedRole.role_level,
+            companyId: selectedRole.company_id,
+            branchId: selectedRole.branch_id,
+            reason: selectionReason
+        });
 
         const tenantScope: TenantScope = {
             userId,
@@ -158,8 +219,122 @@ export async function getUserTenantScope(
             roleType: selectedRole.role_type,
             companyId: selectedRole.company_id,
             branchId: selectedRole.branch_id,
-            isScoped
+            isScoped,
+            selectionReason
         };
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // EMS PROFILE RESOLUTION (for role-based data filtering)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        try {
+            if (selectedRole.role_name === 'TUTOR') {
+                // 1. Try resolving by user_id first
+                // Use a safe column selection in case user_id doesn't exist yet
+                const { data: employee, error: empError } = await core.employees()
+                    .select('id, email')
+                    .eq('user_id', userId as any) // Cast to any to bypass potential TS errors if not in types
+                    .eq('company_id', selectedRole.company_id)
+                    .maybeSingle();
+
+                if (employee) {
+                    tenantScope.emsProfile = {
+                        profileType: 'tutor',
+                        profileId: (employee as any).id
+                    };
+                    logger.info('[TenantFilter] Resolved TUTOR profile via user_id', { userId, employeeId: (employee as any).id });
+                } else if (!empError) {
+                    // 2. Fallback: Try resolving by email
+                    const { data: userData } = await app_auth.users()
+                        .select('email')
+                        .eq('id', userId)
+                        .maybeSingle();
+
+                    if (userData?.email) {
+                        const { data: empByEmail } = await core.employees()
+                            .select('id, email')
+                            .eq('email', userData.email)
+                            .eq('company_id', selectedRole.company_id)
+                            .maybeSingle();
+
+                        if (empByEmail) {
+                            tenantScope.emsProfile = {
+                                profileType: 'tutor',
+                                profileId: (empByEmail as any).id
+                            };
+                            logger.info('[TenantFilter] Resolved TUTOR profile via email', { userId, employeeId: (empByEmail as any).id });
+
+                            // Background task: Try to link user_id if column exists
+                            (async () => {
+                                try {
+                                    await core.employees().update({ user_id: userId } as any).eq('id', empByEmail.id);
+                                } catch (e) { }
+                            })();
+                        }
+                    }
+                }
+            } else if (selectedRole.role_name === 'STUDENT') {
+                // 1. Try resolving by user_id first
+                const { data: student, error: studentIdError } = await ems.students()
+                    .select('id, email')
+                    .eq('user_id', userId as any)
+                    .eq('company_id', selectedRole.company_id)
+                    .maybeSingle();
+
+                if (student) {
+                    tenantScope.emsProfile = {
+                        profileType: 'student',
+                        profileId: (student as any).id
+                    };
+                    logger.info('[TenantFilter] Resolved STUDENT profile via user_id', { userId, studentId: (student as any).id });
+                } else if (!studentIdError) {
+                    // 2. Fallback: Try resolving by email
+                    const { data: userData } = await app_auth.users()
+                        .select('email')
+                        .eq('id', userId)
+                        .maybeSingle();
+
+                    if (userData?.email) {
+                        const { data: studentByEmail } = await ems.students()
+                            .select('id, email')
+                            .eq('email', userData.email)
+                            .eq('company_id', selectedRole.company_id)
+                            .maybeSingle();
+
+                        if (studentByEmail) {
+                            tenantScope.emsProfile = {
+                                profileType: 'student',
+                                profileId: (studentByEmail as any).id
+                            };
+                            logger.info('[TenantFilter] Resolved STUDENT profile via email', { userId, studentId: (studentByEmail as any).id });
+
+                            // Background task: Try to link user_id
+                            (async () => {
+                                try {
+                                    await ems.students().update({ user_id: userId } as any).eq('id', studentByEmail.id);
+                                } catch (e) { }
+                            })();
+                        }
+                    }
+                }
+            } else if (selectedRole.role_name === 'ACADEMIC_MANAGER' || selectedRole.role_level >= 2) {
+                tenantScope.emsProfile = {
+                    profileType: 'manager',
+                    profileId: null
+                };
+            }
+        } catch (profileError: any) {
+            logger.warn('[TenantFilter] Could not resolve EMS profile (non-critical)', {
+                userId,
+                roleName: selectedRole.role_name,
+                error: profileError.message
+            });
+        }
+
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // CACHE THE RESULT FOR FUTURE REQUESTS
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        tenantCache.set(userId, tenantScope, pCompany, pBranch);
 
         return tenantScope;
 

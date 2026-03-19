@@ -10,15 +10,15 @@ import {
     MessageSquare,
     TrendingUp,
     Calendar,
+    LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
+    { href: "/ems/student/dashboard", icon: LayoutDashboard, label: "Home" },
     { href: "/ems/student/courses", icon: BookOpen, label: "Courses" },
     { href: "/ems/student/assignments", icon: FileText, label: "Assignments" },
-    { href: "/ems/student/assessments", icon: ClipboardCheck, label: "Assessments" },
-    { href: "/ems/student/doubts", icon: MessageSquare, label: "Doubts" },
-    { href: "/ems/student/progress", icon: TrendingUp, label: "Progress" },
+    { href: "/ems/student/assessments", icon: ClipboardCheck, label: "Tests" },
     { href: "/ems/student/attendance", icon: Calendar, label: "Attendance" },
 ];
 

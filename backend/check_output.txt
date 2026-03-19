@@ -1,0 +1,11 @@
+﻿[dotenv@17.2.3] injecting env (14) from .env.local -- tip: Γ£à audit secrets and track compliance: https://dotenvx.com/ops
+
+--- live_classes ---
+Table live_classes has approval_status: true
+
+--- batches ---
+Table batches has approval_status: false
+Columns for batches: id, company_id, branch_id, course_id, batch_code, batch_name, batch_type, start_date, end_date, start_time, end_time, max_students, current_strength, status, is_active, created_at, updated_at, created_by, updated_by, deleted_at, deleted_by, delete_reason
+
+--- courses ---
+Table courses has approval_status: true

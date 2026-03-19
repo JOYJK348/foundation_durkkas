@@ -517,6 +517,10 @@ export interface Course {
     end_date?: string;
     is_published: boolean;
     status: string;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -532,6 +536,10 @@ export interface CourseModule {
     module_order: number;
     duration_hours?: number;
     is_mandatory: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -550,6 +558,10 @@ export interface Lesson {
     video_url?: string;
     is_preview: boolean;
     is_mandatory: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -628,6 +640,10 @@ export interface Quiz {
     passing_marks?: number;
     duration_minutes?: number;
     max_attempts: number;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -637,17 +653,67 @@ export interface Assignment {
     id: number;
     company_id: number;
     course_id: number;
+    batch_id?: number;
     module_id?: number;
     lesson_id?: number;
     tutor_id?: number;
     assignment_title: string;
     assignment_description?: string;
+    assignment_type?: string;
+    submission_mode?: 'ONLINE' | 'OFFLINE';
     max_marks?: number;
     passing_marks?: number;
+    instruction_file_url?: string;
     deadline?: string;
+    allow_late_submission?: boolean;
+    is_mandatory: boolean;
+    approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    rejection_reason?: string;
+    approved_at?: string;
+    approved_by?: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
+}
+
+export interface AssignmentSubmission {
+    id: number;
+    company_id: number;
+    assignment_id: number;
+    student_id: number;
+    enrollment_id?: number;
+    submitted_at: string;
+    submission_text?: string;
+    submission_file_url?: string;
+    submission_status: 'PENDING' | 'SUBMITTED' | 'GRADED' | 'LATE';
+    marks_obtained?: number;
+    tutor_feedback?: string;
+    graded_by?: number;
+    graded_at?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface QuizQuestion {
+    id: number;
+    company_id: number;
+    quiz_id: number;
+    question_text: string;
+    question_type: 'MCQ' | 'TRUE_FALSE' | 'ESSAY';
+    options?: any;
+    correct_answer?: string;
+    marks: number;
+    question_order: number;
+}
+
+export interface QuizAssignment {
+    id: number;
+    company_id: number;
+    quiz_id: number;
+    batch_id?: number;
+    student_id?: number;
+    assigned_by: number;
+    created_at: string;
 }
 
 export interface LiveClass {
@@ -807,6 +873,9 @@ export interface Database {
             attendance_sessions: TableDefinition<AttendanceSession>;
             attendance_records: TableDefinition<AttendanceRecord>;
             quiz_attempts: TableDefinition<QuizAttempt>;
+            quiz_questions: TableDefinition<QuizQuestion>;
+            quiz_assignments: TableDefinition<QuizAssignment>;
+            assignment_submissions: TableDefinition<AssignmentSubmission>;
         };
     };
     finance: {

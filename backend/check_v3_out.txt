@@ -1,0 +1,7 @@
+﻿[dotenv@17.2.3] injecting env (14) from .env.local -- tip: ≡ƒöæ add access controls to secrets: https://dotenvx.com/ops
+lessons: true
+live_classes: true
+courses: true
+attendance_sessions: false
+course_modules: false
+batches: false

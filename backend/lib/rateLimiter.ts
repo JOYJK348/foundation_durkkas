@@ -158,7 +158,7 @@ export async function checkRateLimit(
         // 3. Check if limit exceeded
         if (currentCount >= config.maxRequests) {
             // Get the oldest request timestamp to calculate reset time
-            const oldestRequests = await redis.zrange(key, 0, 0, { withScores: true });
+            const oldestRequests = await redis.zrange(key, 0, 0, { withScores: true }) as any[];
             const oldestTimestamp = oldestRequests.length > 0
                 ? parseInt(oldestRequests[0].score.toString())
                 : now;
@@ -341,15 +341,4 @@ export async function getRateLimitStatus(
     }
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EXPORTS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-export {
-    checkRateLimit,
-    rateLimit,
-    checkUserRateLimit,
-    resetRateLimit,
-    getRateLimitStatus,
-    RATE_LIMITS,
-};
+// End of file

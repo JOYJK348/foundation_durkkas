@@ -1,0 +1,6 @@
+{
+  "code": "23502",
+  "details": "Failing row contains (14, 13, null, 2, null, TEST, null, null, null, null, null, null, 0, PLANNED, t, 2026-02-07 01:48:53.880262+00, 2026-02-07 01:48:53.880262+00, null, null, null, null, null).",
+  "hint": null,
+  "message": "null value in column \"batch_code\" of relation \"batches\" violates not-null constraint"
+}

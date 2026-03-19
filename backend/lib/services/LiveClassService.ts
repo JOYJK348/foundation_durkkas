@@ -32,7 +32,10 @@ export class LiveClassService {
 
     static async createLiveClass(classData: Partial<LiveClass>) {
         const { data, error } = await ems.liveClasses()
-            .insert(classData as any)
+            .insert({
+                ...classData,
+                approval_status: 'PENDING'
+            } as any)
             .select()
             .single();
 

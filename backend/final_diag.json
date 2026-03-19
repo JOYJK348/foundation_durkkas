@@ -1,0 +1,56 @@
+{
+  "priya": {
+    "email": "priya.sharma@durkkas.com",
+    "steps": [],
+    "userId": 428,
+    "roles": [
+      {
+        "role_id": 37,
+        "company_id": 13,
+        "branch_id": 46
+      }
+    ],
+    "profileLookup": {
+      "count": 2,
+      "data": [
+        {
+          "id": 112,
+          "email": "priya.sharma@durkkas.com",
+          "user_id": 428,
+          "company_id": 13
+        },
+        {
+          "id": 123,
+          "email": "priya.sharma@durkkas.com",
+          "user_id": 428,
+          "company_id": 13
+        }
+      ],
+      "error": null
+    }
+  },
+  "arun": {
+    "email": "arun.patel@durkkas.com",
+    "steps": [],
+    "userId": 465,
+    "roles": [
+      {
+        "role_id": 37,
+        "company_id": 13,
+        "branch_id": 46
+      }
+    ],
+    "profileLookup": {
+      "count": 1,
+      "data": [
+        {
+          "id": 119,
+          "email": "arun.patel@durkkas.com",
+          "user_id": 465,
+          "company_id": 13
+        }
+      ],
+      "error": null
+    }
+  }
+}

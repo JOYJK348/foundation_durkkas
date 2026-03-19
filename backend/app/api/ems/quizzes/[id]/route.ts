@@ -1,12 +1,8 @@
-/**
- * EMS API - Quiz Details with Questions
- * Route: /api/ems/quizzes/[id]
- */
-
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/errorHandler';
+import { getUserTenantScope } from '@/middleware/tenantFilter';
 import { getUserIdFromToken } from '@/lib/jwt';
-import { AssessmentService } from '@/lib/services/AssessmentService';
+import { QuizService } from '@/lib/services/QuizService';
 
 export async function GET(
     req: NextRequest,
@@ -16,11 +12,75 @@ export async function GET(
         const userId = await getUserIdFromToken(req);
         if (!userId) return errorResponse(null, 'Unauthorized', 401);
 
-        const data = await AssessmentService.getQuizWithQuestions(parseInt(params.id));
+        const scope = await getUserTenantScope(userId);
+        const quizId = parseInt(params.id);
 
-        return successResponse(data, 'Quiz details fetched successfully');
+        const quiz = await QuizService.getQuizById(quizId, scope.companyId!);
 
+        return successResponse(quiz, 'Quiz fetched successfully');
     } catch (error: any) {
-        return errorResponse(null, error.message || 'Quiz not found');
+        return errorResponse(null, error.message || 'Failed to fetch quiz');
+    }
+}
+
+export async function PUT(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const userId = await getUserIdFromToken(req);
+        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+
+        const scope = await getUserTenantScope(userId);
+        const quizId = parseInt(params.id);
+        const data = await req.json();
+
+        const updated = await QuizService.updateQuiz(quizId, scope.companyId!, data);
+
+        return successResponse(updated, 'Quiz updated successfully');
+    } catch (error: any) {
+        return errorResponse(null, error.message || 'Failed to update quiz');
+    }
+}
+
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const userId = await getUserIdFromToken(req);
+        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+
+        const scope = await getUserTenantScope(userId);
+        const quizId = parseInt(params.id);
+        const data = await req.json();
+
+        // Add updated_by field
+        data.updated_by = userId;
+
+        const updated = await QuizService.updateQuiz(quizId, scope.companyId!, data);
+
+        return successResponse(updated, 'Quiz updated successfully');
+    } catch (error: any) {
+        return errorResponse(null, error.message || 'Failed to update quiz');
+    }
+}
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const userId = await getUserIdFromToken(req);
+        if (!userId) return errorResponse(null, 'Unauthorized', 401);
+
+        const scope = await getUserTenantScope(userId);
+        const quizId = parseInt(params.id);
+
+        await QuizService.deleteQuiz(quizId, scope.companyId!, userId);
+
+        return successResponse({ id: quizId, deleted: true }, 'Quiz deleted successfully');
+    } catch (error: any) {
+        return errorResponse(null, error.message || 'Failed to delete quiz');
     }
 }

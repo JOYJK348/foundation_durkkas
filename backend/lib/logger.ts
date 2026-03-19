@@ -24,7 +24,16 @@ class Logger {
 
     private formatMessage(level: LogLevel, message: string, metadata?: LogMetadata): string {
         const timestamp = new Date().toISOString();
-        const meta = metadata ? ` ${JSON.stringify(metadata)}` : '';
+        let meta = '';
+        if (metadata) {
+            try {
+                meta = ` ${JSON.stringify(metadata, (key, value) =>
+                    typeof value === 'bigint' ? value.toString() : value
+                )}`;
+            } catch (e) {
+                meta = ` [Error stringifying metadata]`;
+            }
+        }
         return `[${timestamp}] [${level.toUpperCase()}] ${message}${meta}`;
     }
 
