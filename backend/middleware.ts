@@ -70,7 +70,8 @@ export async function middleware(req: NextRequest) {
         '/api/health',
         '/api/debug',
         '/api/crm/applications',
-        '/api/crm/debug'
+        '/api/crm/debug',
+        '/api/chat'
     ];
 
     if (publicPaths.some(path => pathname.startsWith(path))) {

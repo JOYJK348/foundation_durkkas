@@ -88,31 +88,58 @@ export function ChatWidget() {
         return common;
     };
 
-    const handleSend = () => {
-        if (!message.trim()) return;
+    const handleSend = async (overrideMessage?: string) => {
+        const textToSend = overrideMessage || message;
+        if (!textToSend.trim()) return;
 
         const newUserMessage: Message = {
             id: Date.now().toString(),
-            text: message,
+            text: textToSend,
             sender: "user",
             timestamp: new Date()
         };
 
         setMessages(prev => [...prev, newUserMessage]);
         setMessage("");
-        
-        // Mock AI response for the multi-tenant engine
         setIsTyping(true);
-        setTimeout(() => {
-            setIsTyping(false);
+
+        try {
+            // Updated to call our new real-world OpenRouter backend
+            const response = await fetch("http://localhost:3000/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: textToSend,
+                    context: {
+                        portal: pathname,
+                        role: user?.role?.name,
+                        userName: user?.display_name,
+                        level: user?.role?.level
+                    }
+                })
+            });
+
+            const data = await response.json();
+            
             const botResponse: Message = {
                 id: (Date.now() + 1).toString(),
-                text: "I'm processing your request across our ERP modules. I can help you with CRM leads, HRMS management, or EMS educational data. Please specify which area you need help with!",
+                text: data.response || "I'm having a technical glitch. Please try again or check settings.",
                 sender: "bot",
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, botResponse]);
-        }, 1500);
+        } catch (error) {
+            console.error("Chat Connection Error:", error);
+            const errorMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                text: "I couldn't connect to the AI engine. Please make sure the backend is running and the OpenRouter API key is set.",
+                sender: "bot",
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMsg]);
+        } finally {
+            setIsTyping(false);
+        }
     };
 
     const starterQuestions = getStarterQuestions();
@@ -225,8 +252,7 @@ export function ChatWidget() {
                                                 whileHover={{ scale: 1.02, backgroundColor: "#f8faff" }}
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={() => {
-                                                    setMessage(q);
-                                                    setTimeout(() => handleSend(), 100);
+                                                    handleSend(q);
                                                 }}
                                                 className="px-4 py-3 text-left text-[11px] font-semibold text-slate-600 bg-white border border-slate-100 rounded-2xl transition-all shadow-sm hover:border-indigo-200 hover:text-indigo-600"
                                             >

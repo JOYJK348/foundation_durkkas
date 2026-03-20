@@ -147,7 +147,14 @@ export async function getUserTenantScope(
             if (companyMatchedRoles.length > 0) {
                 // companyMatchedRoles is already sorted by role_level
                 const highestInCompany = companyMatchedRoles[0];
-                selectedRole = highestInCompany;
+                
+                // CRITICAL FIX: Ensure selectedRole HAS the company_id if we are scoping
+                selectedRole = {
+                    ...highestInCompany,
+                    company_id: (highestInCompany.company_id !== null) ? highestInCompany.company_id : Number(pCompany),
+                    branch_id: (highestInCompany.branch_id !== null) ? highestInCompany.branch_id : (pBranch && !isNaN(Number(pBranch)) ? Number(pBranch) : null)
+                };
+                
                 isScoped = true;
                 selectionReason = `Highest in Company ${pCompany}`;
 
@@ -401,11 +408,18 @@ export async function applyTenantFilter(
     }
 
     try {
-        // Extract preferred branch from headers or cookies
-        const reqHeaders = headers();
-        const reqCookies = cookies();
-        const preferredBranchId = reqHeaders.get('x-branch-id') || reqCookies.get('x-branch-id')?.value || undefined;
-        const preferredCompanyId = reqHeaders.get('x-company-id') || reqCookies.get('x-company-id')?.value || undefined;
+        // Safe extraction of preferred branch/company from context
+        let preferredBranchId;
+        let preferredCompanyId;
+
+        try {
+            const reqHeaders = headers();
+            const reqCookies = cookies();
+            preferredBranchId = reqHeaders.get('x-branch-id') || reqCookies.get('x-branch-id')?.value || undefined;
+            preferredCompanyId = reqHeaders.get('x-company-id') || reqCookies.get('x-company-id')?.value || undefined;
+        } catch (e) {
+            // Probably not in a request context (e.g. background job)
+        }
 
         // Get user's tenant scope
         const scope = await getUserTenantScope(userId, preferredBranchId, preferredCompanyId);
