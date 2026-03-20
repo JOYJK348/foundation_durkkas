@@ -9947,3 +9947,115 @@
   "count": 2
 }
 [2026-03-20T05:33:06.794Z] Request complete, sending successResponse 
+[2026-03-20T05:52:26.257Z] Starting GET request 
+[2026-03-20T05:52:26.263Z] Starting GET request 
+[2026-03-20T05:52:26.266Z] User ID resolved {
+  "userId": 470
+}
+[2026-03-20T05:52:26.270Z] User ID resolved {
+  "userId": 470
+}
+[2026-03-20T05:52:26.716Z] Tenant scope resolved {
+  "scope": {
+    "userId": 470,
+    "roleLevel": 1,
+    "roleName": "STUDENT",
+    "roleType": "PRODUCT",
+    "companyId": 13,
+    "branchId": 46,
+    "isScoped": true,
+    "selectionReason": "Highest in Company 13",
+    "emsProfile": {
+      "profileType": "student",
+      "profileId": 41
+    }
+  }
+}
+[2026-03-20T05:52:26.717Z] Resolving student record... 
+[2026-03-20T05:52:26.723Z] Tenant scope resolved {
+  "scope": {
+    "userId": 470,
+    "roleLevel": 1,
+    "roleName": "STUDENT",
+    "roleType": "PRODUCT",
+    "companyId": 13,
+    "branchId": 46,
+    "isScoped": true,
+    "selectionReason": "Highest in Company 13",
+    "emsProfile": {
+      "profileType": "student",
+      "profileId": 41
+    }
+  }
+}
+[2026-03-20T05:52:26.725Z] Resolving student record... 
+[2026-03-20T05:52:26.915Z] Target Student Identified {
+  "studentId": 41,
+  "companyId": 13
+}
+[2026-03-20T05:52:26.916Z] Fetching enrollments... 
+[2026-03-20T05:52:26.922Z] Target Student Identified {
+  "studentId": 41,
+  "companyId": 13
+}
+[2026-03-20T05:52:26.922Z] Fetching enrollments... 
+[2026-03-20T05:52:27.134Z] Enrollments fetched {
+  "count": 6
+}
+[2026-03-20T05:52:27.135Z] Fetching assignments... 
+[2026-03-20T05:52:27.140Z] Enrollments fetched {
+  "count": 6
+}
+[2026-03-20T05:52:27.144Z] Fetching assignments... 
+[2026-03-20T05:52:27.322Z] Assignments fetched {
+  "count": 10
+}
+[2026-03-20T05:52:27.323Z] Fetching submissions... 
+[2026-03-20T05:52:27.345Z] Assignments fetched {
+  "count": 10
+}
+[2026-03-20T05:52:27.346Z] Fetching submissions... 
+[2026-03-20T05:52:27.494Z] Submissions processed 
+[2026-03-20T05:52:27.495Z] Fetching quizzes... 
+[2026-03-20T05:52:27.512Z] Submissions processed 
+[2026-03-20T05:52:27.512Z] Fetching quizzes... 
+[2026-03-20T05:52:27.819Z] Quizzes processed {
+  "count": 9
+}
+[2026-03-20T05:52:27.821Z] Fetching live classes... 
+[2026-03-20T05:52:27.862Z] Quizzes processed {
+  "count": 9
+}
+[2026-03-20T05:52:27.863Z] Fetching live classes... 
+[2026-03-20T05:52:27.998Z] Live classes fetched and mapped {
+  "count": 0
+}
+[2026-03-20T05:52:27.999Z] Fetching attendance... 
+[2026-03-20T05:52:28.049Z] Live classes fetched and mapped {
+  "count": 0
+}
+[2026-03-20T05:52:28.050Z] Fetching attendance... 
+[2026-03-20T05:52:28.539Z] Attendance sessions fetched {
+  "count": 0
+}
+[2026-03-20T05:52:28.541Z] Fetching recent materials... 
+[2026-03-20T05:52:28.545Z] Attendance sessions fetched {
+  "count": 0
+}
+[2026-03-20T05:52:28.546Z] Fetching recent materials... 
+[2026-03-20T05:52:28.717Z] Recent materials fetched {
+  "count": 5
+}
+[2026-03-20T05:52:28.718Z] Fetching available courses... 
+[2026-03-20T05:52:28.728Z] Recent materials fetched {
+  "count": 5
+}
+[2026-03-20T05:52:28.729Z] Fetching available courses... 
+[2026-03-20T05:52:28.899Z] Available courses fetched {
+  "count": 2
+}
+[2026-03-20T05:52:28.902Z] Request complete, sending successResponse 
+[2026-03-20T05:52:28.916Z] Available courses fetched {
+  "count": 2
+}
+[2026-03-20T05:52:28.917Z] Request complete, sending successResponse 

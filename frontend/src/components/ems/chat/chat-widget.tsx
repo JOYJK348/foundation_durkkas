@@ -88,9 +88,12 @@ export function ChatWidget() {
         return common;
     };
 
-    const handleSend = async (overrideMessage?: string) => {
-        const textToSend = overrideMessage || message;
-        if (!textToSend.trim()) return;
+    const handleSend = async (overrideMessage?: string | React.MouseEvent) => {
+        // If overrideMessage is a string (from starter questions), use it.
+        // Otherwise use the value from 'message' state.
+        const textToSend = typeof overrideMessage === "string" ? overrideMessage : message;
+        
+        if (!textToSend || !textToSend.trim()) return;
 
         const newUserMessage: Message = {
             id: Date.now().toString(),
