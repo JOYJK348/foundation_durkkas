@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
+import api from "@/lib/api";
 
 interface Message {
     id: string;
@@ -107,22 +108,19 @@ export function ChatWidget() {
         setIsTyping(true);
 
         try {
-            // Updated to call our new real-world OpenRouter backend
-            const response = await fetch("http://localhost:3000/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: textToSend,
-                    context: {
-                        portal: pathname,
-                        role: user?.role?.name,
-                        userName: user?.display_name,
-                        level: user?.role?.level
-                    }
-                })
+            // Use our centralized 'api' instance instead of raw fetch
+            // This handles the dynamic URL (Local/IP/Vercel) automatically
+            const response = await api.post("/chat", {
+                message: textToSend,
+                context: {
+                    portal: pathname,
+                    role: user?.role?.name,
+                    userName: user?.display_name,
+                    level: user?.role?.level
+                }
             });
 
-            const data = await response.json();
+            const data = response.data;
             
             const botResponse: Message = {
                 id: (Date.now() + 1).toString(),
